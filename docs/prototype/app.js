@@ -11,7 +11,7 @@
     ['home', '任务列表'], ['compact', '悬浮待命'], ['compose', '输入任务'],
     ['scheduled-demo', '创建定时任务'], ['slash-demo', 'Slash 引用 Skill'], ['attention', '需要你确认'],
     ['session', '会话跳转'], ['release-demo', 'QA 发布确认'],
-    ['incident-demo', '故障排查'], ['resume-demo', '失败后续办'],
+    ['incident-demo', '故障排查'], ['resume-demo', '失败后回到会话'],
     ['inbox', '通知收件箱'], ['schedules', '定时计划'],
     ['skills', 'Skill 目录'], ['memory', '经验与草稿'], ['voice', '语音输入']
   ];
@@ -20,7 +20,7 @@
     {
       id: 'TASK-219', goal: '把 feature/payment 发布到 QA', title: 'feature/payment 发布 QA',
       status: 'needs_attention', kind: 'release', intent: 'deploy_to_qa', agent: 'Claude Code',
-      skill: 'deploy-to-qa', project: 'customer-web', source: '用户派发', run: 'RUN-1', session: 'cld-qa219',
+      skill: 'deploy-to-qa', project: 'customer-web', source: '用户派发', session: 'cld-qa219',
       summary: '发布准备已完成，等待你在 Claude Code 中确认部署。', attention: {
         type: 'approval', prompt: '是否允许推送 QA 分支并触发部署？',
         detail: '将 feature/payment 更新到远端 QA 分支，然后启动部署流程。'
@@ -30,14 +30,14 @@
     {
       id: 'INC-482', goal: '排查线上结算页白屏', title: '线上结算页白屏',
       status: 'running', kind: 'incident', intent: 'investigate_incident', agent: 'Claude Code',
-      skill: 'incident-investigation', project: 'customer-web', source: 'Sentry 告警', run: 'RUN-1',
+      skill: 'incident-investigation', project: 'customer-web', source: 'Sentry 告警',
       session: 'cld-7f2b', summary: '正在检查线上告警与结算页代码。', attention: null,
       events: ['告警触发 Task', 'Rover 选中 incident-investigation', 'Claude Code Session 正在分析']
     },
     {
       id: 'TASK-216', goal: '每天 09:30 检查支付链路告警', title: '设置支付链路健康巡检',
       status: 'completed', kind: 'scheduled', intent: 'create_scheduled_task', agent: 'Claude Code',
-      skill: 'scheduled-task', project: 'customer-web', source: '用户派发', run: 'RUN-1',
+      skill: 'scheduled-task', project: 'customer-web', source: '用户派发',
       session: 'cld-sched216', summary: '计划已创建：每天 09:30', attention: null,
       result: '已设置每天 09:30 检查支付链路告警；首次触发后会生成新的 Task。',
       resultMd: '**已创建并验证定时计划**\n\n- 每天 **09:30** 检查支付链路告警\n- 到时触发新的 Task，保留执行记录。',
@@ -46,11 +46,11 @@
     {
       id: 'TASK-215', goal: '复现登录失败问题', title: '登录问题复现',
       status: 'failed', kind: 'general', intent: 'general_task', agent: 'OpenCode',
-      skill: null, project: 'auth-service', source: '用户派发', run: 'RUN-1',
-      session: 'opc-215', summary: '执行器中断，可在原 Task 下重试', attention: null,
-      result: '尚未完成复现；已有的日志与上下文仍保存在原 Task。',
-      resultMd: '**未完成：执行器中断。**\n\n已保留日志与上下文；可在原 Task 下重试。',
-      events: ['Task 已创建并交给 OpenCode', '执行器中断；本次 Run 失败']
+      skill: null, project: 'auth-service', source: '用户派发',
+      session: 'opc-215', summary: 'API 请求失败，Agent 已停止处理', attention: null,
+      result: 'Agent 的 API 请求失败，登录问题尚未完成复现。',
+      resultMd: '**未完成：Agent 的 API 请求失败。**\n\n请到原 OpenCode Session 查看原因并继续处理。',
+      events: ['Task 已创建并交给 OpenCode', 'API 请求失败，Agent 停止处理；Task 记录失败']
     }
   ];
 
@@ -97,6 +97,7 @@
 
   const task = id => state.tasks.find(item => item.id === id);
   const current = () => task(state.selected) || state.tasks[0];
+  const attentionCount = () => state.tasks.filter(item => ['needs_attention', 'failed'].includes(item.status)).length;
   const status = value => ({
     queued: ['排队中', 'gray'], running: ['进行中', ''],
     needs_attention: ['需要你确认', 'warn'], completed: ['已完成', 'green'],
@@ -147,7 +148,7 @@
     const item = {
       id, title: selection.goal.slice(0, 36), goal: selection.goal,
       status: 'running', ...selection, project: state.project, source: '用户派发',
-      run: 'RUN-1', session: `${selection.agent === 'Codex' ? 'cdx' : selection.agent === 'OpenCode' ? 'opc' : 'cld'}-${next}`,
+      session: `${selection.agent === 'Codex' ? 'cdx' : selection.agent === 'OpenCode' ? 'opc' : 'cld'}-${next}`,
       summary: `${selection.agent} Session 已启动，正在理解任务目标。`, attention: null,
       events: [
         `${selection.routeMode === 'at_agent' ? '用户通过 @ 指定执行者，跳过自动业务 Skill 匹配' : selection.routeMode === 'slash_skill_at_agent' ? `用户指定 /${selection.skill} 和 @${selection.agent}` : selection.routeMode === 'slash_skill' ? `用户通过 /${selection.skill} 指定业务 Skill` : selection.skill ? `Rover 自动选中 ${selection.skill}` : 'Rover 未匹配到业务 Skill'}`,
@@ -165,6 +166,7 @@
   function requestAttention(item) {
     if (!item || item.status !== 'running') return;
     item.status = 'needs_attention';
+    item.errorNotice = false;
     item.attention = item.kind === 'release'
       ? { type: 'approval', prompt: '是否允许推送 QA 分支并触发部署？', detail: '将目标分支更新到远端 QA 分支，然后启动部署流程。' }
       : { type: 'input', prompt: item.kind === 'scheduled' ? '请告诉我执行时间和任务内容。' : '请补充我继续执行所需的信息。', detail: 'Agent 会在收到回答后继续当前 Session。' };
@@ -175,6 +177,7 @@
 
   function advanceProgress(item) {
     if (!item || item.status !== 'running') return;
+    item.errorNotice = false;
     const stages = item.kind === 'scheduled'
       ? ['正在核对执行频率与任务内容。', '已确定计划参数，正在验证创建结果。']
       : item.kind === 'release'
@@ -200,7 +203,7 @@
       item.status = 'running';
       item.summary = `${item.agent} 已收到你的决定，继续执行`;
       item.answer = answer;
-      item.events.push(`用户已在 Agent Session 中${item.attention.type === 'input' ? '补充信息' : '确认操作'}；Run 继续`);
+      item.events.push(`用户已在 Agent Session 中${item.attention.type === 'input' ? '补充信息' : '确认操作'}；Task 继续`);
     }
     item.attention = null;
     go('home');
@@ -209,6 +212,7 @@
   function finishTask(item) {
     if (!item || item.status !== 'running') return;
     item.status = 'completed';
+    item.errorNotice = false;
     item.result = item.kind === 'scheduled'
       ? `已设置${item.answer || '每天 09:30 执行目标任务'}，Agent 已验证计划。后续每次触发都会形成新的 Task。`
       : item.kind === 'release'
@@ -236,17 +240,45 @@
     go('home');
   }
 
-  function retryTask(item) {
-    if (!item || !['failed', 'cancelled'].includes(item.status)) return;
-    const number = Number(item.run.match(/\d+/)?.[0] || 1) + 1;
-    item.run = `RUN-${number}`;
-    item.session = `${item.agent === 'Codex' ? 'cdx' : item.agent === 'OpenCode' ? 'opc' : 'cld'}-${item.id.toLowerCase()}-${number}`;
+  function showRecoverableError(item) {
+    if (!item || item.status !== 'running') return;
+    item.errorNotice = true;
+    item.summary = 'Agent 遇到 API 错误，正在原会话中继续处理。';
+    item.events.push('Agent 的 API 调用报错；原 Session 仍在处理，Task 保持处理中');
+    go('home');
+    notify('Agent 遇到 API 错误，可查看原会话');
+  }
+
+  function failTask(item) {
+    if (!item || item.status !== 'running') return;
+    item.status = 'failed';
+    item.errorNotice = false;
+    item.summary = 'API 请求失败，Agent 已停止处理';
+    item.result = 'Agent 的 API 请求失败，任务尚未完成。';
+    item.resultMd = `**未完成：Agent 的 API 请求失败。**\n\n请到原 ${item.agent} Session 查看原因并继续处理。`;
+    item.events.push('API 请求失败，Agent 停止处理；Task 记录失败');
+    go('home');
+    notify('任务未完成，请到原 Agent 会话查看原因');
+  }
+
+  function resumeInSession(item) {
+    if (!item || item.status !== 'failed') return;
+    item.events.push(`此前失败：${item.result || item.summary}`);
     item.status = 'running';
     item.result = null;
     item.resultMd = null;
-    item.summary = `${item.agent} 已在原 Task 下开始新的 Run`;
-    item.events.push(`${item.run} 已启动；历史 Run 保留`);
+    item.summary = `${item.agent} 已在原 Session 中继续处理。`;
+    item.events.push('Agent 在原 Session 中继续；同一 Task 返回处理中');
     go('home');
+  }
+
+  function markSessionUnavailable(item) {
+    if (!item || item.status !== 'failed') return;
+    item.sessionAvailable = false;
+    item.resultMd = `**原会话不可用。**\n\n${item.result || '任务尚未完成。'} Rover 已保留失败记录。`;
+    item.events.push('原 Agent Session 无法打开；Task 保留失败记录');
+    go('home');
+    notify('原 Agent 会话不可用，任务记录已保留');
   }
 
   function go(view) {
@@ -259,9 +291,9 @@
   function taskCard(item) {
     if (!item) return '';
     const finished = ['completed', 'failed', 'cancelled'].includes(item.status);
-    return `<article class="task-card task-summary-card ${finished ? 'is-finished' : 'is-processing'}" data-task="${esc(item.id)}"><button class="task-open" data-task="${esc(item.id)}" aria-label="打开 ${esc(item.goal)} 对应的 Agent Session">${esc(item.goal)}</button>${finished
-      ? `<div class="task-markdown">${renderMarkdown(item.resultMd || item.result || item.summary)}</div><button class="action session-link" data-session-link="${esc(item.id)}">查看会话</button>`
-      : `<div class="task-progress-row"><p class="task-progress">${esc(item.summary || '等待 Agent 更新状态。')}</p>${item.status === 'needs_attention' ? `<button class="action primary" data-confirm="${esc(item.id)}">去确认</button>` : ''}</div>`}</article>`;
+    return `<article class="task-card task-summary-card ${finished ? 'is-finished' : 'is-processing'}" data-task="${esc(item.id)}"><button class="task-open" data-task="${esc(item.id)}" aria-label="${item.sessionAvailable === false ? `查看 ${esc(item.goal)} 的会话不可用说明` : `打开 ${esc(item.goal)} 对应的 Agent Session`}">${esc(item.goal)}</button>${finished
+      ? `<div class="task-markdown">${renderMarkdown(item.resultMd || item.result || item.summary)}</div>${item.sessionAvailable === false ? '<span class="status warn">会话不可用</span>' : `<button class="action session-link" data-session-link="${esc(item.id)}">查看会话</button>`}`
+      : `<div class="task-progress-row"><p class="task-progress">${esc(item.summary || '等待 Agent 更新状态。')}</p>${item.status === 'needs_attention' ? `<button class="action primary" data-confirm="${esc(item.id)}">去确认</button>` : item.errorNotice ? `<button class="action" data-session-link="${esc(item.id)}">查看会话</button>` : ''}</div>`}</article>`;
   }
 
   function composer() {
@@ -280,7 +312,7 @@
   }
 
   function compact() {
-    const count = state.tasks.filter(item => item.status === 'needs_attention').length;
+    const count = attentionCount();
     return `<div class="compact-controls"><button data-action="compose" aria-label="输入任务">${icons.compose}</button><button data-action="voice" aria-label="语音输入">${icons.voice}</button><button data-action="inbox" aria-label="通知">${icons.bell}${count ? `<em>${count}</em>` : ''}</button></div>`;
   }
 
@@ -295,7 +327,7 @@
   function inbox() {
     const urgent = state.tasks.filter(item => item.status === 'needs_attention');
     const failed = state.tasks.filter(item => item.status === 'failed');
-    return `${back('返回')}<div class="surface"><h1>需要你处理</h1><p>点击任务或「去确认」，直接定位到对应 Agent Session。</p></div><div class="list task-list">${[...urgent, ...failed].map(taskCard).join('') || '<div class="surface"><p>当前没有需要处理的任务。</p></div>'}</div>`;
+    return `${back('返回')}<div class="surface"><h1>需要你处理</h1><p>点击任务或卡片上的会话入口，查看原 Agent Session 或不可用说明。</p></div><div class="list task-list">${[...urgent, ...failed].map(taskCard).join('') || '<div class="surface"><p>当前没有需要处理的任务。</p></div>'}</div>`;
   }
 
   function taskView() {
@@ -306,20 +338,23 @@
       <p>${esc(item.id)} · ${esc(item.source)} · ${esc(item.project)}</p>
       ${['completed', 'failed', 'cancelled'].includes(item.status) ? `<div class="result-panel task-markdown">${renderMarkdown(item.resultMd || item.result || item.summary)}</div>` : `<p class="task-progress">${esc(item.summary)}</p>`}
       <div class="fine-line"></div><div class="overline">派发与 Skill</div><div class="info-grid"><div>入口<strong>${esc(({ auto_skill: 'Rover 自动判断', auto_dispatch: '普通任务派发', slash_skill: '/Skill 显式引用', slash_skill_at_agent: '/Skill + @Agent', at_agent: '@Agent 直接派发' })[item.routeMode] || '历史任务')}</strong></div><div>执行者<strong>${esc(item.agent)}</strong></div><div>业务 Skill<strong>${esc(item.skill || '未选用')}</strong></div><div>内置 Skill<strong>agent-dispatch · pet-task-state</strong></div></div>
-      <div class="meta-row"><span>${esc(item.run)}</span><span>Session ${esc(item.session)}</span>${skills.map(name => `<span>${esc(name)}/SKILL.md</span>`).join('')}</div>
-      <div class="actions">${button('查看会话', 'session', 'primary')}${item.status === 'completed' ? button('查看经验与 Skill 草稿', 'memory') : ''}</div></div>
-      <div class="surface"><div class="overline">Task / Run 记录</div><div class="event-list">${item.events.map(event => `<div class="event"><b>${esc(event)}</b></div>`).join('')}</div></div>`;
+      <div class="meta-row"><span>Session ${esc(item.session)}</span>${skills.map(name => `<span>${esc(name)}/SKILL.md</span>`).join('')}</div>
+      <div class="actions">${item.sessionAvailable === false ? '<span class="status warn">会话不可用</span>' : button('查看会话', 'session', 'primary')}${item.status === 'completed' ? button('查看经验与 Skill 草稿', 'memory') : ''}</div></div>
+      <div class="surface"><div class="overline">Task 记录</div><div class="event-list">${item.events.map(event => `<div class="event"><b>${esc(event)}</b></div>`).join('')}</div></div>`;
   }
 
   function session() {
     const item = current();
+    if (item.sessionAvailable === false) {
+      return `${back('返回任务列表')}<div class="surface"><div class="overline">会话不可用</div><h1>无法打开原 Agent Session</h1><p>${esc(item.agent)} 的 ${esc(item.session)} 当前不可访问。Rover 已保留该 Task 的失败结果和事件记录。</p><div class="actions">${button('查看 Task 记录', 'task')}</div></div>`;
+    }
     const controls = item.status === 'running'
-      ? `${button('模拟进度更新', 'advance-progress')}${button('模拟 Agent 请求用户', 'request-attention')}${button('模拟 Agent 完成', 'finish-task', 'primary')}`
+      ? `${button('模拟进度更新', 'advance-progress')}${button('模拟可恢复 API 错误', 'recoverable-error')}${button('模拟 API 错误后停止', 'fail-task')}${button('模拟 Agent 请求用户', 'request-attention')}${button('模拟 Agent 完成', 'finish-task', 'primary')}`
       : item.status === 'needs_attention'
         ? `${button('模拟在 Agent 中完成确认', 'session-resolve', 'primary')}${button('模拟在 Agent 中取消', 'session-cancel', 'danger')}`
-        : ['failed', 'cancelled'].includes(item.status)
-          ? button('在原 Task 下重试', 'retry-task', 'primary') : '';
-    return `${back('返回任务列表')}<div class="surface"><div class="handoff-title">会话跳转占位 · ${esc(item.agent)}</div><h1>已定位到原 Agent Session</h1><p>真实产品在 ${esc(item.agent)} 中打开 ${esc(item.session)}。Rover 只保留跳转入口与任务摘要，不展示会话内容。</p><div class="conversation-meta"><span>${esc(item.id)}</span><span>${esc(item.run)}</span><span>${esc(item.session)}</span></div></div>
+        : item.status === 'failed'
+          ? `${button('模拟 Agent 在原会话继续', 'resume-session', 'primary')}${button('模拟原会话不可用', 'unavailable-session')}` : '';
+    return `${back('返回任务列表')}<div class="surface"><div class="handoff-title">会话跳转占位 · ${esc(item.agent)}</div><h1>已定位到原 Agent Session</h1><p>真实产品在 ${esc(item.agent)} 中打开 ${esc(item.session)}。Rover 只保留跳转入口与任务摘要，不展示会话内容。</p><div class="conversation-meta"><span>${esc(item.id)}</span><span>${esc(item.session)}</span></div></div>
       <div class="surface"><div class="overline">原型事件控制</div><p>下列按钮只模拟 Coding Agent 的状态回报和用户在原会话中的操作。</p><div class="actions">${controls}${button('查看 Task 记录', 'task')}</div></div>`;
   }
 
@@ -330,7 +365,7 @@
   function skills() {
     const registry = [
       ['agent-dispatch', '内置', '指导 Rover 选择专业 Agent、派发目标并关联 Task 与 Session。'],
-      ['pet-task-state', '内置', '指导 Agent 报告任务进度、用户介入与结果。每个 Run 都可获得。'],
+      ['pet-task-state', '内置', '指导 Agent 报告任务进度、用户介入与结果。每个 Task 对应的 Agent 都可获得。'],
       ['scheduled-task', '业务', '创建、修改与验证定时任务；缺信息时在 Session 提问。'],
       ['deploy-to-qa', '业务', '处理 QA 发布目标；需要用户决定时在 Session 发起请求。'],
       ['incident-investigation', '业务', '排查告警与故障，保留原因和证据。']
@@ -351,7 +386,7 @@
 
   function renderChrome() {
     $('#roverShell').classList.toggle('session-view', state.view === 'session');
-    const urgent = state.tasks.filter(item => item.status === 'needs_attention').length;
+    const urgent = attentionCount();
     const hint = state.view === 'task' && current().status === 'completed' ? '任务结果已记录' : '';
     $('#petArea').innerHTML = `<img class="pet" src="./assets/rover-pet.png" alt="Rover 桌面宠物，拖动可移动，点击可收起或展开" draggable="false" data-action="pet">${urgent ? `<span class="pet-attention">${urgent}</span>` : ''}${hint ? `<span class="pet-hint">${hint}</span>` : ''}`;
     $('#sceneMenu').classList.toggle('hidden', !state.menu);
@@ -473,10 +508,13 @@
       }
       case 'request-attention': requestAttention(item); break;
       case 'advance-progress': advanceProgress(item); break;
+      case 'recoverable-error': showRecoverableError(item); break;
+      case 'fail-task': failTask(item); break;
       case 'session-resolve': resolveAttention(item, item.kind === 'scheduled' ? '每天 09:30 检查支付链路告警' : '已在原 Session 确认'); break;
       case 'session-cancel': resolveAttention(item, '', true); break;
       case 'finish-task': finishTask(item); break;
-      case 'retry-task': retryTask(item); break;
+      case 'resume-session': resumeInSession(item); break;
+      case 'unavailable-session': markSessionUnavailable(item); break;
       case 'simulate-voice': state.voiceText = '@Claude Code 帮我设置每天 09:30 的支付链路巡检'; render(); break;
       case 'review-voice': state.draft = state.voiceText; go('compose'); break;
       case 'save-draft': state.skillDraft.status = 'saved'; go('skills'); break;
