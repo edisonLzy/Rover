@@ -8,7 +8,7 @@ Rover Agent 接收用户输入，直接回答或按照 Skill 处理；需要本�
 一次用户输入及 Rover 对它的即时回复、澄清问题、能力说明或派发结果。Rover 给出其中一种结果后，本轮处理结束；已派发 Task 的执行不延长这一回合。回合只是界面和执行周期的边界，不创建新的 Agent history。界面只呈现当前回合，不提供 Rover 会话列表。
 
 **Rover Agent history**:
-同一个 Rover Agent 持续维护的消息历史。每条真正提交给 Agent 的用户 Prompt，以及对应的 Agent 输出与工具消息，都追加到这份已有 history。用户补充澄清信息或开始另一个目标时也沿用它；仅在上下文窗口接近限制时进行 compaction。
+Rover Agent 跨用户目标持续使用的全局上下文，不按项目划分。用户补充澄清信息或开始另一个目标时仍沿用这份上下文；回忆旧任务时，检索到的 Task 摘要可作为本轮工具结果进入 history。它不是 Task 与 Session 关联的事实来源。
 
 **待处理 Prompt**:
 用户在 Rover 输入回合进行中提交、由宠物界面按顺序暂存的后续输入。它尚未交给 Rover Agent，不进入 Rover Agent history，也不形成 Task。当前回合结束后，界面询问是否继续；用户确认时才将下一条追加到同一份 history 并开始下一轮处理。暂存和继续确认属于界面交互，不属于 Rover Agent Loop。
@@ -23,24 +23,24 @@ Rover 使用自身可用能力直接给出的答复。它结束当前输入回�
 桌面上的轻量交互入口，包含悬浮待命的宠物、当前气泡、输入框和任务列表。输入框可在已有 Task 运行时继续接收新目标。
 
 **Dashboard（管理面板）**:
-独立于宠物区域的管理界面，集中呈现 Skill 目录、定时计划、本地经验、Skill 草稿及需关注事项。
+独立于宠物区域的管理界面，集中呈现 Skill 目录、定时计划及运行日志、最近活动、模型配置、本地数据删除及需关注事项。
 
 ## 任务与会话
 
 **Rover Agent**:
-接收用户输入的 Agent。它可直接回答、提出澄清问题，或选用 Skill 处理目标；派发 Code Agent 是它通过内置 Skill 完成的一种路径。
+接收用户输入的全局桌面 Agent，不隶属于某个项目。它可直接回答、提出澄清问题，或选用 Skill 处理目标；派发 Code Agent 是由 Skill 流程决定的处理路径。
 
 **Code Agent（本地 Code Agent）**:
 在本地 Session 中理解、澄清并执行目标的 Agent，例如 Claude Code 或 Codex。
 
 **Task（任务）**:
-一个 Code Agent Session 在 Rover 中的展示与记录抽象。Task 与 Session 一对一；其状态和结果反映该 Session。没有创建 Code Agent Session 的 Rover 回答或 Skill 处理不产生 Task。用户在同一 Session 中处理失败并继续执行时，仍是同一 Task。
+经 Skill 派发而建立的一个 Code Agent Session 在 Rover 中的展示与记录抽象。Task 与 Session 一对一；其状态和结果反映该 Session。没有创建 Code Agent Session 的 Rover 回答或 Skill 处理不产生 Task。同一 Session 即使在结束后继续处理，仍更新同一 Task。
 
 **Agent Session（Agent 会话）**:
-由 Code Agent 提供、与一个 Task 一对一关联的交互上下文，承载用户与 Agent 对目标的讨论、操作、执行和继续处理。
+由 Code Agent 提供、与一个 Task 一对一关联的交互上下文，承载用户与 Agent 对目标的讨论、操作、执行和继续处理。Task 建立后，用户对该目标的补充进入此 Session；Rover 输入不会给它追加指令。
 
-**后续 Task（Follow-up Task）**:
-用户对已有 Task 提出需要 Code Agent 执行的后续目标时，Rover Agent 启动新的 Session 并建立新 Task，记录来源 Task。原 Task 的状态与结果保持独立。用户为完成原目标而在原 Session 回答问题或确认操作，仍属于原 Task。
+**Task 摘要（可引用摘要）**:
+Code Agent 在所属 Session 中按需写出的任务内容总结，供 Rover 在用户回忆过往工作或提出相关新需求时检索。它可能不存在；Rover 不从 Session 状态、Task 卡片文案或旧对话自行补写。检索是否命中不决定新需求能否派发。
 
 **会话不可用**:
 Task 所关联的原 Agent Session 无法打开的状态。它描述会话入口，不等同于任务执行失败。
@@ -63,6 +63,9 @@ _Avoid_: 完成摘要
 
 ## 派发与 Skill
 
+**目标仓库**:
+某次请求需要查询或处理的代码仓库，由该次请求明确指定或在澄清后确定。它不构成 Rover 的项目对象。
+
 **Agent 派发**:
 Rover Agent 依照内置派发 Skill 选择 Code Agent、启动 Session，并为该 Session 注册一对一 Task 的过程。
 
@@ -70,10 +73,10 @@ Rover Agent 依照内置派发 Skill 选择 Code Agent、启动 Session，并为
 用户在输入中明确选定业务 Skill 的方式；它指定处理流程，而不是执行者，也不必然创建 Task。
 
 **`@Agent`（显式 Agent 指定）**:
-用户在目标中明确选定 Code Agent 的输入方式；它指定执行者，而不是业务 Skill。
+用户在目标中明确选定 Code Agent 的输入方式；它指定执行者，并要求 Rover 派发对应的 Session，而不是指定业务 Skill。
 
 **Skill Package（Skill）**:
-供 Rover Agent 或 Code Agent 使用的可复用做法与资源集合。Skill 定义处理步骤；它可以让 Rover 直接完成目标，也可以调用派发路径启动 Code Agent Session。选中 Skill 本身不必然创建 Task，也不代表额外权限。
+供 Rover Agent 或 Code Agent 使用的可复用做法与资源集合。Skill 定义处理步骤；它可以让 Rover 直接完成目标，也可以派发一个或多个 Code Agent Session。选中 Skill 本身不必然创建 Task，也不代表额外权限。
 
 **业务 Skill**:
 面向某类用户目标的 Skill Package，可由 Rover Agent 为普通输入匹配，或由用户明确指定；是否启动 Code Agent Session 由该 Skill 的流程决定。
@@ -84,16 +87,25 @@ Rover Agent 依照内置派发 Skill 选择 Code Agent、启动 Session，并为
 **`agent-dispatch`**:
 供 Rover Agent 使用的内置 Skill，指导它选择 Code Agent、启动 Session，并注册对应 Task。
 
+**`task-recall`**:
+供 Rover Agent 使用的内置 Skill，依据用户的自然语言线索或 Task ID 检索本地可引用 Task 摘要，并把查得的内容用于当前输入回合。仅检索和回答时不创建 Code Agent Session 或 Task；派发新需求时，命中摘要可作为补充背景。
+
 **`pet-task-state`**:
 指导 Code Agent 回报 Session 进度、用户介入与结果，供 Rover 映射为 Task 状态的内置 Skill。
 
 **Skill 目录**:
-Rover 已索引、可供 Rover Agent 或 Code Agent 选用的 Skill Package 集合；未经审阅保存的 Skill Draft 不在其中。
+Rover 已索引、可供 Rover Agent 或 Code Agent 选用的 Skill Package 集合。
 
-**Skill Draft（Skill 草稿）**:
-从一次或多次 Agent Session 中提炼出的候选 Skill。经用户审阅并保存后，它才成为可用的 Skill Package。
+## 定时运行
 
-## 经验
+**定时计划**:
+由 Rover 管理、约定在未来时间触发处理的安排。计划本身不是 Task；只有触发处理时建立了 Code Agent Session，才出现对应 Task。
 
-**Episode（本地经验）**:
-Task 结束后形成的经验记录，保留来源、结果、证据及适用范围。它是后续任务的线索，不是无需验证的结论。
+**计划运行记录**:
+定时计划一次触发的结果记录，无论该次处理是否建立 Code Agent Session。建立 Session 时，它关联对应 Task；未建立 Session 时，它仍保留触发结果。
+
+## 最近活动
+
+**最近活动记录**:
+Rover 对近期已结束 Task 的结果及自身实际完成的操作所作的本地记录。它回答「最近做了什么」，不包含普通问候和问答，也不代表可复用的处理方法。
+_Avoid_: Episode、本地经验

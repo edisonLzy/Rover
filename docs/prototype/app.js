@@ -10,56 +10,57 @@
   const scenarios = [
     ['home', '任务列表'], ['compact', '悬浮待命'], ['compose', '输入问题或任务'],
     ['answer-demo', 'Rover 直接回答'], ['queue-demo', '连续输入与继续确认'], ['clarify-queue-demo', '澄清时排队'], ['rover-skill-demo', 'Rover 执行 Skill'], ['clarify-demo', 'Rover 询问补充'], ['weather-demo', '天气能力说明'],
-    ['general-demo', '无 Skill 派发'], ['followup-demo', '创建后续任务'],
+    ['general-demo', '无 Skill 派发'], ['followup-demo', '返回原任务会话'], ['recall-demo', '自然语言回忆 Task'], ['context-demo', '@Agent 历史背景增强'],
     ['scheduled-demo', '创建定时任务'], ['slash-demo', 'Slash 引用 Skill'], ['attention', '需要你确认'],
     ['session', '会话跳转'], ['release-demo', 'QA 发布确认'],
     ['incident-demo', '故障排查'], ['resume-demo', '失败后回到会话'],
     ['dashboard', '管理面板'], ['inbox', '通知收件箱'], ['schedules', '定时计划'],
-    ['skills', 'Skill 目录'], ['memory', '经验与草稿'], ['voice', '语音输入']
+    ['skills', 'Skill 目录'], ['memory', '最近活动'], ['model-settings', '模型配置'], ['local-data', '本地数据'], ['voice', '语音输入']
   ];
 
   const initialTasks = () => [
     {
       id: 'TASK-219', goal: '把 feature/payment 发布到 QA', title: 'feature/payment 发布 QA',
       status: 'needs_attention', kind: 'release', intent: 'deploy_to_qa', agent: 'Claude Code',
-      skill: 'deploy-to-qa', project: 'customer-web', source: '用户派发', session: 'cld-qa219',
+      skill: 'deploy-to-qa', targetRepo: 'customer-web', source: '用户派发', session: 'cld-qa219',
       summary: '发布准备已完成，等待你在 Claude Code 中确认部署。', attention: {
         type: 'approval', prompt: '是否允许推送 QA 分支并触发部署？',
         detail: '将 feature/payment 更新到远端 QA 分支，然后启动部署流程。'
       },
-      events: ['Task 已创建；Rover 选中 deploy-to-qa', 'Claude Code Session 已启动', 'Agent 在 Session 请求用户确认']
+      savedSummary: '支付功能 QA 发布准备已完成，正在等待用户确认推送 QA 分支并触发部署；尚未执行部署。',
+      events: ['Task 已创建；Rover 选中 deploy-to-qa', 'Claude Code Session 已启动', 'Agent 已保存可引用 Task 摘要', 'Agent 在 Session 请求用户确认']
     },
     {
       id: 'INC-482', goal: '排查线上结算页白屏', title: '线上结算页白屏',
       status: 'running', kind: 'incident', intent: 'investigate_incident', agent: 'Claude Code',
-      skill: 'incident-investigation', project: 'customer-web', source: 'Sentry 告警',
+      skill: 'incident-investigation', targetRepo: 'customer-web', source: 'Sentry 告警',
       session: 'cld-7f2b', summary: '正在检查线上告警与结算页代码。', attention: null,
       events: ['告警触发 Task', 'Rover 选中 incident-investigation', 'Claude Code Session 正在分析']
     },
     {
       id: 'TASK-216', goal: '每天 09:30 检查支付链路告警', title: '设置支付链路健康巡检',
       status: 'completed', kind: 'scheduled', intent: 'create_scheduled_task', agent: 'Claude Code',
-      skill: 'scheduled-task', project: 'customer-web', source: '用户派发',
+      skill: 'scheduled-task', targetRepo: 'customer-web', source: '用户派发',
       session: 'cld-sched216', summary: '计划已创建：每天 09:30', attention: null,
-      result: '已设置每天 09:30 检查支付链路告警；首次触发后会生成新的 Task。',
-      resultMd: '**已创建并验证定时计划**\n\n- 每天 **09:30** 检查支付链路告警\n- 到时触发新的 Task，保留执行记录。',
+      result: '已设置每天 09:30 检查支付链路告警；本演示的触发流程会派发 Code Agent。',
+      savedSummary: '已创建每天 09:30 检查支付链路告警的定时计划，触发时由 Rover 按保存的 Skill 流程处理。',
+      resultMd: '**已创建并验证定时计划**\n\n- 每天 **09:30** 检查支付链路告警\n- 本演示的触发流程会派发新 Session 和 Task。',
       events: ['Rover 选中 scheduled-task', 'Agent 在 Session 确认时间与内容', 'Agent 验证计划已创建', '结果已记录在 Task']
     },
     {
       id: 'TASK-215', goal: '复现登录失败问题', title: '登录问题复现',
-      status: 'failed', kind: 'general', intent: 'general_task', agent: 'OpenCode',
-      skill: null, project: 'auth-service', source: '用户派发',
-      session: 'opc-215', summary: 'API 请求失败，Agent 已停止处理', attention: null,
+      status: 'failed', kind: 'general', intent: 'general_task', agent: 'Codex',
+      skill: null, targetRepo: 'auth-service', source: '用户派发',
+      session: 'cdx-215', summary: 'API 请求失败，Agent 已停止处理', attention: null,
       result: 'Agent 的 API 请求失败，登录问题尚未完成复现。',
-      resultMd: '**未完成：Agent 的 API 请求失败。**\n\n请到原 OpenCode Session 查看原因并继续处理。',
-      events: ['Task 已创建并交给 OpenCode', 'API 请求失败，Agent 停止处理；Task 记录失败']
+      resultMd: '**未完成：Agent 的 API 请求失败。**\n\n请到原 Codex Session 查看原因并继续处理。',
+      events: ['Task 已创建并交给 Codex', 'API 请求失败，Agent 停止处理；Task 记录失败']
     }
   ];
 
-  const initialEpisodes = () => [{
+  const initialActivities = () => [{
     taskId: 'TASK-216', title: '支付链路巡检计划',
-    summary: '确认频率与检查内容后创建计划，并验证首次触发方式。',
-    scope: '适用于重复巡检；具体告警源仍需逐次确认。'
+    summary: '已创建并验证每天 09:30 的支付链路巡检计划。', status: 'completed'
   }];
 
   const positionKey = 'roverDesktopPetPositionV1';
@@ -89,18 +90,18 @@
   }
 
   const state = {
-    view: 'compact', petMode: 'compact', menu: false, plus: false, draft: '', agent: '自动分派', project: 'customer-web',
-    selected: 'TASK-219', tasks: initialTasks(), episodes: initialEpisodes(),
-    speech: null, pendingClarification: null, pendingFollowup: null, lastDispatchedTaskId: null,
+    view: 'compact', petMode: 'compact', menu: false, plus: false, draft: '', agent: '自动分派',
+    selected: 'TASK-219', tasks: initialTasks(), activities: initialActivities(),
+    speech: null, pendingClarification: null, pendingSessionChoice: false, lastDispatchedTaskId: null,
     replyMode: false, isDeciding: false, pendingPrompts: [], queueDeferred: false, queueReplyMode: false,
     roverHistory: [],
-    schedules: [{ title: '支付链路健康巡检', rule: '每天 09:30', sourceTask: 'TASK-216' }],
-    skillDraft: { sourceTask: 'TASK-216', name: 'payment-health-check', status: 'draft' },
+    schedules: [{ title: '支付链路健康巡检', rule: '每天 09:30', sourceTask: 'TASK-216', status: 'active' }],
+    scheduleRuns: [], pendingScheduleDelete: null, modelConfig: { provider: 'OpenAI', model: 'gpt-5', endpoint: '' }, deleteReview: false,
     voiceText: '', toast: '', petAnchor: savedPosition()
   };
   let toastTimer, decisionTimer, speechTimer, decisionToken = 0, speechRevision = 0, nextPromptId = 1;
   let zoomMode = 'fit', drag = null, lastDragAt = 0;
-  const transientSpeech = new Set(['thinking', 'clarify', 'followup-choice', 'dispatched', 'attention', 'warning']);
+  const transientSpeech = new Set(['thinking', 'clarify', 'session-choice', 'session-guide', 'dispatched', 'attention', 'warning']);
 
   const task = id => state.tasks.find(item => item.id === id);
   const current = () => task(state.selected) || state.tasks[0];
@@ -142,14 +143,35 @@
     }, 10000);
   }
 
+  function findRelatedTask(goal) {
+    const explicitId = goal.match(/\b(?:TASK|INC)-\d+\b/i)?.[0].toUpperCase();
+    if (explicitId) return { item: task(explicitId), explicitId };
+    const hints = ['支付', 'QA', '发布', '功能', '巡检', '告警', '白屏', '结算', '登录', '测试'];
+    const mentioned = hints.filter(hint => goal.includes(hint));
+    if (!mentioned.length) return { item: state.lastDispatchedTaskId ? task(state.lastDispatchedTaskId) : null };
+    const ranked = state.tasks.map(item => ({ item, score: mentioned.filter(hint => `${item.goal} ${item.title} ${item.savedSummary || ''}`.includes(hint)).length }))
+      .filter(match => match.score > 0).sort((left, right) => right.score - left.score);
+    if (ranked.length > 1 && ranked[0].score === ranked[1].score) return { ambiguous: true };
+    return { item: ranked[0]?.item || null };
+  }
+
   function directDecision(goal) {
-    if (/^\s*\/current-time\b/i.test(goal) && !/@(Claude Code|Codex|OpenCode)/i.test(goal)) {
+    if (/^\s*\/current-time\b/i.test(goal) && !/@(Claude Code|Codex)/i.test(goal)) {
       const now = new Date();
       const date = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }).format(now);
       const time = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(now);
       return { status: 'answer', message: `current-time Skill 由 Rover Agent 执行。现在是 ${date} ${time}；没有启动 Code Agent Session，也没有创建 Task。` };
     }
-    if (/^\s*\/[a-z][a-z0-9-]*\b/i.test(goal) || /@(Claude Code|Codex|OpenCode)/i.test(goal)) return null;
+    const explicitRecall = /^\s*\/task-recall\b/i.test(goal);
+    if ((/^\s*\/[a-z][a-z0-9-]*\b/i.test(goal) && !explicitRecall) || /@(Claude Code|Codex)/i.test(goal)) return null;
+    if (explicitRecall || (/(之前|上次|过去|有没有|是否做过|回忆)/.test(goal) && /(做过|完成|做到了|任务|功能|巡检|发布|查一下)/.test(goal)) || (/\b(?:TASK|INC)-\d+\b/i.test(goal) && /(做了什么|完成|结果|进度|摘要)/.test(goal))) {
+      const found = findRelatedTask(goal);
+      if (found.ambiguous) return { status: 'clarify', message: '找到了多个可能相关的 Task。请从任务列表选择你想回忆的那一项。' };
+      if (!found.item) return { status: 'answer', message: '没有找到可对应的 Task 摘要，我无法确认之前是否做过这件事。', toolResult: '未找到匹配的 Task 摘要' };
+      return found.item.savedSummary
+        ? { status: 'answer', message: `根据 ${found.item.id} 的已保存摘要：${found.item.savedSummary}`, taskId: found.item.id, toolResult: `${found.item.id}：${found.item.savedSummary}` }
+        : { status: 'answer', message: `找到了 ${found.item.id}，但 Code Agent 没有保存可引用摘要，我不清楚这项 Task 具体做了什么。`, taskId: found.item.id, toolResult: `${found.item.id}：没有可引用摘要` };
+    }
     if (/天气|气温|下雨/.test(goal)) return {
       status: 'unavailable', message: '当前原型没有实时天气数据源，我无法可靠查询今天的天气。'
     };
@@ -171,25 +193,22 @@
     return null;
   }
 
-  function followupTarget(goal) {
-    if (!/(继续|再|补充|加|改成|调整|修改|完善|顺便)/.test(goal)) return null;
+  function existingTaskTarget(goal) {
     const explicitId = goal.match(/\b(?:TASK|INC)-\d+\b/i)?.[0].toUpperCase();
-    if (explicitId) return { explicitId, candidateId: explicitId };
-    if (/(刚才(?:那个|的)?|上一个任务|这个任务|任务\s*\d+)/.test(goal)) {
+    if (explicitId && /(继续|再|补充|加|改成|调整|修改|完善|顺便)/.test(goal)) return { explicitId, candidateId: explicitId };
+    if (/(刚才(?:那个|的)?|上一个任务|这个任务|任务\s*\d+)/.test(goal) && /(继续|再|补充|加|改成|调整|修改|完善|顺便)/.test(goal)) {
       return { explicitId: null, candidateId: state.lastDispatchedTaskId };
+    }
+    if (/(上次|之前|此前)/.test(goal) && /(继续|再|补充|加|改成|调整|修改|完善)/.test(goal)) {
+      return { explicitId: null, candidateId: findRelatedTask(goal).item?.id || null };
     }
     return null;
   }
 
-  function createFollowupTask(source, instruction) {
+  function guideToSession(source) {
     if (!source) return;
-    const item = createTask(instruction, source);
-    if (item) {
-      state.pendingFollowup = null;
-      finishPrompt('dispatched', `已根据 ${source.id} 建立新 Task ${item.id}，交给 ${item.agent} 处理。`, item.id);
-    } else {
-      finishPrompt('unavailable', state.lastRouteError || '这项后续任务暂时无法派发。');
-    }
+    state.pendingSessionChoice = false;
+    finishPrompt('session-guide', `请到 ${source.id} 对应的 ${source.agent} 原会话中提出补充要求。Rover 不会把这条输入传给该 Session。`, source.id);
   }
 
   function submitPrompt(input = $('#prompt')?.value.trim() || state.draft.trim(), fromQueue = false) {
@@ -205,9 +224,9 @@
     const token = ++decisionToken;
     const prior = state.replyMode ? state.pendingClarification : null;
     state.pendingClarification = null;
-    state.pendingFollowup = null;
+    state.pendingSessionChoice = false;
     state.replyMode = false;
-    const explicit = /^\s*\/[a-z][a-z0-9-]*\b/i.test(input) || /@(Claude Code|Codex|OpenCode)/i.test(input);
+    const explicit = /^\s*\/[a-z][a-z0-9-]*\b/i.test(input) || /@(Claude Code|Codex)/i.test(input);
     // Combine text only for this prototype's route matching; the shared history stores the raw input.
     const goal = prior && !explicit && !/^\s*帮我/.test(input)
       ? `${prior.replace(/[。！？!?\s]+$/, '')}${input}` : input;
@@ -221,19 +240,16 @@
     decisionTimer = setTimeout(() => {
       if (token !== decisionToken) return;
       state.isDeciding = false;
-      const followup = followupTarget(goal);
-      if (followup) {
-        const item = followup.explicitId ? task(followup.explicitId) : null;
-        if (followup.explicitId && !item) {
-          finishPrompt('unavailable', `没有找到 ${followup.explicitId}，尚未创建新 Task。`);
+      const existing = explicit ? null : existingTaskTarget(goal);
+      if (existing) {
+        const item = task(existing.candidateId);
+        if (existing.explicitId && !item) {
+          finishPrompt('unavailable', `没有找到 ${existing.explicitId}，请从任务列表核对原 Task。`);
         } else if (item) {
-          createFollowupTask(item, goal);
+          guideToSession(item);
         } else {
-          state.pendingFollowup = { instruction: goal, candidateId: followup.candidateId };
-          const candidate = task(followup.candidateId);
-          finishPrompt('followup-choice', candidate
-            ? `新任务要接续 ${candidate.id} 吗？请在任务列表选来源，Rover 会创建独立 Task。`
-            : '这条输入像是接续已有任务。请在任务列表选来源，Rover 会创建独立 Task。');
+          state.pendingSessionChoice = true;
+          finishPrompt('session-choice', '请从任务列表选择原 Task，并在它的 Code Agent Session 中提出补充要求。');
         }
         return;
       }
@@ -243,12 +259,20 @@
           state.pendingClarification = goal;
           state.replyMode = !state.pendingPrompts.length && !state.draft.trim();
         }
-        finishPrompt(direct.status, direct.message);
+        if (direct.toolResult) state.roverHistory.push({ role: 'tool', name: 'task-recall', content: direct.toolResult });
+        finishPrompt(direct.status, direct.message, direct.taskId);
         return;
       }
-      const item = createTask(goal);
+      const recallsHistory = /@(Claude Code|Codex)/i.test(goal) && /(\b(?:TASK|INC)-\d+\b|上次|之前|刚才|此前|以前|曾经|记得)/i.test(goal);
+      const recall = recallsHistory ? findRelatedTask(goal) : null;
+      const source = recall?.item?.savedSummary ? recall.item : null;
+      if (recallsHistory) state.roverHistory.push({ role: 'tool', name: 'task-recall', content: source
+        ? `${source.id}：${source.savedSummary}` : '未命中可用的历史 Task 摘要；新需求可照常派发' });
+      const item = createTask(goal, source);
       if (item) {
-        const message = `已交给 ${item.agent}，可在任务列表查看进展。`;
+        const message = item.contextSourceTaskId
+          ? `已交给 ${item.agent} 建立新 Session，并参考 ${item.contextSourceTaskId} 的摘要；原 Task 不变。`
+          : `已交给 ${item.agent}，可在任务列表查看进展。`;
         finishPrompt('dispatched', message, item.id);
       } else {
         const message = state.lastRouteError || '当前无法派发这项任务。';
@@ -268,12 +292,12 @@
 
   function route(goal) {
     const skillCommand = goal.trim().match(/^\/([a-z][a-z0-9-]*)\b/i)?.[1]?.toLowerCase();
-    const mentionedAgent = goal.match(/@(Claude Code|Codex|OpenCode)/i)?.[1];
-    const explicitAgent = mentionedAgent && ({ 'claude code': 'Claude Code', codex: 'Codex', opencode: 'OpenCode' })[mentionedAgent.toLowerCase()];
-    const cleanGoal = goal.replace(/^\s*\/[a-z][a-z0-9-]*\b\s*/i, '').replace(/@(Claude Code|Codex|OpenCode)/i, '').trim();
+    const mentionedAgent = goal.match(/@(Claude Code|Codex)/i)?.[1];
+    const explicitAgent = mentionedAgent && ({ 'claude code': 'Claude Code', codex: 'Codex' })[mentionedAgent.toLowerCase()];
+    const cleanGoal = goal.replace(/^\s*\/[a-z][a-z0-9-]*\b\s*/i, '').replace(/@(Claude Code|Codex)/i, '').trim();
     const skillKinds = { 'current-time': ['general', 'explicit_skill'], 'scheduled-task': ['scheduled', 'create_scheduled_task'], 'deploy-to-qa': ['release', 'deploy_to_qa'], 'incident-investigation': ['incident', 'investigate_incident'] };
     if (skillCommand) {
-      const known = skillKinds[skillCommand] || (state.skillDraft.status === 'saved' && skillCommand === state.skillDraft.name ? ['general', 'explicit_skill'] : null);
+      const known = skillKinds[skillCommand];
       if (!known) return { error: `未找到 Skill：/${skillCommand}` };
       return { goal: goal.trim(), kind: known[0], intent: known[1], skill: skillCommand,
         agent: explicitAgent || (known[0] === 'general' ? 'Codex' : 'Claude Code'), routeMode: explicitAgent ? 'slash_skill_at_agent' : 'slash_skill' };
@@ -294,27 +318,25 @@
       agent: kind === 'general' ? 'Codex' : 'Claude Code', routeMode: skill ? 'auto_skill' : 'auto_dispatch' };
   }
 
-  function createTask(goal = $('#prompt')?.value.trim() || state.draft.trim(), sourceTask = null) {
+  function createTask(goal = $('#prompt')?.value.trim() || state.draft.trim(), contextSource = null) {
     if (!goal) { notify('先输入要处理的任务'); return null; }
     const selection = route(goal);
     if (selection.error) { state.lastRouteError = selection.error; return null; }
-    if (sourceTask) {
-      selection.intent = 'followup_task';
-      selection.routeMode = 'followup_task';
-      if (!/@(Claude Code|Codex|OpenCode)/i.test(goal)) selection.agent = sourceTask.agent;
-    }
     const next = Math.max(221, ...state.tasks.map(item => Number(item.id.match(/^TASK-(\d+)$/)?.[1] || 0))) + 1;
     const id = `TASK-${next}`;
     const item = {
       id, title: selection.goal.slice(0, 36), goal: selection.goal,
-      status: 'running', ...selection, project: sourceTask?.project || state.project,
-      source: sourceTask ? `接续 ${sourceTask.id}` : '用户派发', sourceTaskId: sourceTask?.id || null,
-      session: `${selection.agent === 'Codex' ? 'cdx' : selection.agent === 'OpenCode' ? 'opc' : 'cld'}-${next}`,
-      summary: `${selection.agent} Session 已启动，正在理解${sourceTask ? `与 ${sourceTask.id} 相关的` : ''}任务目标。`, attention: null,
-      events: [...(sourceTask ? [`新 Task 接续 ${sourceTask.id}；原 Task 与 Session 保持独立`] : []),
+      status: 'running', ...selection,
+      source: '用户派发',
+      contextSourceTaskId: contextSource?.id || null,
+      contextSummary: contextSource?.savedSummary || null,
+      session: `${selection.agent === 'Codex' ? 'cdx' : 'cld'}-${next}`,
+      summary: `${selection.agent} Session 已启动，正在理解任务目标。`, attention: null,
+      events: [
         `${selection.routeMode === 'at_agent' ? '用户通过 @ 指定执行者，跳过自动业务 Skill 匹配' : selection.routeMode === 'slash_skill_at_agent' ? `用户指定 /${selection.skill} 和 @${selection.agent}` : selection.routeMode === 'slash_skill' ? `用户通过 /${selection.skill} 指定业务 Skill` : selection.skill ? `Rover 自动选中 ${selection.skill}` : 'Rover 未匹配到业务 Skill'}`,
+        ...(contextSource ? [`新 Session 参考 ${contextSource.id} 已保存的 Task 摘要；原 Session 不变`] : []),
         'Rover 按内置 agent-dispatch 派发；pet-task-state 提供状态回报约定',
-        `${selection.agent} Session 已启动${sourceTask ? '；携带来源 Task 的目标与已有摘要' : ''}`
+        `${selection.agent} Session 已启动`
       ]
     };
     state.tasks.unshift(item);
@@ -355,6 +377,10 @@
     go('home');
   }
 
+  function recordActivity(item) {
+    state.activities.unshift({ taskId: item.id, title: item.title, summary: item.result, status: item.status });
+  }
+
   function resolveAttention(item, answer, cancelled = false) {
     if (!item?.attention) return;
     if (cancelled) {
@@ -363,6 +389,7 @@
       item.result = '本次操作已取消；会话与已有记录仍保留。';
       item.resultMd = '**已取消。**\n\n本次操作未继续；已有记录仍保留在原 Task。';
       item.events.push('用户在 Agent Session 中取消；Task 已结束');
+      recordActivity(item);
     } else {
       item.status = 'running';
       item.summary = `${item.agent} 已收到你的决定，继续执行`;
@@ -381,7 +408,7 @@
     item.status = 'completed';
     item.errorNotice = false;
     item.result = item.kind === 'scheduled'
-      ? `已设置${item.answer || '每天 09:30 执行目标任务'}，Agent 已验证计划。后续每次触发都会形成新的 Task。`
+      ? `已设置${item.answer || '每天 09:30 执行目标任务'}，Agent 已验证计划。本演示的触发流程会派发新 Session 和 Task。`
       : item.kind === 'release'
         ? 'QA 发布已完成，部署结果与验证信息已记录。'
         : item.kind === 'incident'
@@ -389,20 +416,16 @@
           : 'Agent 已完成目标，结果与产物已记录在本次 Task。';
     item.summary = item.kind === 'scheduled' ? '定时计划已创建并验证' : '执行结果已回到 Task';
     item.resultMd = item.kind === 'scheduled'
-      ? `**已创建并验证定时计划**\n\n- ${item.answer || '每天 09:30 执行目标任务'}\n- 到时触发新的 Task，保留执行记录。`
+      ? `**已创建并验证定时计划**\n\n- ${item.answer || '每天 09:30 执行目标任务'}\n- 本演示的触发流程会派发新 Session 和 Task。`
       : item.kind === 'release'
         ? '**QA 发布已完成。**\n\n- 部署结果已验证\n- 详细操作可通过「查看会话」打开原 Session。'
         : item.kind === 'incident'
           ? '**白屏排查已完成。**\n\n已记录根因、证据和后续建议；可打开原 Session 查看详情。'
           : '**任务已完成。**\n\n结果与产物已记录；可打开原 Session 查看详情。';
-    item.events.push('Agent 按 pet-task-state 回报完成与结果', 'Rover 保存结果和本地经验');
-    state.episodes.unshift({
-      taskId: item.id, title: item.title,
-      summary: item.result, scope: '来源于本次任务；下次使用仍需核对适用条件。'
-    });
+    item.events.push('Agent 按 pet-task-state 回报完成与结果', 'Rover 记录最近活动');
+    recordActivity(item);
     if (item.kind === 'scheduled') {
-      state.schedules.unshift({ title: item.title, rule: item.answer || '每天 09:30', sourceTask: item.id });
-      state.skillDraft = { sourceTask: item.id, name: 'my-scheduled-check', status: 'draft' };
+      state.schedules.unshift({ title: item.title, rule: item.answer || '每天 09:30', sourceTask: item.id, status: 'active' });
     }
     go('home');
     speak('completed', `${item.agent} 已完成「${item.title}」，结果已回到任务列表。`, item.id);
@@ -426,14 +449,15 @@
     item.result = 'Agent 的 API 请求失败，任务尚未完成。';
     item.resultMd = `**未完成：Agent 的 API 请求失败。**\n\n请到原 ${item.agent} Session 查看原因并继续处理。`;
     item.events.push('API 请求失败，Agent 停止处理；Task 记录失败');
+    recordActivity(item);
     go('home');
     speak('failed', `${item.agent} 已停止处理，请查看任务结果和原会话。`, item.id);
     notify('任务未完成，请到原 Agent 会话查看原因');
   }
 
   function resumeInSession(item) {
-    if (!item || item.status !== 'failed') return;
-    item.events.push(`此前失败：${item.result || item.summary}`);
+    if (!item || !['failed', 'completed'].includes(item.status)) return;
+    item.events.push(`此前${item.status === 'failed' ? '失败' : '完成'}：${item.result || item.summary}`);
     item.status = 'running';
     item.result = null;
     item.resultMd = null;
@@ -472,9 +496,9 @@
   function taskCard(item) {
     if (!item) return '';
     const finished = ['completed', 'failed', 'cancelled'].includes(item.status);
-    return `<article class="task-card task-summary-card ${finished ? 'is-finished' : 'is-processing'}" data-task="${esc(item.id)}"><button class="task-open" data-task="${esc(item.id)}" aria-label="${item.sessionAvailable === false ? `查看 ${esc(item.goal)} 的会话不可用说明` : `打开 ${esc(item.goal)} 对应的 Agent Session`}">${esc(item.goal)}</button>${item.sourceTaskId ? `<div class="task-origin">接续 ${esc(item.sourceTaskId)} · 独立 Agent Session</div>` : ''}${finished
+    return `<article class="task-card task-summary-card ${finished ? 'is-finished' : 'is-processing'}" data-task="${esc(item.id)}"><button class="task-open" data-task="${esc(item.id)}" aria-label="${item.sessionAvailable === false ? `查看 ${esc(item.goal)} 的会话不可用说明` : `打开 ${esc(item.goal)} 对应的 Agent Session`}">${esc(item.goal)}</button>${item.contextSourceTaskId ? `<div class="task-context">参考 ${esc(item.contextSourceTaskId)} 的摘要 · 独立 Session</div>` : ''}${finished
       ? `<div class="task-markdown">${renderMarkdown(item.resultMd || item.result || item.summary)}</div>${item.sessionAvailable === false ? '<span class="status warn">会话不可用</span>' : `<button class="action session-link" data-session-link="${esc(item.id)}">查看会话</button>`}`
-      : `<div class="task-progress-row"><p class="task-progress">${esc(item.summary || '等待 Agent 更新状态。')}</p>${item.status === 'needs_attention' ? `<button class="action primary" data-confirm="${esc(item.id)}">去确认</button>` : item.status === 'running' && item.session ? `<button class="action" data-session-link="${esc(item.id)}">查看会话</button>` : ''}</div>`}${state.pendingFollowup ? `<button class="action followup-source" data-followup-source="${esc(item.id)}">以此任务为来源创建新 Task</button>` : ''}</article>`;
+      : `<div class="task-progress-row"><p class="task-progress">${esc(item.summary || '等待 Agent 更新状态。')}</p>${item.status === 'needs_attention' ? `<button class="action primary" data-confirm="${esc(item.id)}">去确认</button>` : item.status === 'running' && item.session ? `<button class="action" data-session-link="${esc(item.id)}">查看会话</button>` : ''}</div>`}${state.pendingSessionChoice ? `<button class="action session-choice" data-session-choice="${esc(item.id)}">打开此任务的原会话</button>` : ''}</article>`;
   }
 
   function composer() {
@@ -485,12 +509,12 @@
         ? state.pendingPrompts.length
           ? '<div class="pending-question">新提交的内容会排在队尾；下一条是否回答刚才的问题，请在队列中选择。</div>'
           : `<div class="pending-question clarification-mode">${state.replyMode ? '当前输入将回答刚才的问题。' : '当前输入将作为新问题处理。'} <button data-action="toggle-reply-mode">${state.replyMode ? '改为新问题' : '改为回答问题'}</button></div>`
-        : state.pendingFollowup
-          ? '<div class="pending-question">请选择一个来源任务创建新 Task；也可直接输入另一条新问题。</div>'
+        : state.pendingSessionChoice
+          ? '<div class="pending-question">请选择原 Task，并到它的 Code Agent Session 中补充要求。</div>'
         : '';
-    return `<div class="composer"><button class="circle-btn" data-action="plus" aria-label="选择执行者与工作区">${icons.plus}</button><input id="prompt" aria-label="问 Rover 或交办任务" placeholder="${placeholder}" value="${esc(state.draft)}"><button class="circle-btn send" data-action="send" aria-label="${state.isDeciding || state.pendingPrompts.length ? '加入待处理 Prompt' : '发送给 Rover'}">${icons.up}</button></div>${hint}
-      ${state.plus ? `<div class="option-card"><button data-action="agent-codex">@Codex</button><button data-action="agent-claude">@Claude Code</button><button data-action="agent-opencode">@OpenCode</button><select id="project" aria-label="工作区"><option ${state.project === 'customer-web' ? 'selected' : ''}>customer-web</option><option ${state.project === 'desktop-client' ? 'selected' : ''}>desktop-client</option><option ${state.project === 'auth-service' ? 'selected' : ''}>auth-service</option></select></div>` : ''}
-      <div id="mentions" class="option-card hidden"><button data-action="agent-codex">@Codex</button><button data-action="agent-claude">@Claude Code</button><button data-action="agent-opencode">@OpenCode</button></div>`;
+    return `<div class="composer"><button class="circle-btn" data-action="plus" aria-label="选择执行者">${icons.plus}</button><input id="prompt" aria-label="问 Rover 或交办任务" placeholder="${placeholder}" value="${esc(state.draft)}"><button class="circle-btn send" data-action="send" aria-label="${state.isDeciding || state.pendingPrompts.length ? '加入待处理 Prompt' : '发送给 Rover'}">${icons.up}</button></div>${hint}
+      ${state.plus ? `<div class="option-card"><button data-action="agent-codex">@Codex</button><button data-action="agent-claude">@Claude Code</button></div>` : ''}
+      <div id="mentions" class="option-card hidden"><button data-action="agent-codex">@Codex</button><button data-action="agent-claude">@Claude Code</button></div>`;
   }
 
   function promptQueue() {
@@ -521,8 +545,8 @@
   }
 
   function dashboard() {
-    return `<div class="surface"><div class="overline">管理工作区</div><h1>Rover Dashboard</h1><p>在这里管理 Skill、定时计划和本地经验。桌面宠物继续显示当前气泡与任务列表。</p></div>
-      <div class="dashboard-grid"><button data-action="skills"><strong>Skill 目录</strong><span>查看内置、项目和用户 Skill</span></button><button data-action="schedules"><strong>定时计划</strong><span>查看计划与触发记录</span></button><button data-action="memory"><strong>经验与草稿</strong><span>审阅 Episode 和 Skill 草稿</span></button><button data-action="inbox"><strong>需关注事项</strong><span>查看等待确认与失败的任务</span></button></div>`;
+    return `<div class="surface"><div class="overline">管理面板</div><h1>Rover Dashboard</h1><p>管理 Skill、定时计划、最近活动、模型配置和本地数据。桌面宠物继续显示当前气泡与任务列表。</p></div>
+      <div class="dashboard-grid"><button data-action="skills"><strong>Skill 目录</strong><span>查看内置和用户 Skill</span></button><button data-action="schedules"><strong>定时计划</strong><span>查看计划与触发记录</span></button><button data-action="memory"><strong>最近活动</strong><span>查看 Rover 最近做过的事</span></button><button data-action="inbox"><strong>需关注事项</strong><span>查看等待确认与失败的任务</span></button><button data-action="model-settings"><strong>模型配置</strong><span>设置 Rover Agent 使用的模型</span></button><button data-action="local-data"><strong>本地数据</strong><span>查看与删除 Rover 保存的数据</span></button></div>`;
   }
 
   function voice() {
@@ -540,11 +564,13 @@
     const [label, tone] = status(item.status);
     const sessionSkills = [item.skill, 'pet-task-state'].filter(Boolean);
     return `${back('返回列表')}<div class="surface"><div class="title-row"><h1>${esc(item.title)}</h1><span class="status ${tone}">${label}</span></div>
-      <p>${esc(item.id)} · ${esc(item.source)} · ${esc(item.project)}</p>
+      <p>${esc(item.id)} · ${esc(item.source)}${item.targetRepo ? ` · 目标仓库：${esc(item.targetRepo)}` : ''}</p>
       ${['completed', 'failed', 'cancelled'].includes(item.status) ? `<div class="result-panel task-markdown">${renderMarkdown(item.resultMd || item.result || item.summary)}</div>` : `<p class="task-progress">${esc(item.summary)}</p>`}
-      <div class="fine-line"></div><div class="overline">派发与 Skill</div><div class="info-grid"><div>入口<strong>${esc(({ auto_skill: 'Rover 自动判断', auto_dispatch: '普通任务派发', followup_task: `接续 ${item.sourceTaskId}`, slash_skill: '/Skill 显式引用', slash_skill_at_agent: '/Skill + @Agent', at_agent: '@Agent 直接派发' })[item.routeMode] || '历史任务')}</strong></div><div>执行者<strong>${esc(item.agent)}</strong></div><div>业务 Skill<strong>${esc(item.skill || '未选用')}</strong></div><div>Rover 派发 Skill<strong>agent-dispatch</strong></div></div>
+      <div class="fine-line"></div><div class="overline">Code Agent 保存的可引用 Task 摘要</div><p>${item.savedSummary ? esc(item.savedSummary) : '尚未保存；Rover 不据此推断原 Session 的工作内容。'}</p>
+      ${item.contextSourceTaskId ? `<div class="fine-line"></div><div class="overline">新 Session 的来源上下文</div><p>${esc(item.contextSourceTaskId)}：${esc(item.contextSummary)}</p><p>只提供 Code Agent 已保存的摘要，不复制原 Session 对话。</p>` : ''}
+      <div class="fine-line"></div><div class="overline">派发与 Skill</div><div class="info-grid"><div>入口<strong>${esc(({ auto_skill: 'Rover 自动判断', auto_dispatch: '普通任务派发', slash_skill: '/Skill 显式引用', slash_skill_at_agent: '/Skill + @Agent', at_agent: '@Agent 直接派发' })[item.routeMode] || '历史任务')}</strong></div><div>执行者<strong>${esc(item.agent)}</strong></div><div>业务 Skill<strong>${esc(item.skill || '未选用')}</strong></div><div>Rover 派发 Skill<strong>agent-dispatch</strong></div></div>
       <div class="meta-row"><span>Session ${esc(item.session)}</span>${sessionSkills.map(name => `<span>Code Agent · ${esc(name)}/SKILL.md</span>`).join('')}</div>
-      <div class="actions">${item.sessionAvailable === false ? '<span class="status warn">会话不可用</span>' : button('查看会话', 'session', 'primary')}${item.status === 'completed' ? button('查看经验与 Skill 草稿', 'memory') : ''}</div></div>
+      <div class="actions">${item.sessionAvailable === false ? '<span class="status warn">会话不可用</span>' : button('查看会话', 'session', 'primary')}${item.status === 'completed' ? button('查看最近活动', 'memory') : ''}</div></div>
       <div class="surface"><div class="overline">Task 记录</div><div class="event-list">${item.events.map(event => `<div class="event"><b>${esc(event)}</b></div>`).join('')}</div></div>`;
   }
 
@@ -558,44 +584,48 @@
       : item.status === 'needs_attention'
         ? `${button('模拟在 Agent 中完成确认', 'session-resolve', 'primary')}${button('模拟在 Agent 中取消', 'session-cancel', 'danger')}`
         : item.status === 'failed'
-          ? `${button('模拟 Agent 在原会话继续', 'resume-session', 'primary')}${button('模拟原会话不可用', 'unavailable-session')}` : '';
+          ? `${button('模拟 Agent 在原会话继续', 'resume-session', 'primary')}${button('模拟原会话不可用', 'unavailable-session')}`
+          : item.status === 'completed'
+            ? button('模拟 Agent 在原会话继续', 'resume-session', 'primary') : '';
     return `${back('返回任务列表')}<div class="surface"><div class="handoff-title">会话跳转占位 · ${esc(item.agent)}</div><h1>已定位到原 Agent Session</h1><p>真实产品在 ${esc(item.agent)} 中打开 ${esc(item.session)}。Rover 只保留跳转入口与任务摘要，不展示会话内容。</p><div class="conversation-meta"><span>${esc(item.id)}</span><span>${esc(item.session)}</span></div></div>
       <div class="surface"><div class="overline">原型事件控制</div><p>下列按钮只模拟 Code Agent 的状态回报和用户在原会话中的操作。</p><div class="actions">${controls}${button('查看 Task 记录', 'task')}</div></div>`;
   }
 
   function schedules() {
-    return `${back('返回')}<div class="surface"><h1>定时计划</h1><p>计划由 Agent 根据用户要求创建并验证。触发时，Rover 为这次执行建立新的 Task。</p></div>${state.schedules.map((entry, index) => `<div class="surface"><div class="title-row"><h2>${esc(entry.title)}</h2><span class="status green">${esc(entry.rule)}</span></div><p>创建来源：${esc(entry.sourceTask)}</p><div class="actions">${button(index === 0 ? '模拟到时触发' : '模拟触发', `trigger-schedule-${index}`, 'primary')}</div></div>`).join('')}`;
+    return `${back('返回')}<div class="surface"><h1>定时计划</h1><p>Rover 管理并触发计划；可暂停、恢复或删除。完全退出期间错过的触发只记日志，不在重启后补跑。本演示的 Skill 在成功触发时派发新的 Session 和 Task。</p></div>${state.schedules.map((entry, index) => `<div class="surface"><div class="title-row"><h2>${esc(entry.title)}</h2><span class="status ${entry.status === 'paused' ? 'gray' : 'green'}">${entry.status === 'paused' ? '已暂停' : esc(entry.rule)}</span></div><p>创建来源：${esc(entry.sourceTask)} · ${esc(entry.rule)}</p><div class="actions">${entry.status === 'paused' ? button('恢复', `resume-schedule-${index}`) : `${button('模拟到时触发', `trigger-schedule-${index}`, 'primary')}${button('模拟触发失败', `fail-schedule-${index}`)}${button('模拟退出期间错过', `miss-schedule-${index}`)}${button('暂停', `pause-schedule-${index}`)}`}${button('删除', `delete-schedule-${index}`)}</div>${state.pendingScheduleDelete === index ? `<p>确认删除此计划？未来不会再触发，既有运行日志仍保留。</p><div class="actions">${button('确认删除', `confirm-delete-schedule-${index}`)}${button('取消', 'cancel-delete-schedule')}</div>` : ''}</div>`).join('') || '<div class="surface"><p>当前没有定时计划。历史运行日志仍可在下方查看。</p></div>'}<div class="surface"><h2>触发与运行日志</h2>${state.scheduleRuns.length ? `<div class="event-list">${state.scheduleRuns.map(run => `<div class="event"><b>${esc(run.time)} · ${esc(run.title)} · ${esc(run.result)}</b></div>`).join('')}</div>` : '<p>还没有本次演示的触发记录。</p>'}</div>`;
+  }
+
+  function modelSettings() {
+    return `${back('返回')}<div class="surface"><h1>Rover Agent 模型配置</h1><p>模型用于 Rover 自己的回答、Skill 判断和工具调用；Code Agent CLI 的配置由各自工具管理。本原型仅演示配置界面。</p><div class="setting-fields"><label>提供商<select id="model-provider"><option${state.modelConfig.provider === 'OpenAI' ? ' selected' : ''}>OpenAI</option><option${state.modelConfig.provider === 'Anthropic' ? ' selected' : ''}>Anthropic</option><option${state.modelConfig.provider === 'OpenAI-compatible' ? ' selected' : ''}>OpenAI-compatible</option></select></label><label>模型 ID<input id="model-id" value="${esc(state.modelConfig.model)}" autocomplete="off"></label><label>自定义端点（可选）<input id="model-endpoint" value="${esc(state.modelConfig.endpoint)}" placeholder="https://…" autocomplete="off"></label><label>API 凭据<input id="model-credential" type="password" placeholder="在真实产品中安全保存" autocomplete="off"></label></div><div class="actions">${button('模拟保存配置', 'save-model', 'primary')}</div><p>真实产品还需校验模型是否支持 Rover 所需的工具调用。本原型不会保存或使用输入的凭据。</p></div>`;
+  }
+
+  function localData() {
+    return `${back('返回')}<div class="surface"><h1>本地数据</h1><p>Rover history、Task 与 Session 定位、最近活动、定时计划和运行日志保存在本机；待处理 Prompt 队列不跨退出保留。</p><div class="actions">${button('查看删除影响', 'review-delete')}</div>${state.deleteReview ? '<div class="event"><b>删除前需先处理仍在运行的 Session 与定时计划。删除 Rover 数据不会自动终止 Code Agent CLI；删除后也不能保证恢复 Task 与原 Session 的关联。</b></div><p>本原型不执行真实删除。</p>' : ''}</div>`;
   }
 
   function skills() {
     const registry = [
       ['agent-dispatch', '内置 · Rover Agent', '指导 Rover Agent 启动本地 Code Agent Session，并注册一对一 Task。'],
+      ['task-recall', '内置 · Rover Agent', '按 Task ID 或自然语言线索检索 Code Agent 已保存的本地 Task 摘要；只回忆时不创建 Task。'],
       ['pet-task-state', '内置 · Code Agent', '指导 Code Agent 报告 Session 进度、用户介入与结果，供 Task 展示。'],
       ['current-time', '业务 · Rover Agent', '由 Rover Agent 读取本地时间并直接回答；不创建 Session 或 Task。'],
       ['scheduled-task', '业务 · 派发', '本原型配置为启动 Code Agent Session，由对应 Task 展示状态。'],
       ['deploy-to-qa', '业务', '处理 QA 发布目标；需要用户决定时在 Session 发起请求。'],
       ['incident-investigation', '业务', '排查告警与故障，保留原因和证据。']
     ];
-    if (state.skillDraft.status === 'saved') registry.push([state.skillDraft.name, '用户', '从已完成任务提炼，经用户审阅后启用。']);
-    return `${back('返回')}<div class="surface"><h1>可用 Skill 目录</h1><p>Skill 可供 Rover Agent 或 Code Agent 使用；是否启动 Code Agent Session、进而出现 Task，由 Skill 的流程决定。这里仅展示产品示意，不安装文件。</p></div>${registry.map(([name, scope, description]) => `<div class="surface"><div class="title-row"><h2>${esc(name)}</h2><span class="status ${scope.startsWith('内置') ? 'green' : ''}">${scope}</span></div><p>${esc(description)}</p><span class="code-chip">${esc(name)}/SKILL.md<br>references/ · scripts/ · assets/（按需）</span></div>`).join('')}${state.skillDraft.status === 'draft' ? `<div class="surface"><h2>待审阅：${esc(state.skillDraft.name)}</h2><p>草稿尚未加入可用目录。</p><div class="actions">${button('查看 Skill 草稿', 'skill-draft', 'primary')}</div></div>` : ''}`;
+    return `${back('返回')}<div class="surface"><h1>可用 Skill 目录</h1><p>Skill 可供 Rover Agent 或 Code Agent 使用；是否启动 Code Agent Session、进而出现 Task，由 Skill 的流程决定。这里仅展示产品示意，不安装文件。</p></div>${registry.map(([name, scope, description]) => `<div class="surface"><div class="title-row"><h2>${esc(name)}</h2><span class="status ${scope.startsWith('内置') ? 'green' : ''}">${scope}</span></div><p>${esc(description)}</p><span class="code-chip">${esc(name)}/SKILL.md<br>references/ · scripts/ · assets/（按需）</span></div>`).join('')}`;
   }
 
   function memory() {
-    return `${back('返回')}<div class="surface"><h1>本地经验</h1><p>Episode 保留来源和适用范围；相似任务可以引用为线索，执行 Agent 仍需核对。</p></div>${state.episodes.map(entry => `<div class="surface"><div class="title-row"><h2>${esc(entry.title)}</h2><span class="status">${esc(entry.taskId)}</span></div><p>${esc(entry.summary)}</p><div class="fine-line"></div><p>适用边界：${esc(entry.scope)}</p></div>`).join('')}${state.skillDraft.status === 'draft' ? `<div class="surface"><div class="overline">Self Improve · 待审阅</div><h2>把经验整理为 Skill？</h2><p>Rover 从 ${esc(state.skillDraft.sourceTask)} 提出了 ${esc(state.skillDraft.name)} 草稿。保存前请检查可复用性和敏感内容。</p><div class="actions">${button('查看 Skill 草稿', 'skill-draft', 'primary')}${button('忽略建议', 'ignore-draft')}</div></div>` : state.skillDraft.status === 'saved' ? `<div class="surface"><p>Skill 已保存并加入可用目录。</p><div class="actions">${button('查看 Skill 目录', 'skills', 'primary')}</div></div>` : ''}`;
-  }
-
-  function skillDraft() {
-    if (state.skillDraft.status !== 'draft') return memory();
-    const entry = state.skillDraft;
-    return `${back('返回经验')}<div class="surface"><div class="title-row"><h1>审阅 Skill 草稿</h1><span class="status warn">未启用</span></div><p>来源 ${esc(entry.sourceTask)}。这是标准 Skill 目录的内容预览；保存后才会被 Rover 路由选中。</p><pre class="skill-preview">${esc(`---\nname: ${entry.name}\ndescription: 在用户要求重复检查支付链路告警时使用。\n---\n\n# 支付链路健康巡检\n\n1. 确认检查内容、频率与时区。\n2. 使用可用的计划能力创建任务。\n3. 验证计划已经保存，向用户回报下次触发时间。\n4. 按 pet-task-state 记录本次任务结果。\n\n适用范围：支付链路的重复巡检；具体告警源需重新核对。`)}</pre><div class="actions">${button('保存 Skill', 'save-draft', 'primary')}${button('忽略草稿', 'ignore-draft')}</div></div>`;
+    return `${back('返回')}<div class="surface"><h1>最近活动</h1><p>记录已结束任务的结果，以及 Rover 自身完成的操作；需要细节时可打开对应 Task 和原会话。本地记录不自动过期，可在「本地数据」中主动删除。</p></div>${state.activities.map(entry => `<div class="surface"><div class="title-row"><h2>${esc(entry.title)}</h2><span class="status">${esc(entry.taskId)}</span></div><p>${esc(entry.summary)}</p></div>`).join('')}`;
   }
 
   function renderChrome() {
     const urgent = attentionCount();
     const speech = state.speech;
-    const speechLabels = { thinking: '正在判断', answer: 'Rover 回答', clarify: '需要补充', 'followup-choice': '选择来源任务', dispatched: '已派发', unavailable: '暂时无法处理', attention: '需要你确认', warning: '任务异常', completed: '任务已完成', failed: '任务未完成', cancelled: '任务已取消' };
+    const speechLabels = { thinking: '正在判断', answer: 'Rover 回答', clarify: '需要补充', 'session-choice': '选择原任务', 'session-guide': '返回原会话', dispatched: '已派发', unavailable: '暂时无法处理', attention: '需要你确认', warning: '任务异常', completed: '任务已完成', failed: '任务未完成', cancelled: '任务已取消' };
     const speechAction = speech?.taskId
-      ? `<button class="speech-link" data-action="${['attention', 'warning'].includes(speech.status) ? 'speech-session' : 'speech-task'}">${speech.status === 'attention' ? '去确认' : speech.status === 'warning' ? '查看会话' : '查看任务'} ↗</button>`
+      ? `<button class="speech-link" data-action="${['attention', 'warning', 'session-guide'].includes(speech.status) ? 'speech-session' : 'speech-task'}">${speech.status === 'attention' ? '去确认' : ['warning', 'session-guide'].includes(speech.status) ? '打开原会话' : '查看任务'} ↗</button>`
       : '';
     $('#petArea').classList.toggle('speech-right', Boolean(state.petAnchor && state.petAnchor.x < 390));
     $('#petArea').innerHTML = `<img class="pet" src="./assets/rover-pet.png" alt="Rover 桌面宠物，拖动可移动，点击可收起或展开" draggable="false" data-action="pet">${urgent ? `<span class="pet-attention">${urgent}</span>` : ''}${speech ? `<div class="pet-speech speech-${esc(speech.status)}" role="status" aria-live="${speech.status === 'attention' ? 'assertive' : 'polite'}"><div class="speech-head"><span class="speech-status">${speech.status === 'thinking' ? '<i class="speech-spinner"></i>' : '<i class="speech-dot"></i>'}${esc(speechLabels[speech.status] || 'Rover')}</span><button class="speech-close" data-action="dismiss-speech" aria-label="关闭气泡">×</button></div><p>${esc(speech.message)}</p>${speechAction}</div>` : ''}`;
@@ -607,12 +637,12 @@
   function render() {
     renderChrome();
     $('#main').innerHTML = state.petMode === 'compact' ? compact() : home();
-    const managementViews = new Set(['dashboard', 'skills', 'schedules', 'memory', 'skill-draft', 'inbox']);
+    const managementViews = new Set(['dashboard', 'skills', 'schedules', 'memory', 'inbox', 'model-settings', 'local-data']);
     const panelContent = ({ dashboard, voice, inbox, task: taskView, session,
-      schedules, skills, memory, 'skill-draft': skillDraft })[state.view]?.();
+      schedules, skills, memory, 'model-settings': modelSettings, 'local-data': localData })[state.view]?.();
     const panelTitle = managementViews.has(state.view) ? 'Rover Dashboard' : state.view === 'session' ? 'Agent Session' : state.view === 'task' ? 'Task 详情' : 'Rover 输入';
     const nav = managementViews.has(state.view)
-      ? `<nav class="dashboard-nav" aria-label="管理面板导航">${[['dashboard', '概览'], ['skills', 'Skill 目录'], ['schedules', '定时计划'], ['memory', '经验与草稿'], ['inbox', '需关注']].map(([id, label]) => `<button class="${state.view === id ? 'active' : ''}" data-action="${id}">${label}</button>`).join('')}</nav>` : '';
+      ? `<nav class="dashboard-nav" aria-label="管理面板导航">${[['dashboard', '概览'], ['skills', 'Skill 目录'], ['schedules', '定时计划'], ['memory', '最近活动'], ['inbox', '需关注'], ['model-settings', '模型配置'], ['local-data', '本地数据']].map(([id, label]) => `<button class="${state.view === id ? 'active' : ''}" data-action="${id}">${label}</button>`).join('')}</nav>` : '';
     $('#panelMount').innerHTML = panelContent ? `<section class="rover-panel ${managementViews.has(state.view) ? 'management-panel' : 'work-panel'}" role="dialog" aria-label="${panelTitle}"><header class="panel-header"><div><span>ROVER</span><strong>${panelTitle}</strong></div><button data-action="close-panel" aria-label="关闭窗口">×</button></header>${nav}<div class="panel-body">${panelContent}</div></section>` : '';
     applyPetPosition();
     layout();
@@ -689,24 +719,51 @@
     if (id === 'weather-demo') { submitPrompt('今天天气怎么样'); return; }
     if (id === 'general-demo') { submitPrompt('帮我整理这份需求文档'); return; }
     if (id === 'followup-demo') { submitPrompt('给刚才那个再加测试'); return; }
+    if (id === 'recall-demo') { submitPrompt('我之前是否做过支付链路巡检？'); return; }
+    if (id === 'context-demo') { submitPrompt('@Codex 给支付 QA 发布功能加测试，我记得以前做过相关功能'); return; }
     if (id === 'scheduled-demo') { submitPrompt('帮我设置一个定时任务'); return; }
     if (id === 'slash-demo') { submitPrompt('/scheduled-task 每天 09:30 检查支付链路告警'); return; }
     if (id === 'release-demo' || id === 'attention') { state.selected = 'TASK-219'; go('home'); speak('attention', 'Claude Code 正在等你确认 QA 发布。', 'TASK-219'); return; }
     if (id === 'incident-demo') { state.selected = 'INC-482'; go('home'); return; }
-    if (id === 'resume-demo') { state.selected = 'TASK-215'; go('home'); speak('failed', 'OpenCode 已停止处理，请查看任务结果和原会话。', 'TASK-215'); return; }
+    if (id === 'resume-demo') { state.selected = 'TASK-215'; go('home'); speak('failed', 'Codex 已停止处理，请查看任务结果和原会话。', 'TASK-215'); return; }
     if (id === 'session') state.selected = 'TASK-219';
     go(id);
   }
 
   function handleAction(action) {
     const item = current();
+    if (/^(pause|resume|delete|confirm-delete|miss)-schedule-\d+$/.test(action)) {
+      const index = Number(action.split('-').at(-1));
+      const entry = state.schedules[index];
+      if (!entry) return;
+      if (action.startsWith('pause-')) entry.status = 'paused';
+      if (action.startsWith('resume-')) entry.status = 'active';
+      if (action.startsWith('delete-')) state.pendingScheduleDelete = index;
+      if (action.startsWith('confirm-delete-')) { state.schedules.splice(index, 1); state.pendingScheduleDelete = null; }
+      if (action.startsWith('miss-')) {
+        state.scheduleRuns.unshift({ time: new Date().toLocaleString('zh-CN'), title: entry.title, result: 'Rover 完全退出期间错过；未补跑，未创建 Task' });
+        speak('unavailable', `${entry.title} 在 Rover 退出期间错过，本次没有补跑；请查看运行日志。`);
+      } else render();
+      return;
+    }
     if (action.startsWith('trigger-schedule-')) {
       const entry = state.schedules[Number(action.split('-').at(-1))];
-      if (entry) {
+      if (entry?.status === 'active') {
         const created = createTask(`检查${entry.title}`);
-        created.source = `定时触发 · ${entry.sourceTask}`;
-        created.events.unshift(`计划 ${entry.rule} 已触发`);
-        speak('dispatched', `定时计划已触发，${created.agent} 正在处理。`, created.id);
+        if (created) {
+          created.source = `定时触发 · ${entry.sourceTask}`;
+          created.events.unshift(`计划 ${entry.rule} 已触发`);
+          state.scheduleRuns.unshift({ time: new Date().toLocaleString('zh-CN'), title: entry.title, result: `已派发 ${created.id}` });
+          speak('dispatched', `定时计划已触发，${created.agent} 正在处理。`, created.id);
+        }
+      }
+      return;
+    }
+    if (action.startsWith('fail-schedule-')) {
+      const entry = state.schedules[Number(action.split('-').at(-1))];
+      if (entry?.status === 'active') {
+        state.scheduleRuns.unshift({ time: new Date().toLocaleString('zh-CN'), title: entry.title, result: '派发失败；未创建 Task' });
+        speak('unavailable', `${entry.title} 触发失败；本次没有创建 Task，请在 Dashboard 查看运行日志。`);
       }
       return;
     }
@@ -717,12 +774,21 @@
       case 'scene-menu': state.menu = !state.menu; render(); break;
       case 'dashboard': go('dashboard'); break;
       case 'close-panel': state.view = state.petMode; render(); break;
-      case 'dismiss-speech': clearTimeout(speechTimer); speechRevision++; if (state.speech?.status === 'followup-choice') state.pendingFollowup = null; state.speech = null; render(); break;
+      case 'dismiss-speech': clearTimeout(speechTimer); speechRevision++; if (state.speech?.status === 'session-choice') state.pendingSessionChoice = false; state.speech = null; render(); break;
       case 'speech-task': if (state.speech?.taskId) { state.selected = state.speech.taskId; go('task'); } break;
       case 'speech-session': if (state.speech?.taskId) { state.selected = state.speech.taskId; go('session'); } break;
       case 'pet': if (Date.now() - lastDragAt > 350) { state.petMode = state.petMode === 'compact' ? 'home' : 'compact'; if (['home', 'compact'].includes(state.view)) state.view = state.petMode; render(); } break;
-      case 'back': go(state.view === 'skill-draft' ? 'memory' : ['skills', 'schedules', 'memory', 'inbox'].includes(state.view) ? 'dashboard' : 'home'); break;
-      case 'compose': case 'voice': case 'inbox': case 'home': case 'task': case 'session': case 'schedules': case 'skills': case 'memory': case 'skill-draft': go(action); break;
+      case 'back': go(['skills', 'schedules', 'memory', 'inbox', 'model-settings', 'local-data'].includes(state.view) ? 'dashboard' : 'home'); break;
+      case 'compose': case 'voice': case 'inbox': case 'home': case 'task': case 'session': case 'schedules': case 'skills': case 'memory': case 'model-settings': case 'local-data': go(action); break;
+      case 'save-model': {
+        const model = $('#model-id')?.value.trim();
+        if (!model) { notify('请输入模型 ID'); break; }
+        state.modelConfig = { provider: $('#model-provider')?.value || 'OpenAI', model, endpoint: $('#model-endpoint')?.value.trim() || '' };
+        notify('模型配置已在本次演示中更新；API 凭据未保存。');
+        break;
+      }
+      case 'review-delete': state.deleteReview = true; render(); break;
+      case 'cancel-delete-schedule': state.pendingScheduleDelete = null; render(); break;
       case 'completed-list': state.selected = state.tasks.find(entry => entry.status === 'completed')?.id || state.selected; go('home'); break;
       case 'plus': state.plus = !state.plus; render(); $('#prompt')?.focus(); break;
       case 'send': submitPrompt(); break;
@@ -735,10 +801,10 @@
       case 'demo-general': submitPrompt('帮我整理这份需求文档'); break;
       case 'demo-scheduled': submitPrompt('帮我设置一个定时任务'); break;
       case 'demo-slash': submitPrompt('/scheduled-task 每天 09:30 检查支付链路告警'); break;
-      case 'agent-codex': case 'agent-claude': case 'agent-opencode': {
-        const agent = action === 'agent-codex' ? 'Codex' : action === 'agent-claude' ? 'Claude Code' : 'OpenCode';
+      case 'agent-codex': case 'agent-claude': {
+        const agent = action === 'agent-codex' ? 'Codex' : 'Claude Code';
         state.agent = agent;
-        state.draft = `@${agent} ${state.draft.replace(/^@(Codex|Claude Code|OpenCode)\s*/i, '')}`;
+        state.draft = `@${agent} ${state.draft.replace(/^@(Codex|Claude Code)\s*/i, '')}`;
         state.plus = false;
         render(); $('#prompt')?.focus(); break;
       }
@@ -753,8 +819,6 @@
       case 'unavailable-session': markSessionUnavailable(item); break;
       case 'simulate-voice': state.voiceText = '@Claude Code 帮我设置每天 09:30 的支付链路巡检'; render(); break;
       case 'review-voice': state.draft = state.voiceText; go('compose'); break;
-      case 'save-draft': state.skillDraft.status = 'saved'; go('skills'); break;
-      case 'ignore-draft': state.skillDraft.status = 'ignored'; go('memory'); break;
     }
   }
 
@@ -765,8 +829,8 @@
     if (confirmation) { state.selected = confirmation.dataset.confirm; go('session'); return; }
     const sessionLink = event.target.closest('[data-session-link]');
     if (sessionLink) { state.selected = sessionLink.dataset.sessionLink; go('session'); return; }
-    const followupSource = event.target.closest('[data-followup-source]');
-    if (followupSource && state.pendingFollowup) { createFollowupTask(task(followupSource.dataset.followupSource), state.pendingFollowup.instruction); return; }
+    const sessionChoice = event.target.closest('[data-session-choice]');
+    if (sessionChoice && state.pendingSessionChoice) { state.pendingSessionChoice = false; state.selected = sessionChoice.dataset.sessionChoice; go('session'); return; }
     const queueRemove = event.target.closest('[data-queue-remove]');
     if (queueRemove) {
       state.pendingPrompts = state.pendingPrompts.filter(entry => entry.id !== Number(queueRemove.dataset.queueRemove));
@@ -792,9 +856,6 @@
   document.addEventListener('pointerleave', event => {
     if (event.target?.classList?.contains('pet-speech')) scheduleSpeechDismiss();
   }, true);
-  document.addEventListener('change', event => {
-    if (event.target.id === 'project') state.project = event.target.value;
-  });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') { state.menu = false; if (!['home', 'compact'].includes(state.view)) { state.view = state.petMode; render(); } else if (state.petMode !== 'compact') go('compact'); else render(); }
     if (event.key === 'Enter' && event.target.id === 'prompt') { event.preventDefault(); submitPrompt(); }
