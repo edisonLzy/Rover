@@ -17,7 +17,6 @@
   },
   "scripts": {
     "build": "tsc",
-    "build:sea": "node scripts/build-sea.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -30,8 +29,6 @@
     "@trpc/client": "catalog:",
     "@types/node": "catalog:",
     "@types/ws": "^8.5.14",
-    "esbuild": "catalog:",
-    "postject": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },

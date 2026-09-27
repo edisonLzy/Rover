@@ -137,40 +137,6 @@ pub fn resolve_runtime_entry(workspace_root: &Path) -> Result<PathBuf, String> {
     ))
 }
 
-/// Locates a pre-bundled standalone runtime binary if running inside a packaged app or test environment.
-pub fn resolve_standalone_binary() -> Option<PathBuf> {
-    let bin_name = if cfg!(windows) {
-        "rover-runtime.exe"
-    } else {
-        "rover-runtime"
-    };
-
-    // 1. Same directory as current executable (packaged app on macOS Contents/MacOS or Windows install dir)
-    if let Ok(current_exe) = std::env::current_exe() {
-        if let Some(parent) = current_exe.parent() {
-            let candidate = parent.join(bin_name);
-            if candidate.is_file() {
-                return Some(candidate);
-            }
-            // Check Contents/Resources (alternate bundle layout)
-            let resources_candidate = parent.join("../Resources").join(bin_name);
-            if resources_candidate.is_file() {
-                return Some(resources_candidate);
-            }
-        }
-    }
-
-    // 2. Explicit environment override for testing or custom runner
-    if let Ok(custom_path) = std::env::var("ROVER_RUNTIME_BIN") {
-        let p = PathBuf::from(custom_path);
-        if p.is_file() {
-            return Some(p);
-        }
-    }
-
-    None
-}
-
 pub struct NodeSidecarManager {
     child: Option<Child>,
     connection_info: Option<RuntimeConnectionInfo>,
@@ -179,7 +145,6 @@ pub struct NodeSidecarManager {
 impl NodeSidecarManager {
     /// Launches the Node.js runtime sidecar, passes allocated port & token,
     /// and waits for the [READY] signal from stdout.
-    /// Prefers bundled standalone binary if present; otherwise falls back to host node.
     pub fn start(
         preferred_port: Option<u16>,
         preferred_token: Option<String>,
@@ -190,40 +155,26 @@ impl NodeSidecarManager {
         };
         let token = preferred_token.unwrap_or_else(generate_auth_token);
 
-        let mut command = if let Some(standalone_bin) = resolve_standalone_binary() {
-            println!(
-                "[Rover Rust] Spawning pre-bundled standalone runtime sidecar {:?} on port {}",
-                standalone_bin, port
-            );
-            let mut cmd = Command::new(&standalone_bin);
-            cmd.arg(format!("--port={}", port))
-                .arg(format!("--token={}", token))
-                .arg("--host=127.0.0.1")
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped());
-            cmd
-        } else {
-            let workspace_root = find_workspace_root()
-                .ok_or_else(|| "Failed to locate Rover workspace root".to_string())?;
+        let workspace_root = find_workspace_root()
+            .ok_or_else(|| "Failed to locate Rover workspace root".to_string())?;
 
-            let node_bin = resolve_node_binary()?;
-            let runtime_entry = resolve_runtime_entry(&workspace_root)?;
+        let node_bin = resolve_node_binary()?;
+        let runtime_entry = resolve_runtime_entry(&workspace_root)?;
 
-            println!(
-                "[Rover Rust] Spawning Node runtime sidecar via {:?} with entry {:?} on port {}",
-                node_bin, runtime_entry, port
-            );
+        println!(
+            "[Rover Rust] Spawning Node runtime sidecar via {:?} with entry {:?} on port {}",
+            node_bin, runtime_entry, port
+        );
 
-            let mut cmd = Command::new(&node_bin);
-            cmd.arg(&runtime_entry)
-                .arg(format!("--port={}", port))
-                .arg(format!("--token={}", token))
-                .arg("--host=127.0.0.1")
-                .current_dir(&workspace_root)
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped());
-            cmd
-        };
+        let mut command = Command::new(&node_bin);
+        command
+            .arg(&runtime_entry)
+            .arg(format!("--port={}", port))
+            .arg(format!("--token={}", token))
+            .arg("--host=127.0.0.1")
+            .current_dir(&workspace_root)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
 
         #[cfg(windows)]
         {
@@ -406,13 +357,6 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_standalone_binary() {
-        // Without ROVER_RUNTIME_BIN set and running cargo test (not packaged app), it should return None
-        let result = resolve_standalone_binary();
-        println!("Standalone binary resolution: {:?}", result);
-    }
-
-    #[test]
     fn test_sidecar_lifecycle_and_handshake() {
         let mut supervisor = NodeSidecarManager::start(None, None)
             .expect("NodeSidecarManager should start and report ready");
@@ -429,27 +373,5 @@ mod tests {
 
         supervisor.stop();
         assert!(!supervisor.is_alive());
-    }
-
-    #[test]
-    fn test_sidecar_with_standalone_binary_override() {
-        let target_triple = if cfg!(target_arch = "aarch64") {
-            "aarch64-apple-darwin"
-        } else {
-            "x86_64-apple-darwin"
-        };
-        let root = find_workspace_root().unwrap();
-        let bin = root
-            .join("packages/app/src-tauri/binaries")
-            .join(format!("rover-runtime-{}", target_triple));
-
-        if bin.is_file() {
-            std::env::set_var("ROVER_RUNTIME_BIN", &bin);
-            let mut supervisor = NodeSidecarManager::start(None, None)
-                .expect("Standalone binary sidecar should start and report ready");
-            assert!(supervisor.is_alive());
-            supervisor.stop();
-            std::env::remove_var("ROVER_RUNTIME_BIN");
-        }
     }
 }

@@ -108,9 +108,6 @@ jobs:
       - name: Build Monorepo (Runtime & Frontend)
         run: pnpm build
 
-      - name: Build Node.js Standalone SEA Runtime
-        run: pnpm --filter @rover/runtime build:sea --target=${{ matrix.platform.target }}
-
       - name: Build Tauri Desktop Package (macOS)
         if: runner.os == 'macOS'
         run: |

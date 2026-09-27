@@ -13,11 +13,10 @@
     "format": "oxfmt --ignore-path=.oxfmtignore --write",
     "format:check": "oxfmt --ignore-path=.oxfmtignore --check",
     "test": "turbo run test",
-    "build:sea": "pnpm --filter @rover/runtime build:sea",
-    "package:mac:arm64": "pnpm --filter @rover/runtime build:sea --target=aarch64-apple-darwin && pnpm --filter @rover/app package:mac:arm64",
-    "package:mac:x64": "pnpm --filter @rover/runtime build:sea --target=x86_64-apple-darwin && pnpm --filter @rover/app package:mac:x64",
-    "package:win": "pnpm --filter @rover/runtime build:sea --target=x86_64-pc-windows-msvc && pnpm --filter @rover/app package:win",
-    "package:win:x64": "pnpm --filter @rover/runtime build:sea --target=x86_64-pc-windows-msvc && pnpm --filter @rover/app package:win:x64"
+    "package:mac:arm64": "pnpm --filter @rover/app package:mac:arm64",
+    "package:mac:x64": "pnpm --filter @rover/app package:mac:x64",
+    "package:win": "pnpm --filter @rover/app package:win",
+    "package:win:x64": "pnpm --filter @rover/app package:win:x64"
   },
   "devDependencies": {
     "oxfmt": "catalog:",
