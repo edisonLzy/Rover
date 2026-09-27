@@ -46,22 +46,58 @@ pub fn find_workspace_root() -> Option<PathBuf> {
 
 /// Resolves the Node.js executable path across development and packaged environments.
 pub fn resolve_node_binary() -> Result<PathBuf, String> {
-    // 1. Try PATH first
-    if let Ok(output) = Command::new("node").arg("--version").output() {
-        if output.status.success() {
-            return Ok(PathBuf::from("node"));
+    // 0. Explicit override via environment variable
+    if let Ok(path) = std::env::var("NODE_PATH") {
+        let candidate = PathBuf::from(path);
+        if candidate.exists() {
+            return Ok(candidate);
         }
     }
 
-    // 2. Check user home & common macOS paths (n, nvm, proto, Homebrew)
-    let home = std::env::var("HOME").unwrap_or_default();
-    let candidates = vec![
-        format!("{}/.n/bin/node", home),
-        format!("{}/.proto/bin/node", home),
-        "/opt/homebrew/bin/node".to_string(),
-        "/usr/local/bin/node".to_string(),
-        "/usr/bin/node".to_string(),
-    ];
+    // 1. Direct "node" / "node.exe" command check in PATH
+    let node_cmd = if cfg!(windows) { "node.exe" } else { "node" };
+    if let Ok(output) = Command::new(node_cmd).arg("--version").output() {
+        if output.status.success() {
+            return Ok(PathBuf::from(node_cmd));
+        }
+    }
+    if cfg!(windows) {
+        if let Ok(output) = Command::new("node").arg("--version").output() {
+            if output.status.success() {
+                return Ok(PathBuf::from("node"));
+            }
+        }
+    }
+
+    // 2. Common platform-specific paths
+    let mut candidates = Vec::new();
+
+    #[cfg(windows)]
+    {
+        if let Ok(program_files) = std::env::var("ProgramFiles") {
+            candidates.push(format!("{}\\nodejs\\node.exe", program_files));
+        }
+        if let Ok(program_files_x86) = std::env::var("ProgramFiles(x86)") {
+            candidates.push(format!("{}\\nodejs\\node.exe", program_files_x86));
+        }
+        if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
+            candidates.push(format!("{}\\Programs\\node\\node.exe", local_app_data));
+        }
+        if let Ok(user_profile) = std::env::var("USERPROFILE") {
+            candidates.push(format!("{}\\.fnm\\current\\node.exe", user_profile));
+            candidates.push(format!("{}\\.proto\\bin\\node.exe", user_profile));
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        let home = std::env::var("HOME").unwrap_or_default();
+        candidates.push(format!("{}/.n/bin/node", home));
+        candidates.push(format!("{}/.proto/bin/node", home));
+        candidates.push("/opt/homebrew/bin/node".to_string());
+        candidates.push("/usr/local/bin/node".to_string());
+        candidates.push("/usr/bin/node".to_string());
+    }
 
     for candidate in candidates {
         let path = PathBuf::from(&candidate);
@@ -70,19 +106,27 @@ pub fn resolve_node_binary() -> Result<PathBuf, String> {
         }
     }
 
-    Err("Node.js binary not found. Please ensure Node 22+ is installed and accessible.".into())
+    Err("Node.js binary not found. Please ensure Node 22+ is installed and accessible in PATH.".into())
 }
 
 /// Locates the entrypoint of packages/runtime.
 pub fn resolve_runtime_entry(workspace_root: &Path) -> Result<PathBuf, String> {
     // 1. Prefer compiled dist/index.js
-    let dist_entry = workspace_root.join("packages/runtime/dist/index.js");
+    let dist_entry = workspace_root
+        .join("packages")
+        .join("runtime")
+        .join("dist")
+        .join("index.js");
     if dist_entry.exists() {
         return Ok(dist_entry);
     }
 
     // 2. Check if source index.ts exists
-    let src_entry = workspace_root.join("packages/runtime/src/index.ts");
+    let src_entry = workspace_root
+        .join("packages")
+        .join("runtime")
+        .join("src")
+        .join("index.ts");
     if src_entry.exists() {
         return Ok(src_entry);
     }
@@ -131,6 +175,13 @@ impl NodeSidecarManager {
             .current_dir(&workspace_root)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            command.creation_flags(CREATE_NO_WINDOW);
+        }
 
         let mut child = command
             .spawn()

@@ -1,0 +1,117 @@
+name: Rover Cross-Platform Build & Verification
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-and-test:
+    name: Lint, Typecheck & Unit Tests
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Monorepo Typecheck
+        run: pnpm typecheck
+
+      - name: Run Linter Check
+        run: pnpm lint:check
+
+      - name: Run Code Formatter Check
+        run: pnpm format:check
+
+      - name: Run Frontend & Runtime Tests
+        run: pnpm test
+
+      - name: Run Tauri Rust Tests
+        run: cargo test --manifest-path packages/app/src-tauri/Cargo.toml
+
+  build-desktop:
+    name: Build Desktop Artifacts (${{ matrix.platform.name }})
+    needs: [check-and-test]
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: macOS-arm64
+            os: macos-14
+            target: aarch64-apple-darwin
+          - name: macOS-x64
+            os: macos-14
+            target: x86_64-apple-darwin
+          - name: Windows-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Monorepo (Runtime & Frontend)
+        run: pnpm build
+
+      - name: Build Tauri Desktop Package
+        run: pnpm --filter @rover/app tauri build --target ${{ matrix.platform.target }}
+
+      - name: Upload Build Artifacts (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rover-${{ matrix.platform.name }}
+          path: |
+            packages/app/src-tauri/target/${{ matrix.platform.target }}/release/bundle/dmg/*.dmg
+            packages/app/src-tauri/target/${{ matrix.platform.target }}/release/bundle/macos/*.app
+
+      - name: Upload Build Artifacts (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rover-${{ matrix.platform.name }}
+          path: |
+            packages/app/src-tauri/target/${{ matrix.platform.target }}/release/bundle/nsis/*.exe
+            packages/app/src-tauri/target/${{ matrix.platform.target }}/release/bundle/msi/*.msi
