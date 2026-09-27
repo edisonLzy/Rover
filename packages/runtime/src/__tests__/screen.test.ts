@@ -71,7 +71,7 @@ There are screens on:
   });
 });
 
-describe('screen module live integration on macOS', () => {
+describe.skipIf(process.platform === 'win32')('screen module live integration on macOS', () => {
   const activeAttemptIds: string[] = [];
 
   afterEach(async () => {

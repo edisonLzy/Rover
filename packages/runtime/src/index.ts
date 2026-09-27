@@ -28,6 +28,7 @@ export function getRuntimeStatus(): RuntimeStatus {
 export * from './transport/index.js';
 export * from './router.js';
 export * from './dispatch/screen.js';
+export * from './dispatch/carrier.js';
 
 /**
  * Parses CLI flags in format --key=value
