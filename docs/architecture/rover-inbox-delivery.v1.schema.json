@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rover:schema:inbox-delivery:v1",
+  "title": "Rover Inbox delivery envelope v1",
+  "description": "A source-supplied revision of one Inbox message. Delivery metadata is assigned by the gateway.",
+  "type": "object",
+  "required": [
+    "v",
+    "sourceId",
+    "sourceEventId",
+    "sourceMessageId",
+    "revision",
+    "kind",
+    "occurredAt",
+    "title",
+    "payload"
+  ],
+  "properties": {
+    "v": { "const": 1 },
+    "sourceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "sourceEventId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "sourceMessageId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "revision": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+    "kind": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "maxLength": 64
+    },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "summary": { "type": "string", "maxLength": 4096 },
+    "url": { "type": "string", "pattern": "^https://[^\\s]+$", "maxLength": 2048 },
+    "payload": { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "alert" } }, "required": ["kind"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/alertPayload" } } }
+    }
+  ],
+  "$defs": {
+    "alertPayload": {
+      "type": "object",
+      "required": ["status", "severity", "entity"],
+      "properties": {
+        "status": { "enum": ["open", "resolved"] },
+        "severity": { "enum": ["critical", "high", "medium", "low"] },
+        "entity": {
+          "type": "object",
+          "required": ["kind", "id", "episodeId"],
+          "properties": {
+            "kind": { "type": "string", "minLength": 1, "maxLength": 64 },
+            "id": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "episodeId": { "type": "string", "minLength": 1, "maxLength": 128 }
+          },
+          "additionalProperties": false
+        },
+        "projectRef": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "repoRef": { "type": "string", "minLength": 1, "maxLength": 256 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

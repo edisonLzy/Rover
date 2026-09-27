@@ -1,0 +1,33 @@
+[package]
+name = "rover_desktop"
+version = "0.1.0"
+description = "Rover Desktop Application"
+authors = ["Rover Team"]
+edition = "2021"
+default-run = "rover_desktop"
+
+[[bin]]
+name = "rover_desktop"
+path = "src/main.rs"
+
+[lib]
+name = "rover_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "macos-private-api", "image-png"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+tauri-plugin-shell = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

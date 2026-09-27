@@ -1,0 +1,14 @@
+packages:
+  - 'packages/*'
+
+catalog:
+  '@tanstack/react-query': ^5.80.3
+  '@trpc/client': ^11.19.0
+  '@trpc/react-query': ^11.19.0
+  '@trpc/server': ^11.19.0
+  '@types/node': ^22.13.10
+  oxfmt: ^0.70.0
+  oxlint: ^1.85.0
+  turbo: ^2.11.4
+  typescript: ^7.0.2
+  vitest: ^5.0.2
