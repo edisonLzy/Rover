@@ -164,9 +164,12 @@ export async function startScreenSession(options: StartScreenOptions): Promise<S
     );
   }
 
-  // Construct environment variables
+  // Construct environment variables with UTF-8 locale and 256color terminal support
   const childEnv: Record<string, string> = {
     ...(process.env as Record<string, string>),
+    LANG: process.env.LANG || 'en_US.UTF-8',
+    LC_ALL: process.env.LC_ALL || 'en_US.UTF-8',
+    TERM: process.env.TERM || 'xterm-256color',
     ...env,
     ROVER_DISPATCH_ATTEMPT_ID: attemptId,
   };
@@ -175,8 +178,9 @@ export async function startScreenSession(options: StartScreenOptions): Promise<S
     childEnv.ROVER_REPORT_TOKEN = reportToken;
   }
 
-  // Parameter array: screen -dmS <session_name> <command> [args...]
-  const screenArgs = ['-dmS', sessionName, command, ...args];
+  // Parameter array: screen -U -dmS <session_name> <command> [args...]
+  // -U forces GNU Screen into UTF-8 mode to properly render CJK characters, spinners, and emojis
+  const screenArgs = ['-U', '-dmS', sessionName, command, ...args];
 
   await new Promise<void>((resolve, reject) => {
     const child = spawn(screenBinary, screenArgs, {
