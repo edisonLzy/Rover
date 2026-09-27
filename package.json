@@ -1,13 +1,27 @@
 {
-  "name": "Rover",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "rover",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint:check": "oxlint",
+    "format:check": "oxfmt --check",
+    "test": "turbo run test",
+    "package:mac:arm64": "pnpm --filter @rover/app package:mac:arm64",
+    "package:mac:x64": "pnpm --filter @rover/app package:mac:x64"
   },
-  "keywords": [],
-  "author": "evan",
-  "license": "ISC",
+  "devDependencies": {
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0",
+    "turbo": "^2.11.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "packageManager": "pnpm@10.11.0"
 }
