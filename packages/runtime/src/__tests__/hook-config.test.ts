@@ -11,6 +11,11 @@ import {
   installOpenCodePlugin,
   uninstallOpenCodePlugin,
   checkHooksHealth,
+  HookManager,
+  ClaudeHookAdapter,
+  CodexHookAdapter,
+  OpenCodeHookAdapter,
+  defaultHookManager,
   CLAUDE_HOOK_EVENTS,
   CODEX_HOOK_EVENTS,
   ROVER_HOOK_MARKER,
@@ -318,5 +323,77 @@ describe('Hook Configuration & Helper Pipeline (M1-3)', () => {
         expect(content.result).toBe('Test passed successfully');
       }
     );
+  });
+
+  describe('HookManager & AgentHookAdapter Architecture', () => {
+    it('manages adapters for claude, codex, and opencode mirroring dispatch AgentRegistry', () => {
+      const manager = new HookManager();
+      expect(manager.listRegisteredAgents()).toEqual(['claude', 'codex', 'opencode']);
+      expect(manager.has('claude')).toBe(true);
+      expect(manager.has('codex')).toBe(true);
+      expect(manager.has('opencode')).toBe(true);
+
+      expect(manager.get('claude')).toBeInstanceOf(ClaudeHookAdapter);
+      expect(manager.get('codex')).toBeInstanceOf(CodexHookAdapter);
+      expect(manager.get('opencode')).toBeInstanceOf(OpenCodeHookAdapter);
+
+      expect(() => manager.get('unsupported' as any)).toThrow(/Unsupported hook adapter/);
+    });
+
+    it('installs and uninstalls via manager with custom options', () => {
+      const manager = new HookManager();
+      manager.install('claude', {
+        configPath: claudeSettingsPath,
+        helperPath: mockHelperPath,
+      });
+
+      const claudeHealth = manager.checkHealth('claude', {
+        configPath: claudeSettingsPath,
+        helperPath: mockHelperPath,
+      });
+      expect(claudeHealth.healthy).toBe(true);
+
+      manager.uninstall('claude', { configPath: claudeSettingsPath });
+      const afterUninstall = manager.checkHealth('claude', {
+        configPath: claudeSettingsPath,
+        helperPath: mockHelperPath,
+      });
+      expect(afterUninstall.installed).toBe(false);
+    });
+
+    it('installAll and uninstallAll coordinate across all adapters', () => {
+      defaultHookManager.installAll({
+        claudePath: claudeSettingsPath,
+        codexPath: codexHooksPath,
+        opencodePath: opencodeConfigPath,
+        helperPath: mockHelperPath,
+      });
+
+      const allHealth = defaultHookManager.checkAllHealth({
+        claudePath: claudeSettingsPath,
+        codexPath: codexHooksPath,
+        opencodePath: opencodeConfigPath,
+        helperPath: mockHelperPath,
+      });
+      expect(allHealth.claude.healthy).toBe(true);
+      expect(allHealth.codex.healthy).toBe(true);
+      expect(allHealth.opencode.healthy).toBe(true);
+
+      defaultHookManager.uninstallAll({
+        claudePath: claudeSettingsPath,
+        codexPath: codexHooksPath,
+        opencodePath: opencodeConfigPath,
+      });
+
+      const afterClean = defaultHookManager.checkAllHealth({
+        claudePath: claudeSettingsPath,
+        codexPath: codexHooksPath,
+        opencodePath: opencodeConfigPath,
+        helperPath: mockHelperPath,
+      });
+      expect(afterClean.claude.installed).toBe(false);
+      expect(afterClean.codex.installed).toBe(false);
+      expect(afterClean.opencode.installed).toBe(false);
+    });
   });
 });
