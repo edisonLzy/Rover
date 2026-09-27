@@ -1,5 +1,5 @@
-import { router, publicProcedure, protectedProcedure } from './trpc.js';
-import { RUNTIME_VERSION } from '../index.js';
+import { router, publicProcedure, protectedProcedure } from './transport/trpc.js';
+import { RUNTIME_VERSION } from './index.js';
 
 export const appRouter = router({
   // Unauthenticated ping for basic liveness check
@@ -15,4 +15,4 @@ export const appRouter = router({
 });
 
 export type AppRouter = typeof appRouter;
-export type { Context } from './context.js';
+export type { Context } from './transport/context.js';

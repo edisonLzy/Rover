@@ -11,8 +11,8 @@
       "import": "./dist/index.js"
     },
     "./router": {
-      "types": "./dist/transport/router.d.ts",
-      "import": "./dist/transport/router.js"
+      "types": "./dist/router.d.ts",
+      "import": "./dist/router.js"
     }
   },
   "scripts": {

@@ -1,7 +1,8 @@
 import { describe, expect, it, afterEach } from 'vitest';
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import WebSocket from 'ws';
-import { createRuntimeServer, RuntimeServer, type AppRouter } from '../transport/index.js';
+import { createRuntimeServer, RuntimeServer } from '../transport/index.js';
+import type { AppRouter } from '../router.js';
 import { RUNTIME_VERSION } from '../index.js';
 
 describe('Transport & Security Invariants (M0-2)', () => {
