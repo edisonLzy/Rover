@@ -8,7 +8,8 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint:check": "oxlint",
-    "format:check": "oxfmt --check",
+    "format": "oxfmt --ignore-path=.oxfmtignore --write",
+    "format:check": "oxfmt --ignore-path=.oxfmtignore --check",
     "test": "turbo run test",
     "package:mac:arm64": "pnpm --filter @rover/app package:mac:arm64",
     "package:mac:x64": "pnpm --filter @rover/app package:mac:x64"
