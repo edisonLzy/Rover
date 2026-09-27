@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { DefaultPaths } from './_types.js';
+import type { DefaultPaths } from './types.js';
 
 /**
  * Resolves standard default paths for configuration files and hook helper binary.

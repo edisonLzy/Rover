@@ -5,8 +5,8 @@
  */
 
 import type { AgentType } from '../dispatch/types.js';
-import { CLAUDE_HOOK_EVENTS, ROVER_HOOK_MARKER } from './_constant.js';
-import { getDefaultPaths, safeReadJson, safeWriteJsonWithBackup } from './_utils.js';
+import { CLAUDE_HOOK_EVENTS, ROVER_HOOK_MARKER } from './constants.js';
+import { getDefaultPaths, safeReadJson, safeWriteJsonWithBackup } from './utils.js';
 import type {
   AgentHookAdapter,
   HookConfigFile,
@@ -14,7 +14,7 @@ import type {
   HookHealthStatus,
   HookInstallOptions,
   HookUninstallOptions,
-} from './_types.js';
+} from './types.js';
 
 export class ClaudeHookAdapter implements AgentHookAdapter {
   readonly agentType: AgentType = 'claude';

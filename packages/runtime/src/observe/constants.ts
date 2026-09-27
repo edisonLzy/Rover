@@ -4,7 +4,7 @@
  * Defines hook event lists, markers, and non-enum constants for observer adapters.
  */
 
-import type { ClaudeHookEvent, CodexHookEvent } from './_types.js';
+import type { ClaudeHookEvent, CodexHookEvent } from './types.js';
 
 export const ROVER_HOOK_MARKER = 'rover-hook-helper';
 
