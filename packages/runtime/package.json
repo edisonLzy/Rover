@@ -5,13 +5,30 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./transport": {
+      "types": "./dist/transport/index.d.ts",
+      "import": "./dist/transport/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@trpc/server": "^11.19.0",
+    "ws": "^8.18.0",
+    "zod": "^3.24.2"
+  },
   "devDependencies": {
+    "@trpc/client": "^11.19.0",
     "@types/node": "^22.13.10",
+    "@types/ws": "^8.5.14",
     "typescript": "^7.0.2",
     "vitest": "^5.0.2"
   },
