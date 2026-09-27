@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @rover/app dev",
+    "dev": "turbo run dev",
     "dev:web": "pnpm --filter @rover/app dev:ui",
     "build": "turbo run build",
     "build:app": "pnpm --filter @rover/app build:app",

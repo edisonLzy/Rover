@@ -16,6 +16,7 @@
     }
   },
   "scripts": {
+    "dev": "tsc --watch",
     "build": "tsc",
     "build:sea": "node scripts/build-sea.mjs",
     "smoke:sea": "node scripts/smoke-sea.mjs",

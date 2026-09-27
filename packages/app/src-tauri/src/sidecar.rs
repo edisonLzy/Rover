@@ -64,17 +64,33 @@ impl NodeSidecarManager {
         // Port zero lets the runtime bind atomically and report the assigned port.
         let port = preferred_port.unwrap_or(0);
         let token = preferred_token.unwrap_or_else(generate_auth_token);
-        let (mut events, child) = app
+        #[cfg(debug_assertions)]
+        let runtime_command = {
+            let runtime_entry = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../runtime/dist/index.js");
+            if !runtime_entry.is_file() {
+                return Err(format!(
+                    "Development runtime is missing at {}. Run `pnpm dev` so Tauri can build it first.",
+                    runtime_entry.display()
+                ));
+            }
+            app.shell().command("node").arg(runtime_entry)
+        };
+
+        #[cfg(not(debug_assertions))]
+        let runtime_command = app
             .shell()
             .sidecar("rover-runtime")
-            .map_err(|error| format!("Bundled runtime sidecar is unavailable: {error}"))?
+            .map_err(|error| format!("Bundled runtime sidecar is unavailable: {error}"))?;
+
+        let (mut events, child) = runtime_command
             .args([
                 format!("--port={port}"),
                 format!("--token={token}"),
                 "--host=127.0.0.1".into(),
             ])
             .spawn()
-            .map_err(|error| format!("Failed to start bundled runtime sidecar: {error}"))?;
+            .map_err(|error| format!("Failed to start runtime process: {error}"))?;
 
         let alive = Arc::new(AtomicBool::new(true));
         let alive_for_events = alive.clone();

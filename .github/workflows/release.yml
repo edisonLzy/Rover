@@ -121,7 +121,7 @@ jobs:
       - name: Build Tauri Desktop Package (macOS)
         if: runner.os == 'macOS'
         run: |
-          pnpm --filter @rover/app tauri build --target ${{ matrix.platform.target }} --bundles app
+          pnpm --filter @rover/app tauri build --config src-tauri/tauri.release.conf.json --target ${{ matrix.platform.target }} --bundles app
           tar -czf packages/app/src-tauri/target/${{ matrix.platform.target }}/release/bundle/macos/Rover-${{ matrix.platform.name }}.tar.gz -C packages/app/src-tauri/target/${{ matrix.platform.target }}/release/bundle/macos Rover.app
 
       - name: Smoke test bundled macOS sidecar without system Node
@@ -130,7 +130,7 @@ jobs:
 
       - name: Build Tauri Desktop Package (Windows)
         if: runner.os == 'Windows'
-        run: pnpm --filter @rover/app tauri build --target ${{ matrix.platform.target }}
+        run: pnpm --filter @rover/app tauri build --config src-tauri/tauri.release.conf.json --target ${{ matrix.platform.target }}
 
       - name: Smoke test staged Windows sidecar without system Node
         if: runner.os == 'Windows'

@@ -4,18 +4,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @rover/runtime build:sea && tauri dev",
+    "dev": "tauri dev",
     "dev:ui": "vite",
     "build": "tsc && vite build",
-    "build:app": "pnpm --filter @rover/runtime build:sea && tauri build",
+    "build:app": "pnpm --filter @rover/runtime build:sea && tauri build --config src-tauri/tauri.release.conf.json",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test": "vitest run",
     "tauri": "tauri",
-    "package:mac:arm64": "tauri build --target aarch64-apple-darwin --bundles app",
-    "package:mac:x64": "tauri build --target x86_64-apple-darwin --bundles app",
-    "package:win": "tauri build --target x86_64-pc-windows-msvc",
-    "package:win:x64": "tauri build --target x86_64-pc-windows-msvc"
+    "package:mac:arm64": "tauri build --config src-tauri/tauri.release.conf.json --target aarch64-apple-darwin --bundles app",
+    "package:mac:x64": "tauri build --config src-tauri/tauri.release.conf.json --target x86_64-apple-darwin --bundles app",
+    "package:win": "tauri build --config src-tauri/tauri.release.conf.json --target x86_64-pc-windows-msvc",
+    "package:win:x64": "tauri build --config src-tauri/tauri.release.conf.json --target x86_64-pc-windows-msvc"
   },
   "dependencies": {
     "@rover/runtime": "workspace:*",
