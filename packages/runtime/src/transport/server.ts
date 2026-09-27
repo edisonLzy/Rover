@@ -2,7 +2,7 @@ import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { nodeHTTPRequestHandler } from '@trpc/server/adapters/node-http';
 import { createContext, extractAuthToken } from './context.js';
-import { appRouter } from '../router.js';
+import { appRouter } from './router.js';
 import { WebSocketManager, type RuntimeEvent } from './websocket.js';
 import { RUNTIME_VERSION } from '../index.js';
 
