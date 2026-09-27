@@ -71,7 +71,7 @@ jobs:
             os: macos-14
             target: aarch64-apple-darwin
           - name: macOS-x64
-            os: macos-14
+            os: macos-13
             target: x86_64-apple-darwin
           - name: Windows-x64
             os: windows-latest
@@ -107,6 +107,9 @@ jobs:
 
       - name: Build Monorepo (Runtime & Frontend)
         run: pnpm build
+
+      - name: Build Node.js Standalone SEA Runtime
+        run: pnpm --filter @rover/runtime build:sea --target=${{ matrix.platform.target }}
 
       - name: Build Tauri Desktop Package (macOS)
         if: runner.os == 'macOS'

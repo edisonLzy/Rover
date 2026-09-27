@@ -10,6 +10,8 @@ build/
 # Rust / Cargo
 target/
 **/src-tauri/target/
+**/src-tauri/binaries/*
+!**/src-tauri/binaries/.gitkeep
 
 # Logs
 *.log
