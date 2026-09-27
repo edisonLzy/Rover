@@ -10,11 +10,32 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
+        "label": "main",
         "title": "Rover",
-        "width": 800,
-        "height": 600
+        "width": 320,
+        "height": 420,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "shadow": false,
+        "visible": true
+      },
+      {
+        "label": "dashboard",
+        "title": "Rover Dashboard",
+        "width": 960,
+        "height": 640,
+        "resizable": true,
+        "decorations": true,
+        "transparent": false,
+        "alwaysOnTop": false,
+        "shadow": true,
+        "visible": false,
+        "center": true
       }
     ],
     "security": {
