@@ -12,8 +12,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "tauri": "tauri",
-    "package:mac:arm64": "tauri build --target aarch64-apple-darwin",
-    "package:mac:x64": "tauri build --target x86_64-apple-darwin",
+    "package:mac:arm64": "tauri build --target aarch64-apple-darwin --bundles app",
+    "package:mac:x64": "tauri build --target x86_64-apple-darwin --bundles app",
     "package:win": "tauri build --target x86_64-pc-windows-msvc",
     "package:win:x64": "tauri build --target x86_64-pc-windows-msvc"
   },
