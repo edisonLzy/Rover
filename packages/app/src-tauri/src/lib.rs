@@ -33,7 +33,7 @@ fn restart_runtime(
     if let Some(mut old_manager) = guard.take() {
         old_manager.stop();
     }
-    let new_manager = NodeSidecarManager::start(None, None)?;
+    let new_manager = NodeSidecarManager::start(&app_handle, None, None)?;
     let conn = new_manager
         .connection_info()
         .cloned()
@@ -74,6 +74,7 @@ pub fn run() {
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_shell::init())
         .manage(AppState {
             sidecar: sidecar_state,
         })
@@ -92,7 +93,7 @@ pub fn run() {
         })
         .setup(move |app| {
             println!("[Rover] Starting Node runtime sidecar during app setup...");
-            match NodeSidecarManager::start(None, None) {
+            match NodeSidecarManager::start(app.handle(), None, None) {
                 Ok(manager) => {
                     if let Ok(mut guard) = sidecar_for_setup.lock() {
                         *guard = Some(manager);
@@ -131,51 +132,49 @@ pub fn run() {
 
             let sidecar_tray_ref = sidecar_for_tray.clone();
             tray_builder
-                .on_menu_event(move |app_handle, event| {
-                    match event.id().as_ref() {
-                        "open_dashboard" => {
-                            if let Some(window) = app_handle.get_webview_window("dashboard") {
-                                let _ = window.show();
-                                let _ = window.unminimize();
-                                let _ = window.set_focus();
-                            }
+                .on_menu_event(move |app_handle, event| match event.id().as_ref() {
+                    "open_dashboard" => {
+                        if let Some(window) = app_handle.get_webview_window("dashboard") {
+                            let _ = window.show();
+                            let _ = window.unminimize();
+                            let _ = window.set_focus();
                         }
-                        "restore_pet" => {
-                            if let Some(window) = app_handle.get_webview_window("main") {
-                                let _ = window.show();
-                                let _ = window.unminimize();
-                                let _ = window.set_focus();
-                            }
-                        }
-                        "restart_runtime" => {
-                            println!("[Rover] Restarting Node runtime sidecar from tray action...");
-                            if let Ok(mut guard) = sidecar_tray_ref.lock() {
-                                if let Some(mut old_manager) = guard.take() {
-                                    old_manager.stop();
-                                }
-                                match NodeSidecarManager::start(None, None) {
-                                    Ok(new_manager) => {
-                                        println!(
-                                            "[Rover] Node runtime sidecar restarted successfully."
-                                        );
-                                        *guard = Some(new_manager);
-                                        let _ = app_handle.emit("runtime_restarted", ());
-                                    }
-                                    Err(e) => {
-                                        eprintln!(
-                                            "[Rover] Failed to restart Node runtime sidecar: {}",
-                                            e
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                        "quit" => {
-                            println!("[Rover] Quit requested from tray menu.");
-                            app_handle.exit(0);
-                        }
-                        _ => {}
                     }
+                    "restore_pet" => {
+                        if let Some(window) = app_handle.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.unminimize();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "restart_runtime" => {
+                        println!("[Rover] Restarting Node runtime sidecar from tray action...");
+                        if let Ok(mut guard) = sidecar_tray_ref.lock() {
+                            if let Some(mut old_manager) = guard.take() {
+                                old_manager.stop();
+                            }
+                            match NodeSidecarManager::start(app_handle, None, None) {
+                                Ok(new_manager) => {
+                                    println!(
+                                        "[Rover] Node runtime sidecar restarted successfully."
+                                    );
+                                    *guard = Some(new_manager);
+                                    let _ = app_handle.emit("runtime_restarted", ());
+                                }
+                                Err(e) => {
+                                    eprintln!(
+                                        "[Rover] Failed to restart Node runtime sidecar: {}",
+                                        e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    "quit" => {
+                        println!("[Rover] Quit requested from tray menu.");
+                        app_handle.exit(0);
+                    }
+                    _ => {}
                 })
                 .build(app)?;
 

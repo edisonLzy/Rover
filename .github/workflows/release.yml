@@ -1,4 +1,4 @@
-name: Rover Cross-Platform Build & Verification
+name: Rover Desktop Release
 
 on:
   push:
@@ -25,10 +25,10 @@ jobs:
         with:
           version: 10.11.0
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js from .node-version
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: 'pnpm'
 
       - name: Install Rust toolchain
@@ -56,6 +56,11 @@ jobs:
       - name: Run Frontend & Runtime Tests
         run: pnpm test
 
+      - name: Build and smoke test the sidecar
+        run: |
+          pnpm build:sea
+          pnpm smoke:sea
+
       - name: Run Tauri Rust Tests
         run: cargo test --manifest-path packages/app/src-tauri/Cargo.toml
 
@@ -71,7 +76,7 @@ jobs:
             os: macos-14
             target: aarch64-apple-darwin
           - name: macOS-x64
-            os: macos-13
+            os: macos-15-intel
             target: x86_64-apple-darwin
           - name: Windows-x64
             os: windows-latest
@@ -86,10 +91,10 @@ jobs:
         with:
           version: 10.11.0
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js from .node-version
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: 'pnpm'
 
       - name: Install Rust toolchain
@@ -108,21 +113,35 @@ jobs:
       - name: Build Monorepo (Runtime & Frontend)
         run: pnpm build
 
+      - name: Build and smoke test the target sidecar
+        run: |
+          pnpm --filter @rover/runtime build:sea --target=${{ matrix.platform.target }}
+          pnpm smoke:sea
+
       - name: Build Tauri Desktop Package (macOS)
         if: runner.os == 'macOS'
         run: |
           pnpm --filter @rover/app tauri build --target ${{ matrix.platform.target }} --bundles app
           tar -czf packages/app/src-tauri/target/${{ matrix.platform.target }}/release/bundle/macos/Rover-${{ matrix.platform.name }}.tar.gz -C packages/app/src-tauri/target/${{ matrix.platform.target }}/release/bundle/macos Rover.app
 
+      - name: Smoke test bundled macOS sidecar without system Node
+        if: runner.os == 'macOS'
+        run: pnpm --filter @rover/runtime smoke:sea --packaged
+
       - name: Build Tauri Desktop Package (Windows)
         if: runner.os == 'Windows'
         run: pnpm --filter @rover/app tauri build --target ${{ matrix.platform.target }}
+
+      - name: Smoke test staged Windows sidecar without system Node
+        if: runner.os == 'Windows'
+        run: pnpm --filter @rover/runtime smoke:sea --packaged
 
       - name: Upload Build Artifacts (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: Rover-${{ matrix.platform.name }}
+          if-no-files-found: error
           path: |
             packages/app/src-tauri/target/${{ matrix.platform.target }}/release/bundle/macos/*.tar.gz
             packages/app/src-tauri/target/${{ matrix.platform.target }}/release/bundle/macos/*.app
@@ -132,6 +151,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Rover-${{ matrix.platform.name }}
+          if-no-files-found: error
           path: |
             packages/app/src-tauri/target/${{ matrix.platform.target }}/release/bundle/nsis/*.exe
             packages/app/src-tauri/target/${{ matrix.platform.target }}/release/bundle/msi/*.msi
@@ -156,6 +176,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          fail_on_unmatched_files: true
           generate_release_notes: true
           files: |
             artifacts/**/*.tar.gz

@@ -92,14 +92,7 @@ async function main() {
   }
 }
 
-// Check if running as main module or invoked via CLI flags in standalone binary
-const isMain =
-  Boolean((import.meta as { main?: boolean }).main) ||
-  Boolean(
-    process.argv[1] &&
-    (process.argv[1].endsWith('index.ts') || process.argv[1].endsWith('index.js'))
-  ) ||
-  process.argv.some((arg) => arg.startsWith('--token=') || arg.startsWith('--port='));
-if (isMain) {
+// Both the compiled module and SEA start only when the host supplies a token.
+if (process.argv.some((arg) => arg.startsWith('--token='))) {
   void main();
 }
