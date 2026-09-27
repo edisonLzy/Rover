@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "pnpm --filter @rover/app dev",
+    "dev:web": "pnpm --filter @rover/app dev:ui",
     "build": "turbo run build",
+    "build:app": "pnpm --filter @rover/app build:app",
     "typecheck": "turbo run typecheck",
     "lint:check": "oxlint",
     "format": "oxfmt --ignore-path=.oxfmtignore --write",
