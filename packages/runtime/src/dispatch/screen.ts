@@ -197,13 +197,13 @@ export async function startScreenSession(options: StartScreenOptions): Promise<S
     // Unref child process so Node event loop does not keep running for screen launcher
     child.unref();
 
-    // Small delay to allow screen socket initialization
-    setTimeout(resolve, 80);
+    // Allow screen socket initialization and detect immediate exits
+    setTimeout(resolve, 150);
   });
 
-  // Verify session registered in screen list
+  // Verify session registered in screen list and is actively running
   const created = await getScreenSessionInfo(attemptId, screenBinary);
-  if (!created) {
+  if (!created || (created.status !== 'detached' && created.status !== 'attached')) {
     throw new Error(
       `Screen session "${sessionName}" failed to start or terminated immediately upon launch.`
     );

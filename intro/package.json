@@ -1,0 +1,20 @@
+{
+  "name": "rover-launch-film",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.tsx",
+    "render": "remotion render src/index.tsx RoverLaunch rover-launch.mp4 --codec h264 --crf 17 --concurrency 4",
+    "poster": "remotion still src/index.tsx RoverLaunch poster.png --frame 757"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.529",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "remotion": "4.0.529"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}
