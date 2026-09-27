@@ -121,17 +121,13 @@ pub fn run() {
                 .item(&quit_item)
                 .build()?;
 
-            #[cfg(target_os = "macos")]
-            let tray_icon = Image::from_bytes(include_bytes!("../icons/tray/macos-template.png"))?;
-            #[cfg(not(target_os = "macos"))]
-            let tray_icon = Image::from_bytes(include_bytes!("../icons/tray/windows-color.png"))?;
+            let tray_icon = Image::from_bytes(include_bytes!("../icons/tray/icon.png"))?;
 
             let tray_builder = TrayIconBuilder::with_id("rover-tray")
                 .menu(&menu)
                 .show_menu_on_left_click(true)
                 .tooltip("Rover")
-                .icon(tray_icon)
-                .icon_as_template(cfg!(target_os = "macos"));
+                .icon(tray_icon);
 
             let sidecar_tray_ref = sidecar_for_tray.clone();
             tray_builder
