@@ -16,8 +16,12 @@
     "package:mac:x64": "tauri build --target x86_64-apple-darwin"
   },
   "dependencies": {
+    "@rover/runtime": "workspace:*",
+    "@tanstack/react-query": "catalog:",
     "@tauri-apps/api": "^2.3.0",
     "@tauri-apps/plugin-opener": "^2.2.6",
+    "@trpc/client": "catalog:",
+    "@trpc/react-query": "catalog:",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
