@@ -14,7 +14,7 @@
     ['scheduled-demo', '创建定时任务'], ['slash-demo', 'Slash 引用 Skill'], ['attention', '需要你确认'],
     ['session', '会话跳转'], ['release-demo', 'QA 发布确认'],
     ['incident-demo', '故障排查'], ['resume-demo', '失败后回到会话'],
-    ['dashboard', '管理面板'], ['inbox', '通知收件箱'], ['schedules', '定时计划'],
+    ['dashboard', '管理面板'], ['attention-tasks', '需关注任务'], ['schedules', '定时计划'],
     ['skills', 'Skill 目录'], ['memory', '最近活动'], ['model-settings', '模型配置'], ['local-data', '本地数据'], ['voice', '语音输入']
   ];
 
@@ -97,7 +97,7 @@
     roverHistory: [],
     schedules: [{ title: '支付链路健康巡检', rule: '每天 09:30', sourceTask: 'TASK-216', status: 'active' }],
     scheduleRuns: [], pendingScheduleDelete: null, modelConfig: { provider: 'OpenAI', model: 'gpt-5', endpoint: '' }, deleteReview: false,
-    voiceText: '', toast: '', petAnchor: savedPosition()
+    voiceText: '', toast: '', petAnchor: savedPosition(), trayMenuOpen: false, petVisible: true
   };
   let toastTimer, decisionTimer, speechTimer, decisionToken = 0, speechRevision = 0, nextPromptId = 1;
   let zoomMode = 'fit', drag = null, lastDragAt = 0;
@@ -106,12 +106,6 @@
   const task = id => state.tasks.find(item => item.id === id);
   const current = () => task(state.selected) || state.tasks[0];
   const attentionCount = () => state.tasks.filter(item => ['needs_attention', 'failed'].includes(item.status)).length;
-  const status = value => ({
-    queued: ['排队中', 'gray'], running: ['进行中', ''],
-    needs_attention: ['需要你确认', 'warn'], completed: ['已完成', 'green'],
-    failed: ['失败', 'red'], cancelled: ['已取消', 'gray']
-  })[value] || ['进行中', ''];
-
   function notify(message) {
     state.toast = message;
     render();
@@ -496,9 +490,10 @@
   function taskCard(item) {
     if (!item) return '';
     const finished = ['completed', 'failed', 'cancelled'].includes(item.status);
-    return `<article class="task-card task-summary-card ${finished ? 'is-finished' : 'is-processing'}" data-task="${esc(item.id)}"><button class="task-open" data-task="${esc(item.id)}" aria-label="${item.sessionAvailable === false ? `查看 ${esc(item.goal)} 的会话不可用说明` : `打开 ${esc(item.goal)} 对应的 Agent Session`}">${esc(item.goal)}</button>${item.contextSourceTaskId ? `<div class="task-context">参考 ${esc(item.contextSourceTaskId)} 的摘要 · 独立 Session</div>` : ''}${finished
+    const canOpen = item.sessionAvailable !== false;
+    return `<article class="task-card task-summary-card ${finished ? 'is-finished' : 'is-processing'}${canOpen ? '' : ' is-unavailable'}"${canOpen ? ` data-task="${esc(item.id)}"` : ''}>${canOpen ? `<button class="task-open" data-task="${esc(item.id)}" aria-label="打开 ${esc(item.goal)} 对应的 Agent Session">${esc(item.goal)}</button>` : `<div class="task-open">${esc(item.goal)}</div>`}${item.contextSourceTaskId ? `<div class="task-context">参考 ${esc(item.contextSourceTaskId)} 的摘要 · 独立 Session</div>` : ''}${finished
       ? `<div class="task-markdown">${renderMarkdown(item.resultMd || item.result || item.summary)}</div>${item.sessionAvailable === false ? '<span class="status warn">会话不可用</span>' : `<button class="action session-link" data-session-link="${esc(item.id)}">查看会话</button>`}`
-      : `<div class="task-progress-row"><p class="task-progress">${esc(item.summary || '等待 Agent 更新状态。')}</p>${item.status === 'needs_attention' ? `<button class="action primary" data-confirm="${esc(item.id)}">去确认</button>` : item.status === 'running' && item.session ? `<button class="action" data-session-link="${esc(item.id)}">查看会话</button>` : ''}</div>`}${state.pendingSessionChoice ? `<button class="action session-choice" data-session-choice="${esc(item.id)}">打开此任务的原会话</button>` : ''}</article>`;
+      : `<div class="task-progress-row"><p class="task-progress">${esc(item.summary || '等待 Agent 更新状态。')}</p>${item.status === 'needs_attention' && canOpen ? `<button class="action primary" data-confirm="${esc(item.id)}">去确认</button>` : item.status === 'running' && item.session && canOpen ? `<button class="action" data-session-link="${esc(item.id)}">查看会话</button>` : ''}</div>`}${state.pendingSessionChoice && canOpen ? `<button class="action session-choice" data-session-choice="${esc(item.id)}">打开此任务的原会话</button>` : ''}</article>`;
   }
 
   function composer() {
@@ -537,7 +532,7 @@
 
   function compact() {
     const count = attentionCount();
-    return `<div class="compact-controls"><button data-action="compose" aria-label="问 Rover 或交办任务">${icons.compose}</button><button data-action="voice" aria-label="语音输入">${icons.voice}</button><button data-action="inbox" aria-label="通知">${icons.bell}${count ? `<em>${count}</em>` : ''}</button></div>`;
+    return `<div class="compact-controls"><button data-action="compose" aria-label="问 Rover 或交办任务">${icons.compose}</button><button data-action="voice" aria-label="语音输入">${icons.voice}</button><button data-action="home" aria-label="展开任务列表，查看需关注任务">${icons.bell}${count ? `<em>${count}</em>` : ''}</button></div>`;
   }
 
   function compose() {
@@ -546,38 +541,23 @@
 
   function dashboard() {
     return `<div class="surface"><div class="overline">管理面板</div><h1>Rover Dashboard</h1><p>管理 Skill、定时计划、最近活动、模型配置和本地数据。桌面宠物继续显示当前气泡与任务列表。</p></div>
-      <div class="dashboard-grid"><button data-action="skills"><strong>Skill 目录</strong><span>查看内置和用户 Skill</span></button><button data-action="schedules"><strong>定时计划</strong><span>查看计划与触发记录</span></button><button data-action="memory"><strong>最近活动</strong><span>查看 Rover 最近做过的事</span></button><button data-action="inbox"><strong>需关注事项</strong><span>查看等待确认与失败的任务</span></button><button data-action="model-settings"><strong>模型配置</strong><span>设置 Rover Agent 使用的模型</span></button><button data-action="local-data"><strong>本地数据</strong><span>查看与删除 Rover 保存的数据</span></button></div>`;
+      <div class="dashboard-grid"><button data-action="skills"><strong>Skill 目录</strong><span>查看内置和用户 Skill</span></button><button data-action="schedules"><strong>定时计划</strong><span>查看计划与触发记录</span></button><button data-action="memory"><strong>最近活动</strong><span>查看 Rover 最近做过的事</span></button><button data-action="attention-tasks"><strong>需关注任务</strong><span>查看等待确认与失败的任务</span></button><button data-action="model-settings"><strong>模型配置</strong><span>设置 Rover Agent 使用的模型</span></button><button data-action="local-data"><strong>本地数据</strong><span>查看与删除 Rover 保存的数据</span></button></div>`;
   }
 
   function voice() {
     return `${back('返回')}<div class="surface" style="text-align:center"><div class="voice-wave"><span></span><span></span><span></span><span></span><span></span></div><h1>${state.voiceText ? '语音已转写' : '听你说'}</h1><p>${esc(state.voiceText || '点击按钮模拟一句任务输入。')}</p><div class="actions" style="justify-content:center">${button('模拟语音', 'simulate-voice', 'primary')}${state.voiceText ? button('编辑后派发', 'review-voice') : ''}</div></div>`;
   }
 
-  function inbox() {
+  function attentionTasks() {
     const urgent = state.tasks.filter(item => item.status === 'needs_attention');
     const failed = state.tasks.filter(item => item.status === 'failed');
     return `${back('返回')}<div class="surface"><h1>需要你处理</h1><p>点击任务或卡片上的会话入口，查看原 Agent Session 或不可用说明。</p></div><div class="list task-list">${[...urgent, ...failed].map(taskCard).join('') || '<div class="surface"><p>当前没有需要处理的任务。</p></div>'}</div>`;
   }
 
-  function taskView() {
-    const item = current();
-    const [label, tone] = status(item.status);
-    const sessionSkills = [item.skill, 'pet-task-state'].filter(Boolean);
-    return `${back('返回列表')}<div class="surface"><div class="title-row"><h1>${esc(item.title)}</h1><span class="status ${tone}">${label}</span></div>
-      <p>${esc(item.id)} · ${esc(item.source)}${item.targetRepo ? ` · 目标仓库：${esc(item.targetRepo)}` : ''}</p>
-      ${['completed', 'failed', 'cancelled'].includes(item.status) ? `<div class="result-panel task-markdown">${renderMarkdown(item.resultMd || item.result || item.summary)}</div>` : `<p class="task-progress">${esc(item.summary)}</p>`}
-      <div class="fine-line"></div><div class="overline">Code Agent 保存的可引用 Task 摘要</div><p>${item.savedSummary ? esc(item.savedSummary) : '尚未保存；Rover 不据此推断原 Session 的工作内容。'}</p>
-      ${item.contextSourceTaskId ? `<div class="fine-line"></div><div class="overline">新 Session 的来源上下文</div><p>${esc(item.contextSourceTaskId)}：${esc(item.contextSummary)}</p><p>只提供 Code Agent 已保存的摘要，不复制原 Session 对话。</p>` : ''}
-      <div class="fine-line"></div><div class="overline">派发与 Skill</div><div class="info-grid"><div>入口<strong>${esc(({ auto_skill: 'Rover 自动判断', auto_dispatch: '普通任务派发', slash_skill: '/Skill 显式引用', slash_skill_at_agent: '/Skill + @Agent', at_agent: '@Agent 直接派发' })[item.routeMode] || '历史任务')}</strong></div><div>执行者<strong>${esc(item.agent)}</strong></div><div>业务 Skill<strong>${esc(item.skill || '未选用')}</strong></div><div>Rover 派发 Skill<strong>agent-dispatch</strong></div></div>
-      <div class="meta-row"><span>Session ${esc(item.session)}</span>${sessionSkills.map(name => `<span>Code Agent · ${esc(name)}/SKILL.md</span>`).join('')}</div>
-      <div class="actions">${item.sessionAvailable === false ? '<span class="status warn">会话不可用</span>' : button('查看会话', 'session', 'primary')}${item.status === 'completed' ? button('查看最近活动', 'memory') : ''}</div></div>
-      <div class="surface"><div class="overline">Task 记录</div><div class="event-list">${item.events.map(event => `<div class="event"><b>${esc(event)}</b></div>`).join('')}</div></div>`;
-  }
-
   function session() {
     const item = current();
     if (item.sessionAvailable === false) {
-      return `${back('返回任务列表')}<div class="surface"><div class="overline">会话不可用</div><h1>无法打开原 Agent Session</h1><p>${esc(item.agent)} 的 ${esc(item.session)} 当前不可访问。Rover 已保留该 Task 的失败结果和事件记录。</p><div class="actions">${button('查看 Task 记录', 'task')}</div></div>`;
+      return `${back('返回任务列表')}<div class="surface"><div class="overline">会话不可用</div><h1>无法打开原 Agent Session</h1><p>${esc(item.agent)} 的 ${esc(item.session)} 当前不可访问。Rover 已保留该 Task 的失败结果和事件记录。</p></div>`;
     }
     const controls = item.status === 'running'
       ? `${button('模拟进度更新', 'advance-progress')}${button('模拟可恢复 API 错误', 'recoverable-error')}${button('模拟 API 错误后停止', 'fail-task')}${button('模拟 Agent 请求用户', 'request-attention')}${button('模拟 Agent 完成', 'finish-task', 'primary')}`
@@ -588,7 +568,7 @@
           : item.status === 'completed'
             ? button('模拟 Agent 在原会话继续', 'resume-session', 'primary') : '';
     return `${back('返回任务列表')}<div class="surface"><div class="handoff-title">会话跳转占位 · ${esc(item.agent)}</div><h1>已定位到原 Agent Session</h1><p>真实产品在 ${esc(item.agent)} 中打开 ${esc(item.session)}。Rover 只保留跳转入口与任务摘要，不展示会话内容。</p><div class="conversation-meta"><span>${esc(item.id)}</span><span>${esc(item.session)}</span></div></div>
-      <div class="surface"><div class="overline">原型事件控制</div><p>下列按钮只模拟 Code Agent 的状态回报和用户在原会话中的操作。</p><div class="actions">${controls}${button('查看 Task 记录', 'task')}</div></div>`;
+      <div class="surface"><div class="overline">原型事件控制</div><p>下列按钮只模拟 Code Agent 的状态回报和用户在原会话中的操作。</p><div class="actions">${controls}</div></div>`;
   }
 
   function schedules() {
@@ -617,34 +597,38 @@
   }
 
   function memory() {
-    return `${back('返回')}<div class="surface"><h1>最近活动</h1><p>记录已结束任务的结果，以及 Rover 自身完成的操作；需要细节时可打开对应 Task 和原会话。本地记录不自动过期，可在「本地数据」中主动删除。</p></div>${state.activities.map(entry => `<div class="surface"><div class="title-row"><h2>${esc(entry.title)}</h2><span class="status">${esc(entry.taskId)}</span></div><p>${esc(entry.summary)}</p></div>`).join('')}`;
+    return `${back('返回')}<div class="surface"><h1>最近活动</h1><p>记录已结束任务的结果，以及 Rover 自身完成的操作；需要细节时可从任务卡片打开原会话。本地记录不自动过期，可在「本地数据」中主动删除。</p></div>${state.activities.map(entry => `<div class="surface"><div class="title-row"><h2>${esc(entry.title)}</h2><span class="status">${esc(entry.taskId)}</span></div><p>${esc(entry.summary)}</p></div>`).join('')}`;
   }
 
   function renderChrome() {
     const urgent = attentionCount();
     const speech = state.speech;
     const speechLabels = { thinking: '正在判断', answer: 'Rover 回答', clarify: '需要补充', 'session-choice': '选择原任务', 'session-guide': '返回原会话', dispatched: '已派发', unavailable: '暂时无法处理', attention: '需要你确认', warning: '任务异常', completed: '任务已完成', failed: '任务未完成', cancelled: '任务已取消' };
-    const speechAction = speech?.taskId
-      ? `<button class="speech-link" data-action="${['attention', 'warning', 'session-guide'].includes(speech.status) ? 'speech-session' : 'speech-task'}">${speech.status === 'attention' ? '去确认' : ['warning', 'session-guide'].includes(speech.status) ? '打开原会话' : '查看任务'} ↗</button>`
+    const speechAction = speech?.taskId && task(speech.taskId)?.sessionAvailable !== false
+      ? `<button class="speech-link" data-action="speech-session">${speech.status === 'attention' ? '去确认' : '打开原会话'} ↗</button>`
       : '';
     $('#petArea').classList.toggle('speech-right', Boolean(state.petAnchor && state.petAnchor.x < 390));
     $('#petArea').innerHTML = `<img class="pet" src="./assets/rover-pet.png" alt="Rover 桌面宠物，拖动可移动，点击可收起或展开" draggable="false" data-action="pet">${urgent ? `<span class="pet-attention">${urgent}</span>` : ''}${speech ? `<div class="pet-speech speech-${esc(speech.status)}" role="status" aria-live="${speech.status === 'attention' ? 'assertive' : 'polite'}"><div class="speech-head"><span class="speech-status">${speech.status === 'thinking' ? '<i class="speech-spinner"></i>' : '<i class="speech-dot"></i>'}${esc(speechLabels[speech.status] || 'Rover')}</span><button class="speech-close" data-action="dismiss-speech" aria-label="关闭气泡">×</button></div><p>${esc(speech.message)}</p>${speechAction}</div>` : ''}`;
     $('#sceneMenu').classList.toggle('hidden', !state.menu);
     $('#sceneMenu').innerHTML = scenarios.map(([id, label]) => `<button class="${state.view === id ? 'selected' : ''}" data-view="${id}">${label}</button>`).join('');
+    $('#roverTrayIcon').setAttribute('aria-expanded', String(state.trayMenuOpen));
+    $('#trayMenu').classList.toggle('hidden', !state.trayMenuOpen);
+    $('#trayMenu').innerHTML = `<button role="menuitem" data-action="dashboard">打开 Dashboard</button><button role="menuitem" data-action="tray-toggle-pet">${state.petVisible ? '隐藏宠物' : '显示宠物'}</button><button role="menuitem" disabled>退出 Rover（原型不执行）</button>`;
     $('#toastMount').innerHTML = state.toast ? `<div class="toast" role="status">${esc(state.toast)}</div>` : '';
   }
 
   function render() {
     renderChrome();
+    $('#roverShell').classList.toggle('hidden', !state.petVisible);
     $('#main').innerHTML = state.petMode === 'compact' ? compact() : home();
-    const managementViews = new Set(['dashboard', 'skills', 'schedules', 'memory', 'inbox', 'model-settings', 'local-data']);
-    const panelContent = ({ dashboard, voice, inbox, task: taskView, session,
+    const managementViews = new Set(['dashboard', 'skills', 'schedules', 'memory', 'attention-tasks', 'model-settings', 'local-data']);
+    const panelContent = ({ dashboard, voice, 'attention-tasks': attentionTasks, session,
       schedules, skills, memory, 'model-settings': modelSettings, 'local-data': localData })[state.view]?.();
-    const panelTitle = managementViews.has(state.view) ? 'Rover Dashboard' : state.view === 'session' ? 'Agent Session' : state.view === 'task' ? 'Task 详情' : 'Rover 输入';
+    const panelTitle = managementViews.has(state.view) ? 'Rover Dashboard' : state.view === 'session' ? 'Agent Session' : 'Rover 输入';
     const nav = managementViews.has(state.view)
-      ? `<nav class="dashboard-nav" aria-label="管理面板导航">${[['dashboard', '概览'], ['skills', 'Skill 目录'], ['schedules', '定时计划'], ['memory', '最近活动'], ['inbox', '需关注'], ['model-settings', '模型配置'], ['local-data', '本地数据']].map(([id, label]) => `<button class="${state.view === id ? 'active' : ''}" data-action="${id}">${label}</button>`).join('')}</nav>` : '';
+      ? `<nav class="dashboard-nav" aria-label="管理面板导航">${[['dashboard', '概览'], ['skills', 'Skill 目录'], ['schedules', '定时计划'], ['memory', '最近活动'], ['attention-tasks', '需关注任务'], ['model-settings', '模型配置'], ['local-data', '本地数据']].map(([id, label]) => `<button class="${state.view === id ? 'active' : ''}" data-action="${id}">${label}</button>`).join('')}</nav>` : '';
     $('#panelMount').innerHTML = panelContent ? `<section class="rover-panel ${managementViews.has(state.view) ? 'management-panel' : 'work-panel'}" role="dialog" aria-label="${panelTitle}"><header class="panel-header"><div><span>ROVER</span><strong>${panelTitle}</strong></div><button data-action="close-panel" aria-label="关闭窗口">×</button></header>${nav}<div class="panel-body">${panelContent}</div></section>` : '';
-    applyPetPosition();
+    if (state.petVisible) applyPetPosition();
     layout();
   }
 
@@ -772,14 +756,14 @@
       case 'zoom-focus': zoomMode = 'focus'; layout(); break;
       case 'reset-position': state.petAnchor = null; try { localStorage.removeItem(positionKey); } catch {} render(); break;
       case 'scene-menu': state.menu = !state.menu; render(); break;
-      case 'dashboard': go('dashboard'); break;
+      case 'dashboard': state.trayMenuOpen = false; go('dashboard'); break;
+      case 'tray-toggle-pet': state.trayMenuOpen = false; state.petVisible = !state.petVisible; render(); break;
       case 'close-panel': state.view = state.petMode; render(); break;
       case 'dismiss-speech': clearTimeout(speechTimer); speechRevision++; if (state.speech?.status === 'session-choice') state.pendingSessionChoice = false; state.speech = null; render(); break;
-      case 'speech-task': if (state.speech?.taskId) { state.selected = state.speech.taskId; go('task'); } break;
       case 'speech-session': if (state.speech?.taskId) { state.selected = state.speech.taskId; go('session'); } break;
       case 'pet': if (Date.now() - lastDragAt > 350) { state.petMode = state.petMode === 'compact' ? 'home' : 'compact'; if (['home', 'compact'].includes(state.view)) state.view = state.petMode; render(); } break;
-      case 'back': go(['skills', 'schedules', 'memory', 'inbox', 'model-settings', 'local-data'].includes(state.view) ? 'dashboard' : 'home'); break;
-      case 'compose': case 'voice': case 'inbox': case 'home': case 'task': case 'session': case 'schedules': case 'skills': case 'memory': case 'model-settings': case 'local-data': go(action); break;
+      case 'back': go(['skills', 'schedules', 'memory', 'attention-tasks', 'model-settings', 'local-data'].includes(state.view) ? 'dashboard' : 'home'); break;
+      case 'compose': case 'voice': case 'attention-tasks': case 'home': case 'session': case 'schedules': case 'skills': case 'memory': case 'model-settings': case 'local-data': go(action); break;
       case 'save-model': {
         const model = $('#model-id')?.value.trim();
         if (!model) { notify('请输入模型 ID'); break; }
@@ -823,6 +807,11 @@
   }
 
   document.addEventListener('click', event => {
+    if (state.trayMenuOpen && !event.target.closest('#trayMenu, #roverTrayIcon')) {
+      state.trayMenuOpen = false;
+      $('#trayMenu').classList.add('hidden');
+      $('#roverTrayIcon').setAttribute('aria-expanded', 'false');
+    }
     const scenario = event.target.closest('[data-view]');
     if (scenario) { showScenario(scenario.dataset.view); return; }
     const confirmation = event.target.closest('[data-confirm]');
@@ -844,6 +833,13 @@
     if (action) handleAction(action.dataset.action);
   });
 
+  document.addEventListener('contextmenu', event => {
+    if (!event.target.closest('#roverTrayIcon')) return;
+    event.preventDefault();
+    state.trayMenuOpen = true;
+    render();
+  });
+
   document.addEventListener('input', event => {
     if (event.target.id === 'prompt') {
       state.draft = event.target.value;
@@ -857,7 +853,13 @@
     if (event.target?.classList?.contains('pet-speech')) scheduleSpeechDismiss();
   }, true);
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') { state.menu = false; if (!['home', 'compact'].includes(state.view)) { state.view = state.petMode; render(); } else if (state.petMode !== 'compact') go('compact'); else render(); }
+    if (event.key === 'Escape') {
+      if (state.trayMenuOpen) { state.trayMenuOpen = false; render(); return; }
+      state.menu = false;
+      if (!['home', 'compact'].includes(state.view)) { state.view = state.petMode; render(); }
+      else if (state.petMode !== 'compact') go('compact');
+      else render();
+    }
     if (event.key === 'Enter' && event.target.id === 'prompt') { event.preventDefault(); submitPrompt(); }
   });
   addEventListener('resize', layout);

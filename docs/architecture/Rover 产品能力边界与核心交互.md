@@ -10,7 +10,7 @@ Rover Agent 是面向独立开发者、常驻 macOS 桌面宠物背后接收用�
 
 每条真正提交给 Rover Agent 的用户输入开启一次处理回合，并追加到同一份持续的 Agent history；处理回合结束不新建或清空 history。用户通过宠物气泡接收本次即时回答、澄清问题或派发提醒；通过任务列表看见 Code Agent Session「有哪些事正在处理、目前做到哪里、已经完成什么、哪件事需要我」。Rover 不提供自身的会话列表。Code Agent Session 中的深入理解、为完成原目标所需的澄清与确认、计划、工具使用和具体执行不复制到 Rover。Task 建立后，用户对该目标的普通补充、修改和确认进入对应 Code Agent Session；显式 `@Agent` 是新派发，相关历史 Task 摘要只作为可选背景。Rover 输入不会向已有 Task 或 Session 追加指令。
 
-界面分为宠物区域和独立 Dashboard。宠物区域保留悬浮待命、宠物、当前气泡、输入框和任务列表，让用户随时提出新问题或新目标。Dashboard 集中管理 Skill 目录、定时计划及运行日志、最近活动、模型配置、需关注事项和本地数据删除；它不占用宠物区域的任务视图。
+界面分为宠物区域和独立 Dashboard。宠物区域保留悬浮待命、宠物、当前气泡、输入框和任务列表，让用户随时提出新问题或新目标。Dashboard 集中管理 Skill 目录、定时计划及运行日志、最近活动、模型配置、需关注任务和本地数据删除；用户从 macOS 菜单栏 Rover 图标的右键菜单打开它，宠物区域不提供 Dashboard 入口。
 
 **核心体验承诺**：Rover Agent 能直接完成的输入在当前气泡得到答复；Skill 启动 Code Agent Session 时出现可追踪的 Task。后续输入可以参考 Rover 记忆延续上下文，但记忆不承诺逐字复原历史回复。收起宠物不影响已启动的 Session；需要用户介入时一键进入原会话；Session 结束后 Task 留下可核查的结果，最近活动记录保留近期做过的事。
 
@@ -73,11 +73,11 @@ Rover Agent 同一时间只处理一条输入。Prompt 1 仍在处理时，用�
 
 输入框在 Task 处理中继续可用，用于向 Rover 提出独立的新问题或新目标；已有 Task 继续运行，不因新输入暂停。若用户在 Rover 输入「给上次支付任务再加测试」这类针对已派发目标的普通补充而没有显式指定新执行者，Rover 定位原 Task 并引导用户在其 Session 中提出要求；它不转发这条输入，也不为补充要求新建 Task。若用户输入「`@Codex` 给支付功能加测试，我记得之前做过相关功能」，显式指定执行者意味着新的派发：Rover 可以使用 `task-recall` 按自然语言线索检索 Code Agent 已保存的可引用摘要；命中时把相关内容作为本轮工具结果提供给 Rover Agent history，再交给新 Codex Session。未命中时，Rover 不臆测之前做过什么，仍按当前新需求派发；检索不是派发的前置条件。旧 Task 及 Session 不变。若 Prompt 1 以 Rover 自身的澄清问题结束，待处理 Prompt 默认按新输入提交；用户可在界面明确选择将下一条作为 Rover 澄清问题的补充回答。
 
-用户只问「我之前是否做过支付链路巡检？」或「上次那个 QA 发布做到了哪里？」时，Rover 可以直接使用 `task-recall` 检索本地可引用摘要，在当前气泡回答并给出来源 Task 入口；这次检索不创建 Session 或 Task。Skill 将命中的相关摘要按需作为工具结果放入当前 Rover Agent history，而非把整个 JSON/JSONL 文件或旧 Session 对话灌入上下文。多个 Task 都可能匹配且无法可靠区分时，Rover 先请用户选择；只有 Task 记录却没有其可引用摘要时，Rover 可以报告找到了这项 Task，但不推断它具体做过什么，并提供原 Session 入口。
+用户只问「我之前是否做过支付链路巡检？」或「上次那个 QA 发布做到了哪里？」时，Rover 可以直接使用 `task-recall` 检索本地可引用摘要，在当前气泡回答并给出来源 Task 入口；这次检索不创建 Session 或 Task。Skill 将命中的相关摘要按需作为工具结果放入当前 Rover Agent history，而非把整个摘要库或旧 Session 对话灌入上下文。多个 Task 都可能匹配且无法可靠区分时，Rover 先请用户选择；只有 Task 记录却没有其可引用摘要时，Rover 可以报告找到了这项 Task，但不推断它具体做过什么，并提供原 Session 入口。
 
 分流依据是执行责任和所需能力。**未命中业务 Skill 不妨碍使用内置派发 Skill**；只要需要 Code Agent，`agent-dispatch` 仍可启动 Session，随之出现 Task。天气等实时问题若 Rover Agent 有可信数据源，可直接回答且不创建 Task；若相关 Skill 选择交给 Code Agent，则启动 Session 并出现 Task；没有可用能力时说明无法查询。原型没有天气数据源，因此展示能力说明。
 
-Rover 索引内置与用户可用的标准 Skill 目录；当某次请求明确了目标仓库时，也可为该次请求查找仓库中的 Skill。索引至少保留名称、描述、来源与目录位置。业务 Skill 的前置条件（例如目标仓库位置）不明确时，Rover 先在气泡中澄清，再按 Skill 流程处理；澄清前不派发 Session 或创建 Task。不同输入方式的处理规则如下：
+Rover 在 MVP 中索引内置 Skill 与用户安装到 Rover 专属目录的业务 Skill；仓库内 Skill 自动发现属于后续能力。索引至少保留名称、描述、来源与目录位置。业务 Skill 的前置条件（例如目标仓库位置）不明确时，Rover 先在气泡中澄清，再按 Skill 流程处理；澄清前不派发 Session 或创建 Task。不同输入方式的处理规则如下：
 
 | 用户输入 | Rover 行为 | 业务 Skill |
 | --- | --- | --- |

@@ -1,6 +1,6 @@
 # Rover 技术架构选项
 
-> 状态：React + Tauri + Node Runtime 为当前架构方向；Rover Agent loop 框架待验证 · 2026-09-26<br>
+> 状态：选项评估；MVP 实施决定见 [TRD](./Rover%20MVP%20TRD.md) · 2026-09-26<br>
 > 依据：[产品能力边界与核心交互](./Rover%20产品能力边界与核心交互.md)和[领域术语](../../CONTEXT.md)。本文比较实现路径，不改变产品行为。
 
 ## 1. 当前进程架构
@@ -10,10 +10,10 @@
 | 进程 | 职责 | 不持有 |
 | --- | --- | --- |
 | React WebView | 当前输入、气泡、任务卡片、Dashboard 的渲染与用户操作 | API 密钥、Agent 子进程、持久化写入权限 |
-| Tauri 宿主 | 透明窗口、托盘、通知、系统打开入口、Node sidecar 的启动/监控和受限 IPC | Rover Agent 的模型循环与业务判断 |
-| Node Runtime | Rover Agent loop、Skill 装载、工具与权限策略、Code Agent 适配器、Task 投影和本地数据写入 | 桌面窗口的直接控制 |
+| Tauri 宿主 | 透明窗口、托盘、通知、系统打开入口、Node sidecar 的端口选择、启动/监控和受限系统命令 | Rover Agent 的模型循环与业务判断 |
+| Node Runtime | 本机 HTTP/WS 业务 API、Rover Agent loop、Skill 装载、工具与权限策略、Code Agent 适配器、Task 投影和本地数据写入 | 桌面窗口的直接控制 |
 
-Tauri 与 Node 之间定义带版本号的命令和事件协议；由 Tauri 持有 sidecar 生命周期，Node 作为 Task 数据的唯一写入者。React 只通过受限 Tauri 命令交互。首版可用受管的本地管道或本地 socket；如果改用 localhost HTTP，需要额外解决端口暴露与鉴权。Node 运行时应随应用打包，不能要求终端用户另行安装；长驻、崩溃重启、退出清理和升级兼容需做集成验证。
+Tauri 持有 sidecar 生命周期并选择端口，Node 作为 Task 数据的唯一写入者并只在 `127.0.0.1` 提供带版本号的 HTTP API 与 WebSocket 事件流。React 直接访问 Node；Tauri 命令处理系统能力。动态端口发现、临时令牌、Origin/CORS/CSP 和重连详见 [TRD](./Rover%20MVP%20TRD.md)。Node 运行时应随应用打包，不能要求终端用户另行安装；长驻、崩溃重启、退出清理和升级兼容需做集成验证。
 
 Rover Agent loop 的框架比较与推荐见 [Rover Agent Loop 框架评估](./Rover%20Agent%20Loop%20框架评估.md)。该框架只实现 Rover 自身的直接回答、Skill 使用与派发判断；Claude Code、Codex 等 Code Agent 的原 Session 仍由各自适配器接入。
 
@@ -40,7 +40,7 @@ Rover 的关键承诺是：Task 指向**同一个**专业 Agent Session；Task �
 | [Clawd on Desk](https://github.com/rullerzhou-afk/clawd-on-desk/blob/main/docs/project/agent-runtime-architecture.md) | Claude Code 等 Agent 的 Hook 上报原生 `session_id` 与生命周期事件；部分 Agent 另以本地日志补足。可观察不由它启动的会话。 | 借鉴其按 Agent 接入 Hook、重启后核对日志和进程的做法；由 Rover 自己保存 Task 与原生 Session ID，并归并可信状态。不把 Clawd 桌面应用作为 Rover 的运行时依赖。 |
 | [Herdr](https://herdr.dev/docs/agents/) | 管理其终端 pane 中运行的 Agent；有 [Socket API](https://herdr.dev/docs/socket-api/) 暴露 pane、状态和已取得的原生 Session 引用。Claude Code 与 Codex 的会话身份可由集成 Hook 报告，但 `idle/working/blocked` 仍主要来自终端画面规则。 | 当 Rover 决定让 CLI 在 Herdr 中启动和接管时，可用其 API 创建、定位、打开和恢复终端；状态只作为观察信号，仍需 Agent Hook/结果回报验证。不覆盖 Herdr 之外的会话。 |
 
-**当前建议：** Rover 的状态适配器采用 Clawd 式的 Agent 原生事件观察，监听只读状态，不接管 Agent 的批准或提问；Herdr 作为可选的 CLI 承载与跳转组件验证。Rover 自己持有 `Task ID → Agent 类型 + 原生 Session ID → 可用打开入口` 的关联及事件证据。若首版把所有派发的 CLI 都放进 Herdr，可先用其结构化 API 缩短创建、聚焦和恢复链路，但不能把 Herdr 的画面识别结果直接等同于 Task 成功或等待用户的确定事实。
+**MVP 决定：** Rover 的状态适配器采用 Clawd 式的 Agent 原生事件观察，监听只读状态，不接管 Agent 的批准或提问；首版不依赖 Herdr。后台 CLI 承载与 Terminal.app 接管路径由 [TRD](./Rover%20MVP%20TRD.md) 规定并要求双 CLI 实测。Rover 自己持有 `Task ID → Agent 类型 + 原生 Session ID → 可用打开入口` 的关联及事件证据，不能把终端画面识别结果直接等同于 Task 成功或等待用户的确定事实。
 
 Herdr 启动的 `claude` 仍由 Claude Code 持有原生会话记录。默认情况下，它与用户直接运行 `claude` 所产生的会话都写在 Claude Code 的配置目录；设置 `CLAUDE_CONFIG_DIR`、使用另一台机器或不同账号配置时，会落到不同目录。[Claude Code 的数据目录说明](https://code.claude.com/docs/en/claude-directory)列出 `projects/<project>/<session>.jsonl`；[Herdr 的恢复机制](https://herdr.dev/docs/session-state/)使用 `claude --resume <id>`。因此是**同一种 Claude 会话数据来源，不是同一个 Session，也不是与 Herdr 的 pane/session 状态共用一份数据库**。
 
