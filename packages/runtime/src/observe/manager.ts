@@ -6,15 +6,15 @@
 
 import fs from 'node:fs';
 import type { AgentType } from '../dispatch/types.js';
-import {
-  getDefaultPaths,
-  type AgentHookAdapter,
-  type HookHealthOptions,
-  type HookHealthStatus,
-  type HookInstallOptions,
-  type HookUninstallOptions,
-  type OverallHookHealth,
-} from './types.js';
+import { getDefaultPaths } from './_utils.js';
+import type {
+  AgentHookAdapter,
+  HookHealthOptions,
+  HookHealthStatus,
+  HookInstallOptions,
+  HookUninstallOptions,
+  OverallHookHealth,
+} from './_types.js';
 import { ClaudeHookAdapter } from './claude.js';
 import { CodexHookAdapter } from './codex.js';
 import { OpenCodeHookAdapter } from './opencode.js';

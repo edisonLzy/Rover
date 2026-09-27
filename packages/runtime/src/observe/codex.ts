@@ -5,18 +5,16 @@
  */
 
 import type { AgentType } from '../dispatch/types.js';
-import {
-  CODEX_HOOK_EVENTS,
-  getDefaultPaths,
-  ROVER_HOOK_MARKER,
-  type AgentHookAdapter,
-  type HookConfigFile,
-  type HookHealthOptions,
-  type HookHealthStatus,
-  type HookInstallOptions,
-  type HookUninstallOptions,
-} from './types.js';
-import { safeReadJson, safeWriteJsonWithBackup } from './fs-utils.js';
+import { CODEX_HOOK_EVENTS, ROVER_HOOK_MARKER } from './_constant.js';
+import { getDefaultPaths, safeReadJson, safeWriteJsonWithBackup } from './_utils.js';
+import type {
+  AgentHookAdapter,
+  HookConfigFile,
+  HookHealthOptions,
+  HookHealthStatus,
+  HookInstallOptions,
+  HookUninstallOptions,
+} from './_types.js';
 
 export class CodexHookAdapter implements AgentHookAdapter {
   readonly agentType: AgentType = 'codex';

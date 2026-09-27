@@ -1,11 +1,28 @@
 /**
- * Safe File System Utilities for Hook Configurations.
+ * Observer Utility Methods.
  *
- * Enforces mandatory backups (*.rover.bak) and atomic writes.
+ * Enforces mandatory backups (*.rover.bak), atomic writes, and standard path resolution.
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import type { DefaultPaths } from './_types.js';
+
+/**
+ * Resolves standard default paths for configuration files and hook helper binary.
+ */
+export function getDefaultPaths(): DefaultPaths {
+  const home = os.homedir();
+  return {
+    claudeSettings: path.join(home, '.claude', 'settings.json'),
+    codexHooks: path.join(home, '.codex', 'hooks.json'),
+    opencodeConfig: path.join(home, '.config', 'opencode', 'opencode.json'),
+    helperBinary:
+      process.env.ROVER_HOOK_HELPER_PATH ||
+      path.join(home, 'Library', 'Application Support', 'Rover', 'bin', 'rover-hook-helper'),
+  };
+}
 
 export function safeReadJson<T>(filePath: string): T | null {
   if (!fs.existsSync(filePath)) {

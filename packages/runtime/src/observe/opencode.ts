@@ -5,16 +5,15 @@
  */
 
 import type { AgentType } from '../dispatch/types.js';
-import {
-  getDefaultPaths,
-  type AgentHookAdapter,
-  type HookHealthOptions,
-  type HookHealthStatus,
-  type HookInstallOptions,
-  type HookUninstallOptions,
-  type OpenCodeConfigFile,
-} from './types.js';
-import { safeReadJson, safeWriteJsonWithBackup } from './fs-utils.js';
+import { getDefaultPaths, safeReadJson, safeWriteJsonWithBackup } from './_utils.js';
+import type {
+  AgentHookAdapter,
+  HookHealthOptions,
+  HookHealthStatus,
+  HookInstallOptions,
+  HookUninstallOptions,
+  OpenCodeConfigFile,
+} from './_types.js';
 
 export class OpenCodeHookAdapter implements AgentHookAdapter {
   readonly agentType: AgentType = 'opencode';
