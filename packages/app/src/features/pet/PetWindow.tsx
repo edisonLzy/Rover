@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useRuntime } from '../context/RuntimeContext';
-import { trpc } from '../utils/trpc';
-import { RoverWebSocketClient, type ConnectionStatus } from '../utils/websocket';
+import { useRuntime } from '../../context/RuntimeContext';
+import { trpc } from '../../utils/trpc';
+import { RoverWebSocketClient, type ConnectionStatus } from '../../utils/websocket';
 
 export function PetWindow() {
   const { connection, loading, error } = useRuntime();

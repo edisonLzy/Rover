@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useRuntime, type RuntimeConnectionInfo } from '../context/RuntimeContext';
-import { trpc } from '../utils/trpc';
-import { RoverWebSocketClient, type ConnectionStatus } from '../utils/websocket';
+import { useRuntime, type RuntimeConnectionInfo } from '../../context/RuntimeContext';
+import { trpc } from '../../utils/trpc';
+import { RoverWebSocketClient, type ConnectionStatus } from '../../utils/websocket';
 
 interface EventLog {
   id: string;
@@ -171,7 +171,7 @@ function ProbeView({ connection }: { connection: RuntimeConnectionInfo }) {
           </span>
           <button
             onClick={() => setShowToken(!showToken)}
-            className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+            className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
           >
             {showToken ? 'Hide Token' : 'Reveal Token'}
           </button>
