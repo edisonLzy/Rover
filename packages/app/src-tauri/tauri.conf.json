@@ -22,7 +22,8 @@
         "transparent": true,
         "alwaysOnTop": true,
         "shadow": false,
-        "visible": true
+        "visible": true,
+        "center": true
       },
       {
         "label": "dashboard",

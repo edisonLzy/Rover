@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { RuntimeProvider } from './context/RuntimeContext';
-import { PetWindow } from './windows/PetWindow';
-import { DashboardWindow } from './windows/DashboardWindow';
+import { PetWindow } from './pet';
+import { DashboardWindow } from './dashboard';
 import { isTauriEnvironment, resolveInitialWindowLabel } from './utils/window';
 
 export default function App() {

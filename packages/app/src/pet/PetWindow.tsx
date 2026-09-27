@@ -9,7 +9,7 @@ export function PetWindow() {
   const [wsStatus, setWsStatus] = useState<ConnectionStatus>('connecting');
   const [wsLatency, setWsLatency] = useState<number | null>(null);
 
-  // tRPC health query
+  // tRPC health query (safely disabled until connection info is loaded)
   const healthQuery = trpc.health.useQuery(undefined, {
     enabled: !!connection,
     refetchInterval: 3000,
@@ -51,13 +51,13 @@ export function PetWindow() {
   const isOnline = !loading && !error && healthQuery.isSuccess && wsStatus === 'connected';
 
   return (
-    <div className="w-full h-full bg-transparent flex flex-col justify-end items-center p-3 select-none">
+    <div className="w-full h-full bg-transparent flex flex-col justify-center items-center p-3 select-none">
       {/* Floating Pet Card / Island */}
-      <div className="w-full rounded-2xl bg-zinc-900/90 backdrop-blur-xl border border-zinc-700/60 shadow-2xl p-4 text-zinc-100 flex flex-col gap-3">
+      <div className="w-full rounded-2xl bg-zinc-900 border border-zinc-700/80 shadow-2xl p-4 text-zinc-100 flex flex-col gap-3">
         {/* Header & Drag Handle */}
         <div
           data-tauri-drag-region
-          className="flex items-center justify-between pb-2 border-b border-zinc-800/80 cursor-grab active:cursor-grabbing"
+          className="flex items-center justify-between pb-2 border-b border-zinc-800 cursor-grab active:cursor-grabbing"
         >
           <div className="flex items-center gap-2 pointer-events-none">
             {/* Status indicator dot */}
@@ -79,14 +79,14 @@ export function PetWindow() {
             <button
               onClick={handleOpenDashboard}
               title="打开 Dashboard 管理面板"
-              className="p-1 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors text-xs"
+              className="p-1 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors text-xs cursor-pointer"
             >
               📊
             </button>
             <button
               onClick={handleHidePet}
               title="隐藏宠物（可通过菜单栏恢复）"
-              className="p-1 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors text-xs font-mono"
+              className="p-1 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors text-xs font-mono cursor-pointer"
             >
               ✕
             </button>
@@ -112,7 +112,7 @@ export function PetWindow() {
 
         {/* Status Chips */}
         <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-          <div className="rounded-lg bg-zinc-950/60 border border-zinc-800/80 p-2 flex flex-col justify-between">
+          <div className="rounded-lg bg-zinc-950/80 border border-zinc-800/80 p-2 flex flex-col justify-between">
             <span className="text-zinc-500">tRPC HTTP</span>
             <span
               className={`font-semibold ${healthQuery.isSuccess ? 'text-emerald-400' : 'text-zinc-400'}`}
@@ -120,7 +120,7 @@ export function PetWindow() {
               {healthQuery.isSuccess ? '200 OK' : healthQuery.isPending ? 'Probing...' : 'Error'}
             </span>
           </div>
-          <div className="rounded-lg bg-zinc-950/60 border border-zinc-800/80 p-2 flex flex-col justify-between">
+          <div className="rounded-lg bg-zinc-950/80 border border-zinc-800/80 p-2 flex flex-col justify-between">
             <span className="text-zinc-500">Events WS</span>
             <span
               className={`font-semibold ${wsStatus === 'connected' ? 'text-emerald-400' : 'text-zinc-400'}`}

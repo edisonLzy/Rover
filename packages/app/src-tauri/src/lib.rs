@@ -46,6 +46,7 @@ fn restart_runtime(
 fn show_window(app_handle: tauri::AppHandle, label: String) -> Result<(), String> {
     if let Some(window) = app_handle.get_webview_window(&label) {
         window.show().map_err(|e| e.to_string())?;
+        let _ = window.unminimize();
         window.set_focus().map_err(|e| e.to_string())?;
         Ok(())
     } else {
@@ -134,12 +135,14 @@ pub fn run() {
                         "open_dashboard" => {
                             if let Some(window) = app_handle.get_webview_window("dashboard") {
                                 let _ = window.show();
+                                let _ = window.unminimize();
                                 let _ = window.set_focus();
                             }
                         }
                         "restore_pet" => {
                             if let Some(window) = app_handle.get_webview_window("main") {
                                 let _ = window.show();
+                                let _ = window.unminimize();
                                 let _ = window.set_focus();
                             }
                         }

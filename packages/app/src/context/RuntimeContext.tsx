@@ -131,15 +131,14 @@ export function RuntimeProvider({ children }: { children: React.ReactNode }) {
   }, [refreshConnection]);
 
   const trpcClient = useMemo(() => {
-    if (!connection) return null;
+    const url = connection ? `${connection.http_url}/trpc` : 'http://127.0.0.1:0/trpc';
+    const token = connection ? connection.token : '';
 
     return trpc.createClient({
       links: [
         httpBatchLink({
-          url: `${connection.http_url}/trpc`,
-          headers: () => ({
-            Authorization: `Bearer ${connection.token}`,
-          }),
+          url,
+          headers: () => (token ? { Authorization: `Bearer ${token}` } : {}),
         }),
       ],
     });
@@ -158,13 +157,9 @@ export function RuntimeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <RuntimeContext.Provider value={contextValue}>
-      {connection && trpcClient ? (
-        <trpc.Provider client={trpcClient} queryClient={queryClient}>
-          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-        </trpc.Provider>
-      ) : (
-        children
-      )}
+      <trpc.Provider client={trpcClient} queryClient={queryClient}>
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      </trpc.Provider>
     </RuntimeContext.Provider>
   );
 }
