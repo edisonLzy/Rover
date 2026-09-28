@@ -21,7 +21,9 @@
     "build:sea": "node scripts/build-sea.mjs",
     "smoke:sea": "node scripts/smoke-sea.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck:e2e": "tsc -p tsconfig.e2e.json --noEmit",
+    "test": "vitest run",
+    "test:e2e:m1": "pnpm typecheck:e2e && pnpm build && cargo build --quiet --manifest-path ../app/src-tauri/Cargo.toml --bin rover-hook-helper && vitest run --config vitest.e2e.config.ts"
   },
   "dependencies": {
     "@trpc/server": "catalog:",

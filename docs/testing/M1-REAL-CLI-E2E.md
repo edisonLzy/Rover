@@ -1,0 +1,95 @@
+# M1 Real CLI E2E
+
+This suite is the executable acceptance probe for the M1 functionality that already exists on
+`master`: real Claude Code and Codex CLI dispatch into GNU Screen, Hook-based native session
+binding, Terminal.app attachment, launcher-process survival, and native CLI resume.
+
+It deliberately does not cover Task persistence, `open_task`, task cards, the Rover Agent loop, or
+other M2 functionality.
+
+## Safety model
+
+The suite is excluded from the normal `pnpm test` command. It must be opted into because it opens
+Terminal.app and creates real agent sessions:
+
+```bash
+ROVER_E2E_REAL_CLI=1 pnpm test:e2e:m1
+```
+
+The default launch and Terminal attach cases do not send a model prompt. Claude's startup Hook and
+Hook-isolation case also run without one. Codex creates the session-start Hook during a turn, so its
+native binding, resume, and Hook-isolation probes are gated behind an explicit model-turn opt-in.
+Those cases can make up to three short model requests across both CLIs (one per resume probe, plus
+one Codex isolation probe). Run them only when the configured CLI accounts are allowed to make
+model requests:
+
+```bash
+ROVER_E2E_REAL_CLI=1 ROVER_E2E_RUN_MODEL_TURN=1 pnpm test:e2e:m1
+```
+
+The opted-in cases send short read-only prompts and may incur provider usage charges. A missing
+provider balance is reported as a failed probe through the CLI's completion Hook.
+
+Optional executable overrides:
+
+```bash
+ROVER_E2E_REAL_CLI=1 \
+ROVER_E2E_CLAUDE_PATH=/absolute/path/to/claude \
+ROVER_E2E_CODEX_PATH=/absolute/path/to/codex \
+pnpm test:e2e:m1
+```
+
+Each run uses:
+
+- a unique Rover attempt and Screen name;
+- the Rover repository as each real agent session's working directory, matching production launch;
+- a temporary Hook spool;
+- temporary Claude Hook settings and a temporary Codex configuration home;
+- a copied Codex authentication file with mode `0600`;
+- temporary Codex project-trust and version-cache settings, scoped to the isolated home;
+- exact Screen names and PIDs for cleanup;
+- a test-only CLI wrapper that exports the isolated paths and then `exec`s the real CLI.
+
+The suite never installs Rover Hooks into the user's normal Claude or Codex configuration. The
+default launch and attach cases do not submit prompts; Claude starts in plan mode and Codex uses a
+read-only sandbox. Hook configuration and spool data are isolated per test.
+Temporary Hook configuration and copied Codex authentication are removed after each case. Claude
+Code must use its normal authenticated profile because its OAuth login is scoped to that profile;
+the user's already-configured Claude Hooks also run. The optional Claude resume case saves its
+conversation in Claude's normal local session history. Sanitized evidence is kept under
+`test-results/m1-e2e/`, which is ignored by Git.
+
+For debugging only, `ROVER_E2E_KEEP_TEMP=1` preserves each case's temporary directory, including
+the copied Codex authentication file, under the operating system's temp directory. Do not enable it
+for routine runs; if used, remove the exact retained test directory after inspection.
+
+## Automated acceptance cases
+
+| Case              | Evidence                                                                                                 |
+| ----------------- | -------------------------------------------------------------------------------------------------------- |
+| Prerequisites     | macOS, architecture, CLI versions, authentication, Screen, osascript, helper                             |
+| Real launch       | production dispatcher creates a detached Screen running the real CLI; launcher process has exited        |
+| Native binding    | Claude startup Hook and opt-in Codex turn Hook in the isolated spool confirm the native session ID       |
+| Terminal takeover | production action resolution returns `attach`; Screen changes to `Attached` without changing PID or name |
+| Native resume     | optional model-turn case resumes by the matching native ID and confirms the same ID from Hook            |
+| Hook isolation    | marker proves the real CLI invoked a Hook; missing Rover attempt identity produces no spool event        |
+
+The tests do not parse terminal text as Task completion evidence. Hook payloads are used for native
+session identity, matching the M1 runtime contract.
+
+## Expected limitations
+
+The suite requires a logged-in macOS desktop session and Terminal Automation permission for the
+process running Node. GitHub-hosted runners do not provide the same authenticated GUI environment,
+so this suite is not part of the default pull-request workflow. It can later run on a dedicated,
+disposable self-hosted Mac user.
+
+The complete packaged-app checks remain in [M1-MACOS-SMOKE.md](./M1-MACOS-SMOKE.md). A passing
+Vitest suite does not replace those checks.
+
+## Failure handling
+
+The test only terminates Screen sessions whose attempt ID was generated by the current case and
+only signals the exact resume PID written by its wrapper. It never uses broad `pkill` patterns. If
+a test is interrupted before cleanup, inspect and remove only the matching `rover_<attemptId>`
+entry printed in `test-results/m1-e2e/<run-id>/summary.json`.

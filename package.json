@@ -13,6 +13,7 @@
     "format": "oxfmt --ignore-path=.oxfmtignore --write",
     "format:check": "oxfmt --ignore-path=.oxfmtignore --check",
     "test": "turbo run test",
+    "test:e2e:m1": "pnpm --filter @rover/runtime test:e2e:m1",
     "build:sea": "pnpm --filter @rover/runtime build:sea",
     "smoke:sea": "pnpm --filter @rover/runtime smoke:sea",
     "package:mac:arm64": "pnpm build:sea --target=aarch64-apple-darwin && pnpm --filter @rover/app package:mac:arm64",
