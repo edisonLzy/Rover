@@ -34,6 +34,7 @@ export * from './dispatch/claude.js';
 export * from './dispatch/codex.js';
 export * from './dispatch/opencode.js';
 export * from './dispatch/dispatcher.js';
+export * from './dispatch/terminal.js';
 export * from './observe/index.js';
 
 /**

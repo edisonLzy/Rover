@@ -42,6 +42,8 @@ export interface SessionCarrier {
   getSessionInfo(attemptId: string): Promise<CarrierSessionInfo | null>;
   listSessions(): Promise<CarrierSessionInfo[]>;
   killSession(attemptId: string): Promise<boolean>;
+  getSession?(attemptId: string): Promise<CarrierSessionInfo | null>;
+  stopSession?(attemptId: string): Promise<boolean>;
 }
 
 /**
@@ -65,6 +67,10 @@ export class ScreenSessionCarrier implements SessionCarrier {
     return raw ? this.mapToCarrierSession(raw) : null;
   }
 
+  async getSession(attemptId: string): Promise<CarrierSessionInfo | null> {
+    return this.getSessionInfo(attemptId);
+  }
+
   async listSessions(): Promise<CarrierSessionInfo[]> {
     const rawList = await listRoverScreenSessions(this.screenBinary);
     return rawList.map((s) => this.mapToCarrierSession(s));
@@ -72,6 +78,10 @@ export class ScreenSessionCarrier implements SessionCarrier {
 
   async killSession(attemptId: string): Promise<boolean> {
     return killScreenSession(attemptId, this.screenBinary);
+  }
+
+  async stopSession(attemptId: string): Promise<boolean> {
+    return this.killSession(attemptId);
   }
 
   private mapToCarrierSession(info: ScreenSessionInfo): CarrierSessionInfo {
@@ -119,6 +129,10 @@ export class WindowsSessionCarrier implements SessionCarrier {
     return null;
   }
 
+  async getSession(attemptId: string): Promise<CarrierSessionInfo | null> {
+    return this.getSessionInfo(attemptId);
+  }
+
   async listSessions(): Promise<CarrierSessionInfo[]> {
     // TODO(windows): Enumerate active Rover named pipes
     return [];
@@ -127,6 +141,10 @@ export class WindowsSessionCarrier implements SessionCarrier {
   async killSession(_attemptId: string): Promise<boolean> {
     // TODO(windows): Terminate ConPTY process tree
     return false;
+  }
+
+  async stopSession(attemptId: string): Promise<boolean> {
+    return this.killSession(attemptId);
   }
 }
 
@@ -139,3 +157,5 @@ export function getSessionCarrier(platform: NodeJS.Platform = process.platform):
   }
   return new ScreenSessionCarrier();
 }
+
+export const defaultSessionCarrier: SessionCarrier = getSessionCarrier();
