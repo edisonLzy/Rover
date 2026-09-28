@@ -10,6 +10,10 @@ default-run = "rover_desktop"
 name = "rover_desktop"
 path = "src/main.rs"
 
+[[bin]]
+name = "rover-hook-helper"
+path = "src/bin/rover-hook-helper.rs"
+
 [lib]
 name = "rover_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]

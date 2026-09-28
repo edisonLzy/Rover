@@ -1,4 +1,5 @@
 pub mod sidecar;
+pub mod terminal;
 
 use sidecar::{NodeSidecarManager, RuntimeConnectionInfo};
 use std::sync::{Arc, Mutex};
@@ -82,7 +83,8 @@ pub fn run() {
             get_runtime_connection,
             restart_runtime,
             show_window,
-            hide_window
+            hide_window,
+            terminal::open_terminal
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
