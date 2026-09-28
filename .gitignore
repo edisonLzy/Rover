@@ -19,6 +19,9 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 
+# Explicit real-CLI E2E evidence (may contain local paths and session metadata)
+test-results/
+
 # OS Files
 .DS_Store
 Thumbs.db
