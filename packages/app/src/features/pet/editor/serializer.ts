@@ -1,9 +1,5 @@
 import type { Editor, JSONContent } from '@tiptap/core';
-import {
-  PromptDocumentV1Schema,
-  type PromptDocumentV1,
-  type PromptPart,
-} from '@rover/runtime/expose';
+import type { PromptDocumentV1, PromptPart } from '@rover/runtime/expose';
 import { REFERENCE_NODE_NAME } from './extensions/mentionNode.js';
 
 export function serializeEditorContent(editor: Editor): PromptDocumentV1 | null {
@@ -99,11 +95,5 @@ export function serializeProseMirrorDoc(doc: JSONContent): PromptDocumentV1 | nu
     parts: mergedParts,
   };
 
-  const validation = PromptDocumentV1Schema.safeParse(promptDoc);
-  if (!validation.success) {
-    console.error('PromptDocumentV1 validation failed:', validation.error);
-    return null;
-  }
-
-  return validation.data;
+  return promptDoc;
 }

@@ -11,7 +11,7 @@ History、消息写入粒度与 Compaction 以 [ADR-0014](../../adr/0014-linear-
 flowchart TD
   T001["001: SQLite 存储层与迁移机制"]
   T002["002: Tiptap 3 输入栏与 PromptDocumentV1"]
-  T003["003: Pi 模型配置与 Keychain 凭据桥接"]
+  T003["003: 模型配置管理与 Pi AI 契约对齐"]
 
   T004["004: 全局 History 与 Compaction 存储"]
   T001 --> T004
@@ -21,6 +21,7 @@ flowchart TD
   T002 --> T005
   T003 --> T005
   T004 --> T005
+
 
   T006["006: 受控工具与 Task 事务创建"]
   T001 --> T006
@@ -58,7 +59,7 @@ flowchart TD
 |:---|:---|:---|:---|:---|
 | [001](./001-sqlite-storage-and-migrations.md) | SQLite 存储层与版本迁移机制 | *None (Frontier)* | DONE | `packages/runtime` (better-sqlite3, migrations) |
 | [002](./002-tiptap-prompt-input-and-prompt-document-v1.md) | Tiptap 3 输入栏与 PromptDocumentV1 契约 | *None (Frontier)* | DONE | `packages/app` (Tiptap 3, Suggestion), `packages/runtime` (Zod schema) |
-| [003](./003-pi-models-config-and-keychain-bridge.md) | Pi 模型配置与 Keychain 凭据桥接 | *None (Frontier)* | TODO | `packages/runtime` (models.json), `src-tauri` (Keychain) |
+| [003](./003-pi-models-config-and-keychain-bridge.md) | 模型配置管理与 Pi AI 契约对齐 | *None (Frontier)* | DONE | `packages/runtime` (~/.rover/models.json, tRPC), `packages/app` |
 | [004](./004-rover-history-and-compaction.md) | 全局 History 与 Compaction 存储 | 001 | DONE | `packages/runtime` (rover_entry, compaction) |
 | [005](./005-pi-agent-loop-and-turn-engine.md) | Pi Agent Loop 回合引擎与流式响应 | 001, 002, 003, 004 | TODO | `packages/runtime` (Pi Agent loop, turn protocol, WS stream) |
 | [006](./006-controlled-tools-and-task-transaction-creation.md) | 受控工具链与 Task 事务原子创建 | 001, 005 | TODO | `packages/runtime` (dispatch_attempt, session_ref, task, agent-dispatch) |

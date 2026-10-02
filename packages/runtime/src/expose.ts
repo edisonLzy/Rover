@@ -1,19 +1,15 @@
 /**
- * Public API exposed by @rover/runtime for consumption by @rover/app and frontend clients.
- * Exposes tRPC AppRouter contract, PromptDocumentV1 schemas, and shared domain contracts.
+ * Public types exposed by @rover/runtime for consumption by @rover/app and frontend clients.
+ *
+ * 约定规范（Strict Convention）：
+ * 本文件仅用于对外导出纯 TypeScript 类型（type-only exports）。
+ * 严禁导出任何运行时值、函数、类实例或 Schema 对象，以彻底杜绝向浏览器/Webview 客户端泄露 Node.js 服务端模块。
  */
 
 // tRPC AppRouter & Context
-export { appRouter } from './transport/router.js';
 export type { AppRouter, Context } from './transport/router.js';
 
-// Prompt Document V1 Specification & Schemas (Ticket 002)
-export {
-  PromptDocumentV1Schema,
-  parsePromptDocument,
-  safeParsePromptDocument,
-  promptDocumentToPlainText,
-} from './types/prompt.js';
+// Prompt Document V1 Specification (Ticket 002)
 export type {
   PromptDocumentV1,
   PromptPart,
@@ -21,3 +17,18 @@ export type {
   PromptReferencePart,
   PromptReferenceKind,
 } from './types/prompt.js';
+
+// Model Configuration Contract (Ticket 003 & ADR-0015)
+export type {
+  RoverModelsConfig,
+  ProviderConfig,
+  ModelConfig,
+  ActiveModelConfig,
+  ModelCost,
+  MaskedProviderConfig,
+  MaskedRoverModelsConfig,
+  ModelConnectionTestResult,
+} from './models/types.js';
+
+// Core Runtime Status & Config
+export type { RuntimeConfig, RuntimeStatus } from './index.js';
