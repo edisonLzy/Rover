@@ -16,6 +16,8 @@ import {
 import {
   assessContextBudget,
   selectCompactionBoundary,
+  estimateTextTokens,
+  estimateMessageTokens,
   Compactor,
   type TurnGroup,
 } from '../agent/compaction.js';
@@ -238,6 +240,27 @@ describe('Global History & Compaction Storage (Ticket 004)', () => {
       expect(assessment.availableBudgetTokens).toBe(3500);
       expect(assessment.isOverBudget).toBe(false);
       expect(assessment.currentEffectiveTokens).toBeGreaterThan(0);
+    });
+
+    it('uses exact BPE tokens for text and prioritizes authoritative provider usage', () => {
+      // 1. Text BPE estimation
+      const textTokens = estimateTextTokens('Hello, world!');
+      expect(textTokens).toBeGreaterThan(0);
+
+      // 2. Message with authoritative usage from provider
+      const msgWithUsage: AgentMessage = {
+        role: 'assistant',
+        content: 'some long content that would estimate to more tokens',
+        usage: { totalTokens: 42 },
+      };
+      expect(estimateMessageTokens(msgWithUsage)).toBe(42);
+
+      // 3. Message without usage falls back to base overhead + BPE
+      const msgWithoutUsage: AgentMessage = {
+        role: 'user',
+        content: 'Hello, world!',
+      };
+      expect(estimateMessageTokens(msgWithoutUsage)).toBe(4 + textTokens);
     });
 
     it('never compacts running turns, only completed turns', () => {

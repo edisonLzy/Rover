@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import type Database from 'better-sqlite3';
+import { encode } from 'gpt-tokenizer';
 import {
   appendCompactionEntry,
   getEffectiveHistory,
@@ -30,25 +31,25 @@ export interface BudgetAssessment {
 }
 
 /**
- * Fast approximate token estimator for messages and text.
- * Calculates approximate token count considering multi-byte (e.g. CJK) and ASCII characters.
+ * Token estimator using standard BPE (Byte-Pair Encoding via gpt-tokenizer).
+ * Supports full Unicode, CJK, and code tokens with exact BPE accuracy.
  */
 export function estimateTextTokens(text: string): number {
   if (!text) return 0;
-  let tokens = 0;
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    // Non-ASCII characters (e.g. CJK) typically use ~0.8-1.2 tokens per character
-    if (code > 255) {
-      tokens += 1;
-    } else {
-      tokens += 0.25;
-    }
+  try {
+    return encode(text).length;
+  } catch {
+    // Fallback heuristic in case of abnormal string error
+    return Math.max(1, Math.ceil(text.length * 0.5));
   }
-  return Math.max(1, Math.ceil(tokens));
 }
 
 export function estimateMessageTokens(message: AgentMessage): number {
+  // 1. Prioritize authoritative token usage reported by the provider if available
+  if (typeof message.usage?.totalTokens === 'number' && message.usage.totalTokens > 0) {
+    return message.usage.totalTokens;
+  }
+
   let text = '';
   if (typeof message.content === 'string') {
     text += message.content;

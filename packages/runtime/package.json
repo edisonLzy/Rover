@@ -26,6 +26,7 @@
   "dependencies": {
     "@trpc/server": "catalog:",
     "better-sqlite3": "^13.0.3",
+    "gpt-tokenizer": "^4.0.0",
     "ws": "^8.18.0",
     "zod": "^3.24.2"
   },
