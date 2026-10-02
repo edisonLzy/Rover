@@ -82,7 +82,6 @@ describe('Storage Layer & Migrations (Ticket 001)', () => {
       expect(tableNames).toContain('task_event');
       expect(tableNames).toContain('task_summary');
       expect(tableNames).toContain('activity');
-      expect(tableNames).toContain('skill_install');
     });
 
     it('is strictly idempotent when running migrations repeatedly', () => {

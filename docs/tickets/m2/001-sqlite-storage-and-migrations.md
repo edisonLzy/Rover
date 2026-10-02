@@ -30,7 +30,6 @@ Rover 是单用户本地桌面 Agent，Node Runtime 是本地 SQLite 唯一写�
    - `task_event`
    - `task_summary`
    - `activity`
-   - `skill_install`
 
 ## Affected Components & Files
 - `packages/runtime/package.json`

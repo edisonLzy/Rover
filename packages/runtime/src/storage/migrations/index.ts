@@ -108,27 +108,13 @@ CREATE TABLE IF NOT EXISTS task_summary (
 -- 9. 最近活动台账
 CREATE TABLE IF NOT EXISTS activity (
   id TEXT PRIMARY KEY,
-  kind TEXT NOT NULL CHECK (kind IN ('task_completed', 'task_failed', 'skill_installed', 'plan_executed')),
+  kind TEXT NOT NULL CHECK (kind IN ('task_completed', 'task_failed', 'plan_executed')),
   ref_id TEXT NOT NULL,
   title TEXT NOT NULL,
   summary TEXT,
   occurred_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_activity_occurred_at ON activity(occurred_at DESC);
-
--- 10. 受管 Skill 安装状态
-CREATE TABLE IF NOT EXISTS skill_install (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  description TEXT,
-  version TEXT NOT NULL,
-  source TEXT NOT NULL,
-  managed_path TEXT NOT NULL,
-  content_hash TEXT NOT NULL,
-  is_enabled INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
-  installed_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
 `;
 
 export const MIGRATIONS: Migration[] = [
