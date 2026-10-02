@@ -24,6 +24,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@earendil-works/pi-agent-core": "catalog:",
+    "@earendil-works/pi-ai": "catalog:",
     "@trpc/server": "catalog:",
     "better-sqlite3": "^13.0.3",
     "gpt-tokenizer": "^4.0.0",

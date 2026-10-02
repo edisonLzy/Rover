@@ -10,6 +10,9 @@ import {
   getLatestCompaction,
   getTurnEntries,
   getEntryById,
+  listEntries,
+  getHistoryStats,
+  listRoverTurns,
   type RoverDatabase,
   type AgentMessage,
 } from '../storage/index.js';
@@ -421,6 +424,77 @@ describe('Global History & Compaction Storage (Ticket 004)', () => {
           },
         });
       }).toThrow(/must be strictly greater than previous/);
+    });
+  });
+
+  describe('4. History Feed & Dashboard Querying', () => {
+    it('supports paginated listEntries, filtering by turn and type, and history statistics', () => {
+      // 1. Create turns and entries
+      createRoverTurn(db.raw, { id: 'turn_a', promptDoc: { text: 'Prompt A' } });
+      appendMessageEntry(db.raw, {
+        id: 'msg_a1',
+        turnId: 'turn_a',
+        message: { role: 'user', content: 'Prompt A' },
+      });
+      appendMessageEntry(db.raw, {
+        id: 'msg_a2',
+        turnId: 'turn_a',
+        message: { role: 'assistant', content: 'Response A' },
+      });
+
+      createRoverTurn(db.raw, { id: 'turn_b', promptDoc: { text: 'Prompt B' } });
+      appendMessageEntry(db.raw, {
+        id: 'msg_b1',
+        turnId: 'turn_b',
+        message: { role: 'user', content: 'Prompt B' },
+      });
+      appendCompactionEntry(db.raw, {
+        id: 'cmp_1',
+        compaction: {
+          summary: 'Summary of Turn A and B',
+          coveredThroughSeq: 2,
+          previousCompactionId: null,
+          tokensBefore: 500,
+          tokensAfter: 100,
+          policyVersion: 1,
+        },
+      });
+
+      // 2. Test listEntries with default pagination
+      const allEntries = listEntries(db.raw);
+      expect(allEntries).toHaveLength(4);
+      expect(allEntries[0].id).toBe('msg_a1');
+      expect(allEntries[3].id).toBe('cmp_1');
+
+      // 3. Test filtering by turnId
+      const turnAEntries = listEntries(db.raw, { turnId: 'turn_a' });
+      expect(turnAEntries).toHaveLength(2);
+      expect(turnAEntries.every((e) => e.turnId === 'turn_a')).toBe(true);
+
+      // 4. Test filtering by type
+      const compactionEntries = listEntries(db.raw, { type: 'compaction' });
+      expect(compactionEntries).toHaveLength(1);
+      expect(compactionEntries[0].id).toBe('cmp_1');
+
+      const messageEntries = listEntries(db.raw, { type: 'message' });
+      expect(messageEntries).toHaveLength(3);
+
+      // 5. Test ordering (descending)
+      const descEntries = listEntries(db.raw, { order: 'desc', limit: 2 });
+      expect(descEntries).toHaveLength(2);
+      expect(descEntries[0].id).toBe('cmp_1');
+
+      // 6. Test getHistoryStats
+      const stats = getHistoryStats(db.raw);
+      expect(stats.totalEntries).toBe(4);
+      expect(stats.totalMessages).toBe(3);
+      expect(stats.totalCompactions).toBe(1);
+      expect(stats.totalTurns).toBe(2);
+      expect(stats.latestSeq).toBe(4);
+
+      // 7. Test listRoverTurns
+      const turns = listRoverTurns(db.raw);
+      expect(turns).toHaveLength(2);
     });
   });
 });

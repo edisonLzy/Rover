@@ -4,6 +4,7 @@ import { nodeHTTPRequestHandler } from '@trpc/server/adapters/node-http';
 import { createContext, extractAuthToken } from './context.js';
 import { appRouter } from './router.js';
 import { WebSocketManager, type RuntimeEvent } from './websocket.js';
+import { getDefaultTurnEngine } from '../agent/index.js';
 import { RUNTIME_VERSION } from '../index.js';
 
 export interface RuntimeServerOptions {
@@ -68,6 +69,7 @@ export class RuntimeServer {
     }
 
     this.wsManager = new WebSocketManager({ expectedToken: this.token });
+    getDefaultTurnEngine().setWebSocketManager(this.wsManager);
     this.server = http.createServer(this.handleHttpRequest.bind(this));
 
     this.server.on('upgrade', (req, socket, head) => {

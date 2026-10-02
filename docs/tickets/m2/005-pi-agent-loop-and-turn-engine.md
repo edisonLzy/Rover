@@ -1,6 +1,6 @@
 # 005: Pi Agent Loop 回合引擎与流式响应
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 001, 002, 003, 004  
 **Blocks**: 006, 010  
 
@@ -25,7 +25,6 @@ Rover Agent 负责接收用户输入，并产生即时答复、提出澄清问�
    - 所有事件均携带递增 `eventSeq` 并同步记入 `runtime_event` 表。
 
 ## Affected Components & Files
-- `packages/runtime/src/agent/loop.ts`
 - `packages/runtime/src/agent/engine.ts`
 - `packages/runtime/src/agent/prompts.ts`
 - `packages/runtime/src/transport/router.ts` (turns 路由)
@@ -33,10 +32,10 @@ Rover Agent 负责接收用户输入，并产生即时答复、提出澄清问�
 - `packages/runtime/src/__tests__/turns.test.ts`
 
 ## Acceptance Criteria
-- [ ] 提交合法 `PromptDocumentV1` 后 user entry 已持久化，能成功启动模型调用，并在 WebSocket 收到连续递增序号的 `turn.delta` 事件。
-- [ ] 完整消息产生后立即落库；模型输出完毕后收到 `turn.end`，`rover_entry` 可按 `turn_id` 查询完整原始消息链，`rover_turn` 有真实结束状态。
-- [ ] 调用取消接口能立即截断模型输出，并将回合状态标记为 `cancelled`。
-- [ ] 异常测试：在未配置 API Key 或模型网络不可达时，向客户端返回明确的结构化错误码，不发生进程 Crash。
+- [x] 提交合法 `PromptDocumentV1` 后 user entry 已持久化，能成功启动模型调用，并在 WebSocket 收到连续递增序号的 `turn.delta` 事件。
+- [x] 完整消息产生后立即落库；模型输出完毕后收到 `turn.end`，`rover_entry` 可按 `turn_id` 查询完整原始消息链，`rover_turn` 有真实结束状态。
+- [x] 调用取消接口能立即截断模型输出，并将回合状态标记为 `cancelled`。
+- [x] 异常测试：在未配置 API Key 或模型网络不可达时，向客户端返回明确的结构化错误码，不发生进程 Crash。
 
 ## Verification Plan
 ```bash

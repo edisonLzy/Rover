@@ -332,3 +332,109 @@ export function getEntryById(db: Database.Database, id: string): RoverEntryRecor
   const row = stmt.get(id) as RawEntryRow | undefined;
   return row ? parseEntryRow(row) : null;
 }
+
+export interface ListEntriesOptions {
+  limit?: number;
+  offset?: number;
+  beforeSeq?: number;
+  afterSeq?: number;
+  turnId?: string;
+  type?: 'message' | 'compaction';
+  order?: 'asc' | 'desc';
+}
+
+export function listEntries(
+  db: Database.Database,
+  options: ListEntriesOptions = {}
+): RoverEntryRecord[] {
+  const { limit = 50, offset = 0, beforeSeq, afterSeq, turnId, type, order = 'asc' } = options;
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (beforeSeq !== undefined) {
+    conditions.push('seq < ?');
+    params.push(beforeSeq);
+  }
+  if (afterSeq !== undefined) {
+    conditions.push('seq > ?');
+    params.push(afterSeq);
+  }
+  if (turnId !== undefined) {
+    conditions.push('turn_id = ?');
+    params.push(turnId);
+  }
+  if (type !== undefined) {
+    conditions.push('type = ?');
+    params.push(type);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const orderDirection = order.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+  const sql = `
+    SELECT * FROM rover_entry
+    ${whereClause}
+    ORDER BY seq ${orderDirection}
+    LIMIT ? OFFSET ?
+  `;
+  params.push(limit, offset);
+
+  const stmt = db.prepare(sql);
+  const rows = stmt.all(...params) as RawEntryRow[];
+  return rows.map((r) => parseEntryRow(r));
+}
+
+export interface HistoryStats {
+  totalEntries: number;
+  totalMessages: number;
+  totalCompactions: number;
+  totalTurns: number;
+  latestSeq: number;
+}
+
+export function getHistoryStats(db: Database.Database): HistoryStats {
+  const entryStatsStmt = db.prepare(`
+    SELECT
+      COUNT(*) as total_entries,
+      SUM(CASE WHEN type = 'message' THEN 1 ELSE 0 END) as total_messages,
+      SUM(CASE WHEN type = 'compaction' THEN 1 ELSE 0 END) as total_compactions,
+      MAX(seq) as latest_seq
+    FROM rover_entry
+  `);
+  const entryStats = entryStatsStmt.get() as {
+    total_entries: number;
+    total_messages: number;
+    total_compactions: number;
+    latest_seq: number | null;
+  };
+
+  const turnStatsStmt = db.prepare('SELECT COUNT(*) as total_turns FROM rover_turn');
+  const turnStats = turnStatsStmt.get() as { total_turns: number };
+
+  return {
+    totalEntries: entryStats.total_entries || 0,
+    totalMessages: entryStats.total_messages || 0,
+    totalCompactions: entryStats.total_compactions || 0,
+    totalTurns: turnStats.total_turns || 0,
+    latestSeq: entryStats.latest_seq || 0,
+  };
+}
+
+export interface ListRoverTurnsOptions {
+  limit?: number;
+  offset?: number;
+}
+
+export function listRoverTurns(
+  db: Database.Database,
+  options: ListRoverTurnsOptions = {}
+): RoverTurnRecord[] {
+  const { limit = 30, offset = 0 } = options;
+  const stmt = db.prepare(`
+    SELECT * FROM rover_turn
+    ORDER BY created_at DESC
+    LIMIT ? OFFSET ?
+  `);
+  const rows = stmt.all(limit, offset) as RawTurnRow[];
+  return rows.map((r) => parseTurnRow(r));
+}

@@ -30,11 +30,24 @@ export function PetWindow() {
   const { connection, loading, error } = useRuntime();
   const [wsStatus, setWsStatus] = useState<ConnectionStatus>('connecting');
   const [wsLatency, setWsLatency] = useState<number | null>(null);
+  const [activeTurnId, setActiveTurnId] = useState<string | null>(null);
+  const [turnStatusText, setTurnStatusText] = useState<string | null>(null);
 
   // tRPC health query (safely disabled until connection info is loaded)
   const healthQuery = trpc.health.useQuery(undefined, {
     enabled: !!connection,
     refetchInterval: 3000,
+  });
+
+  const startTurnMutation = trpc.turns.start.useMutation({
+    onSuccess: (data) => {
+      setActiveTurnId(data.turnId);
+      setTurnStatusText('Rover 启动中...');
+    },
+    onError: (err) => {
+      setTurnStatusText(`启动失败: ${err.message}`);
+      setTimeout(() => setTurnStatusText(null), 4000);
+    },
   });
 
   // WebSocket connection for real-time state
@@ -46,6 +59,18 @@ export function PetWindow() {
       token: connection.token,
       onStatusChange: (status) => setWsStatus(status),
       onLatency: (ms) => setWsLatency(ms),
+      onEvent: (event: any) => {
+        if (event.type === 'turn.started') {
+          setActiveTurnId(event.payload?.turnId ?? null);
+          setTurnStatusText('思考中...');
+        } else if (event.type === 'turn.delta') {
+          setTurnStatusText(event.payload?.isThinking ? '思考中...' : '回复中...');
+        } else if (event.type === 'turn.end') {
+          setActiveTurnId(null);
+          setTurnStatusText('回复完成');
+          setTimeout(() => setTurnStatusText(null), 3000);
+        }
+      },
     });
 
     client.connect();
@@ -123,10 +148,17 @@ export function PetWindow() {
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold text-zinc-100 flex items-center gap-1.5">
               <span>{isOnline ? 'Rover 已就绪' : loading ? '连接 Runtime 中...' : '连接离线'}</span>
+              {turnStatusText && (
+                <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">
+                  {turnStatusText}
+                </span>
+              )}
             </div>
             <p className="text-xs text-zinc-400 truncate mt-0.5">
               {isOnline
-                ? `环回通信延迟 ${wsLatency !== null ? `${wsLatency}ms` : '<1ms'} • 常驻后台`
+                ? turnStatusText
+                  ? '回答生成中，可打开 Dashboard 查阅完整记录'
+                  : `环回通信延迟 ${wsLatency !== null ? `${wsLatency}ms` : '<1ms'} • 常驻后台`
                 : error || '正在等待 Node.js Sidecar 启动...'}
             </p>
           </div>
@@ -154,11 +186,14 @@ export function PetWindow() {
 
         {/* Native Tiptap 3 Prompt Input */}
         <PromptInput
-          placeholder="呼唤 Rover 或输入指令，按 @ 派发，/ 技能..."
+          placeholder={
+            activeTurnId ? 'Rover 正在生成回答中...' : '呼唤 Rover 或输入指令，按 @ 派发，/ 技能...'
+          }
           availableAgents={DEFAULT_AGENTS}
           availableSkills={DEFAULT_SKILLS}
+          disabled={startTurnMutation.isPending || !!activeTurnId}
           onSubmit={(doc) => {
-            console.log('Submitted prompt document:', doc);
+            startTurnMutation.mutate({ promptDoc: doc });
           }}
         />
       </div>

@@ -12,3 +12,6 @@ catalog:
   turbo: ^2.11.4
   typescript: ^7.0.2
   vitest: ^5.0.2
+  # Agent runtime (版本敏感，与 divisor-agent 对齐)
+  '@earendil-works/pi-agent-core': 0.74.0
+  '@earendil-works/pi-ai': 0.74.0

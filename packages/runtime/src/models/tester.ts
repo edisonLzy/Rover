@@ -56,7 +56,9 @@ export async function testModelConnection(
     let body: string;
 
     if (provider.api === 'anthropic-messages') {
-      url = `${cleanBaseUrl}/messages`;
+      url = cleanBaseUrl.endsWith('/v1')
+        ? `${cleanBaseUrl}/messages`
+        : `${cleanBaseUrl}/v1/messages`;
       headers['x-api-key'] = apiKey;
       headers['anthropic-version'] = '2023-06-01';
       body = JSON.stringify({

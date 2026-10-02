@@ -61,7 +61,7 @@ flowchart TD
 | [002](./002-tiptap-prompt-input-and-prompt-document-v1.md) | Tiptap 3 输入栏与 PromptDocumentV1 契约 | *None (Frontier)* | DONE | `packages/app` (Tiptap 3, Suggestion), `packages/runtime` (Zod schema) |
 | [003](./003-pi-models-config-and-keychain-bridge.md) | 模型配置管理与 Pi AI 契约对齐 | *None (Frontier)* | DONE | `packages/runtime` (~/.rover/models.json, tRPC), `packages/app` |
 | [004](./004-rover-history-and-compaction.md) | 全局 History 与 Compaction 存储 | 001 | DONE | `packages/runtime` (rover_entry, compaction) |
-| [005](./005-pi-agent-loop-and-turn-engine.md) | Pi Agent Loop 回合引擎与流式响应 | 001, 002, 003, 004 | TODO | `packages/runtime` (Pi Agent loop, turn protocol, WS stream) |
+| [005](./005-pi-agent-loop-and-turn-engine.md) | Pi Agent Loop 回合引擎与流式响应 | 001, 002, 003, 004 | DONE | `packages/runtime` (Pi Agent loop, turn protocol, WS stream) |
 | [006](./006-controlled-tools-and-task-transaction-creation.md) | 受控工具链与 Task 事务原子创建 | 001, 005 | TODO | `packages/runtime` (dispatch_attempt, session_ref, task, agent-dispatch) |
 | [007](./007-task-event-projection-and-status-lifecycle.md) | 任务事件投影与状态生命周期管理 | 001, 006 | TODO | `packages/runtime` (observe/spool consumer, task_event, state projection) |
 | [008](./008-task-recall-and-activity-ledger.md) | 任务摘要回忆 (task-recall) 与最近活动台账 | 001, 006, 007 | TODO | `packages/runtime` (n-gram index, task_summary, activity) |

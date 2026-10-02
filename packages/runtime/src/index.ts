@@ -38,6 +38,8 @@ export * from './dispatch/terminal.js';
 export * from './observe/index.js';
 export * from './storage/index.js';
 export * from './types/prompt.js';
+export * from './agent/index.js';
+export * from './models/index.js';
 
 /**
  * Parses CLI flags in format --key=value

@@ -24,6 +24,18 @@ import {
   ProviderConfigSchema,
   ModelConfigSchema,
 } from '../models/index.js';
+import { getDefaultTurnEngine } from '../agent/index.js';
+import { PromptDocumentV1Schema } from '../types/prompt.js';
+import {
+  listEntries,
+  getHistoryStats,
+  listRoverTurns,
+  getEffectiveHistory,
+  getRoverTurn,
+  getTurnEntries,
+  getDefaultDatabase,
+} from '../storage/index.js';
+import crypto from 'node:crypto';
 
 export const appRouter = router({
   // Unauthenticated ping for basic liveness check
@@ -173,6 +185,96 @@ export const appRouter = router({
     .mutation(async ({ input }) => {
       return executeTerminalAction(input);
     }),
+
+  // Rover Turns & Pi Agent Loop router (Ticket 005)
+  turns: router({
+    start: protectedProcedure
+      .input(
+        z.object({
+          promptDoc: PromptDocumentV1Schema,
+          turnId: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const engine = getDefaultTurnEngine();
+        const turnId = input.turnId || crypto.randomUUID();
+        // Fire-and-forget background execution, frontend subscribes via WebSocket
+        void engine.executeTurn({
+          turnId,
+          promptDoc: input.promptDoc,
+        });
+        return {
+          turnId,
+          status: 'running' as const,
+        };
+      }),
+
+    cancel: protectedProcedure
+      .input(z.object({ turnId: z.string().min(1) }))
+      .mutation(({ input }) => {
+        const engine = getDefaultTurnEngine();
+        const success = engine.cancelTurn(input.turnId);
+        return { success, turnId: input.turnId };
+      }),
+
+    get: protectedProcedure.input(z.object({ turnId: z.string().min(1) })).query(({ input }) => {
+      const engine = getDefaultTurnEngine();
+      return engine.getTurnDetails(input.turnId);
+    }),
+  }),
+
+  // Rover History & Compaction router (Ticket 004 & Dashboard)
+  history: router({
+    getFeed: protectedProcedure
+      .input(
+        z
+          .object({
+            limit: z.number().min(1).max(200).default(100),
+            offset: z.number().min(0).default(0),
+            turnId: z.string().optional(),
+            type: z.enum(['message', 'compaction']).optional(),
+            order: z.enum(['asc', 'desc']).default('asc'),
+          })
+          .optional()
+      )
+      .query(({ input }) => {
+        const db = getDefaultDatabase().raw;
+        return listEntries(db, input ?? {});
+      }),
+
+    getStats: protectedProcedure.query(() => {
+      const db = getDefaultDatabase().raw;
+      return getHistoryStats(db);
+    }),
+
+    getEffective: protectedProcedure.query(() => {
+      const db = getDefaultDatabase().raw;
+      return getEffectiveHistory(db);
+    }),
+
+    listTurns: protectedProcedure
+      .input(
+        z
+          .object({
+            limit: z.number().min(1).max(100).default(30),
+            offset: z.number().min(0).default(0),
+          })
+          .optional()
+      )
+      .query(({ input }) => {
+        const db = getDefaultDatabase().raw;
+        return listRoverTurns(db, input ?? {});
+      }),
+
+    getTurn: protectedProcedure
+      .input(z.object({ turnId: z.string().min(1) }))
+      .query(({ input }) => {
+        const db = getDefaultDatabase().raw;
+        const turn = getRoverTurn(db, input.turnId);
+        const entries = getTurnEntries(db, input.turnId);
+        return { turn, entries };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

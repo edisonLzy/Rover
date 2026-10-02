@@ -3,8 +3,9 @@ import { invoke } from '@tauri-apps/api/core';
 import { useRuntime } from '../../context/RuntimeContext.js';
 import { ProbeView } from './probe/index.js';
 import { ModelsView } from './models/index.js';
+import { HistoryView } from './history/index.js';
 
-type TabType = 'probe' | 'skills' | 'schedules' | 'memory' | 'models';
+type TabType = 'probe' | 'history' | 'skills' | 'schedules' | 'memory' | 'models';
 
 export function DashboardWindow() {
   const { connection, loading, error, restartRuntime } = useRuntime();
@@ -72,6 +73,7 @@ export function DashboardWindow() {
       <nav className="flex items-center gap-1 mb-6 border-b border-zinc-800/80 pb-2 shrink-0">
         {[
           { id: 'probe', label: '系统探针 (Probe)' },
+          { id: 'history', label: '对话历史 (History)' },
           { id: 'skills', label: 'Skill 目录' },
           { id: 'schedules', label: '定时计划' },
           { id: 'memory', label: '最近活动' },
@@ -112,6 +114,8 @@ export function DashboardWindow() {
         ) : connection ? (
           activeTab === 'probe' ? (
             <ProbeView connection={connection} />
+          ) : activeTab === 'history' ? (
+            <HistoryView />
           ) : activeTab === 'models' ? (
             <ModelsView />
           ) : (

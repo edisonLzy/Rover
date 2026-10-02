@@ -229,4 +229,35 @@ describe('Transport & Security Invariants (M0-2)', () => {
       ws.close();
     });
   });
+
+  describe('History & Compaction tRPC Router', () => {
+    it('queries history feed and stats via tRPC client', async () => {
+      server = await createRuntimeServer({ port: 0, token: validToken });
+      const { httpUrl } = server.getAddress();
+
+      const client = createTRPCClient<AppRouter>({
+        links: [
+          httpBatchLink({
+            url: `${httpUrl}/trpc`,
+            headers: {
+              Authorization: `Bearer ${validToken}`,
+            },
+          }),
+        ],
+      });
+
+      const stats = await client.history.getStats.query();
+      expect(stats).toHaveProperty('totalEntries');
+      expect(stats).toHaveProperty('totalMessages');
+      expect(stats).toHaveProperty('totalCompactions');
+      expect(stats).toHaveProperty('totalTurns');
+
+      const feed = await client.history.getFeed.query();
+      expect(Array.isArray(feed)).toBe(true);
+
+      const effective = await client.history.getEffective.query();
+      expect(effective).toHaveProperty('messages');
+      expect(effective).toHaveProperty('latestSeq');
+    });
+  });
 });
