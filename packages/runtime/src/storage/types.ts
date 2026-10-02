@@ -27,7 +27,7 @@ export interface Migration {
   sql: string;
 }
 
-export interface RuntimeEvent<T = unknown> {
+export interface StoredRuntimeEvent<T = unknown> {
   eventSeq: number;
   eventType: string;
   payload: T;

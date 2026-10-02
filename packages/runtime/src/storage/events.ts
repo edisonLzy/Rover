@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import type { AppendEventOptions, RuntimeEvent } from './types.js';
+import type { AppendEventOptions, StoredRuntimeEvent } from './types.js';
 
 interface RawRuntimeEventRow {
   event_seq: number;
@@ -11,7 +11,7 @@ interface RawRuntimeEventRow {
 export function appendRuntimeEvent<T = unknown>(
   db: Database.Database,
   options: AppendEventOptions
-): RuntimeEvent<T> {
+): StoredRuntimeEvent<T> {
   const { eventType, payload, createdAt = Date.now() } = options;
   const serializedPayload = JSON.stringify(payload);
 
@@ -39,7 +39,7 @@ export interface GetEventsOptions {
 export function getRuntimeEvents<T = unknown>(
   db: Database.Database,
   options: GetEventsOptions = {}
-): RuntimeEvent<T>[] {
+): StoredRuntimeEvent<T>[] {
   const { afterSeq = 0, limit = 100 } = options;
 
   const stmt = db.prepare(`

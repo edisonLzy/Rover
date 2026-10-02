@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useRuntime, type RuntimeConnectionInfo } from '../../context/RuntimeContext';
-import { trpc } from '../../utils/trpc';
-import { RoverWebSocketClient, type ConnectionStatus } from '../../utils/websocket';
+import { useRuntime, type RuntimeConnectionInfo } from '../../context/RuntimeContext.js';
+import { trpc } from '../../utils/trpc.js';
+import { RoverWebSocketClient, type ConnectionStatus } from '../../utils/websocket.js';
 
 interface EventLog {
   id: string;

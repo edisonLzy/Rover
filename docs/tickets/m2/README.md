@@ -57,7 +57,7 @@ flowchart TD
 | ID | 任务标题 | 阻塞项 (Blocked By) | 状态 | 核心产物 / 涉及层 |
 |:---|:---|:---|:---|:---|
 | [001](./001-sqlite-storage-and-migrations.md) | SQLite 存储层与版本迁移机制 | *None (Frontier)* | DONE | `packages/runtime` (better-sqlite3, migrations) |
-| [002](./002-tiptap-prompt-input-and-prompt-document-v1.md) | Tiptap 3 输入栏与 PromptDocumentV1 契约 | *None (Frontier)* | TODO | `packages/app` (Tiptap 3, Suggestion), `packages/runtime` (Zod schema) |
+| [002](./002-tiptap-prompt-input-and-prompt-document-v1.md) | Tiptap 3 输入栏与 PromptDocumentV1 契约 | *None (Frontier)* | DONE | `packages/app` (Tiptap 3, Suggestion), `packages/runtime` (Zod schema) |
 | [003](./003-pi-models-config-and-keychain-bridge.md) | Pi 模型配置与 Keychain 凭据桥接 | *None (Frontier)* | TODO | `packages/runtime` (models.json), `src-tauri` (Keychain) |
 | [004](./004-rover-history-and-compaction.md) | 全局 History 与 Compaction 存储 | 001 | DONE | `packages/runtime` (rover_entry, compaction) |
 | [005](./005-pi-agent-loop-and-turn-engine.md) | Pi Agent Loop 回合引擎与流式响应 | 001, 002, 003, 004 | TODO | `packages/runtime` (Pi Agent loop, turn protocol, WS stream) |

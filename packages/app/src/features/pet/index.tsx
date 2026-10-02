@@ -1,8 +1,30 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { useRuntime } from '../../context/RuntimeContext';
-import { trpc } from '../../utils/trpc';
-import { RoverWebSocketClient, type ConnectionStatus } from '../../utils/websocket';
+import { useRuntime } from '../../context/RuntimeContext.js';
+import { trpc } from '../../utils/trpc.js';
+import { RoverWebSocketClient, type ConnectionStatus } from '../../utils/websocket.js';
+import { PromptInput } from './editor/PromptInput.js';
+import type { SuggestionItemData } from './editor/types.js';
+
+const DEFAULT_AGENTS: SuggestionItemData[] = [
+  { id: 'claude-code', kind: 'agent', label: 'Claude Code', description: 'Anthropic Coding CLI' },
+  { id: 'codex', kind: 'agent', label: 'Codex CLI', description: 'OpenAI Code Generator' },
+];
+
+const DEFAULT_SKILLS: SuggestionItemData[] = [
+  {
+    id: 'agent-dispatch',
+    kind: 'skill',
+    label: 'agent-dispatch',
+    description: '智能派发任务给 Coding Agent',
+  },
+  {
+    id: 'task-recall',
+    kind: 'skill',
+    label: 'task-recall',
+    description: '查询和回忆历史任务上下文',
+  },
+];
 
 export function PetWindow() {
   const { connection, loading, error } = useRuntime();
@@ -130,16 +152,15 @@ export function PetWindow() {
           </div>
         </div>
 
-        {/* Quick prompt input placeholder (Prepared for M2) */}
-        <div className="relative">
-          <input
-            type="text"
-            disabled
-            placeholder="呼唤 Rover 或输入指令... (M2 开启)"
-            className="w-full rounded-xl bg-zinc-950/80 border border-zinc-800 px-3 py-2 text-xs text-zinc-400 placeholder-zinc-600 cursor-not-allowed focus:outline-none"
-          />
-          <span className="absolute right-2.5 top-2 text-[10px] text-zinc-600 font-mono">⌘K</span>
-        </div>
+        {/* Native Tiptap 3 Prompt Input */}
+        <PromptInput
+          placeholder="呼唤 Rover 或输入指令，按 @ 派发，/ 技能..."
+          availableAgents={DEFAULT_AGENTS}
+          availableSkills={DEFAULT_SKILLS}
+          onSubmit={(doc) => {
+            console.log('Submitted prompt document:', doc);
+          }}
+        />
       </div>
     </div>
   );

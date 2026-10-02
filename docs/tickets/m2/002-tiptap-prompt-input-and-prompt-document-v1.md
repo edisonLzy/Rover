@@ -1,6 +1,6 @@
 # 002: Tiptap 3 输入栏与 PromptDocumentV1 契约
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: None (*Frontier*)  
 **Blocks**: 005, 010  
 
@@ -46,10 +46,10 @@ Rover 宠物区域需要一个既轻量又具备结构化引用能力的原生�
 - `packages/runtime/src/__tests__/prompt.test.ts`
 
 ## Acceptance Criteria
-- [ ] 渲染 Tiptap 输入栏，输入 `@`、`/` 能正确弹出下拉浮层并展示对应候选。
-- [ ] 选中候选后以不可分割的 Badge/Pill 节点插入编辑器，删除键一次性删除整个引用。
-- [ ] 序列化工具输出纯净的 `PromptDocumentV1` 结构，能通过 Runtime 的 Zod 校验。
-- [ ] 模拟拼音输入法敲回车事件，不触发提交回调；普通输入状态按回车触发提交。
+- [x] 渲染 Tiptap 输入栏，输入 `@`、`/` 能正确弹出下拉浮层并展示对应候选。
+- [x] 选中候选后以不可分割的 Badge/Pill 节点插入编辑器，删除键一次性删除整个引用。
+- [x] 序列化工具输出纯净的 `PromptDocumentV1` 结构，能通过 Runtime 的 Zod 校验。
+- [x] 模拟拼音输入法敲回车事件，不触发提交回调；普通输入状态按回车触发提交。
 
 ## Verification Plan
 ```bash

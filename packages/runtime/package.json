@@ -10,9 +10,9 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./router": {
-      "types": "./dist/router.d.ts",
-      "import": "./dist/router.js"
+    "./expose": {
+      "types": "./dist/expose.d.ts",
+      "import": "./dist/expose.js"
     }
   },
   "scripts": {
