@@ -2,12 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import {
-  SpoolConsumer,
-  createDispatchAttempt,
-  type DispatchAttempt,
-  type SessionCarrier,
-} from '../index.js';
+import { SpoolConsumer, type DispatchAttempt, type SessionCarrier } from '../index.js';
 
 describe('Spool Consumer & Session State Ingestion (M1-3 / M1-4)', () => {
   let tempSpoolDir: string;

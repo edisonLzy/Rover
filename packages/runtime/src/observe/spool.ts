@@ -127,7 +127,7 @@ export class SpoolConsumer {
 
       try {
         rawContent = fs.readFileSync(filePath, 'utf-8');
-      } catch (err) {
+      } catch {
         // File may have been removed or locked momentarily
         continue;
       }
@@ -176,9 +176,7 @@ export class SpoolConsumer {
     // 2. Handle deferred session confirmation (e.g. Codex SessionStart)
     if (envelope.event === 'SessionStart' && attempt && attempt.status === 'launched') {
       const nativeId =
-        envelope.payload?.session_id ||
-        envelope.payload?.sessionId ||
-        envelope.payload?.id;
+        envelope.payload?.session_id || envelope.payload?.sessionId || envelope.payload?.id;
 
       if (typeof nativeId === 'string' && nativeId.trim()) {
         try {

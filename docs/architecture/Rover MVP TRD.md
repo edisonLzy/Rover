@@ -179,10 +179,11 @@ Node 是唯一 SQLite 写者；MVP 使用固定版本的 `better-sqlite3`，应�
 
 | 表/文件 | 关键字段、约束与用途 |
 | --- | --- |
-| `rover_message` | `id`, `turn_id`, `role`, `content`, `created_at`；全局 history，compaction 保留来源锚点 |
+| `rover_turn` | Rover 输入回合生命周期投影与原始 `PromptDocumentV1`；`id`, `status`, `prompt_doc`, `error?`, `created_at`, `completed_at?`，以 [ADR-0014](../adr/0014-linear-rover-entries-and-compaction.md) 为准 |
+| `rover_entry` | `seq`, UUID `id`, `turn_id?`, `type`, `schema_version`, JSON `data`, `created_at`；每个 message entry 保存完整原始 AgentMessage，成功压缩追加独立 compaction entry；有效上下文按覆盖边界重建，见 [ADR-0014](../adr/0014-linear-rover-entries-and-compaction.md) |
 | `dispatch_attempt` | `id`, `candidate_task_id`, `source_kind`, `source_id`, `agent`, `cwd`, `status`, `native_session_id?`, `report_token_hash`, `error?`；`source_kind+source_id+agent+dispatch_index` 唯一 |
 | `session_ref` | `task_id` 唯一，`agent+native_session_id+config_dir` 唯一，承载名、last_seen、availability |
-| `task` | `id`, `goal`, `agent`, `skill`, `status`, `progress_text`, `result_text`, `created_at`, `updated_at`；创建需同时有 `session_ref` |
+| `task` | `id`, `goal`, `agent`, `status`, `progress_text`, `result_text`, `created_at`, `updated_at`；与 Session 1:1 投影，不含外部来源或 skill 分类标签；创建需同时有 `session_ref` |
 | `task_event` | `id`, `task_id`, `source`, `source_event_id`, `kind`, `observed_at`, `summary`, `evidence_ref`；来源事件去重 |
 | `task_summary` | `task_id` 唯一，Code Agent 写出的内容、更新时间、来源；允许缺失，独立于 Task 卡片文案 |
 | `plan` / `plan_run` | 规则、IANA 时区、下一次触发时间、启停；每次触发的成功/失败/错过记录及可选 Task ID |

@@ -102,7 +102,7 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
       };
 
       const shellCmd = formatActionShellCommand(action);
-      expect(shellCmd).toContain("cd '/Users/test/path with \"quotes\"'");
+      expect(shellCmd).toContain('cd \'/Users/test/path with "quotes"\'');
       expect(shellCmd).toContain("claude '--resume' 'session with spaces'");
     });
 
@@ -155,13 +155,17 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
 
       const permissionErrorRunner = vi
         .fn()
-        .mockRejectedValue(new Error('execution error: Not authorized to send Apple events to Terminal. (-1743)'));
+        .mockRejectedValue(
+          new Error('execution error: Not authorized to send Apple events to Terminal. (-1743)')
+        );
 
       const result = await executeTerminalAction(action, permissionErrorRunner);
 
       expect(result.success).toBe(false);
       expect(result.permissionDenied).toBe(true);
-      expect(result.error).toContain('Terminal.app automation permission denied (Apple Events error -1743)');
+      expect(result.error).toContain(
+        'Terminal.app automation permission denied (Apple Events error -1743)'
+      );
       expect(result.error).toContain('System Settings > Privacy & Security > Automation');
     });
   });

@@ -21,7 +21,7 @@ Rover Agent 在回合中通过工具调用派发 Code Agent。根据 TRD 第 4 �
    - 步骤 3：等待可信的 Native Session ID（如 Claude 的预分配 UUID 或 Codex 的 `SessionStart` Hook 回传）；
    - 步骤 4（核心事务）：在单一 SQLite 事务内写入：
      - `session_ref`（记录 `agent`, `native_session_id`, 承载名称, `availability: "available"`）；
-     - `task`（记录 `id`, `goal`, `agent`, `skill`, `status: "running"`, `created_at`）；
+     - `task`（记录 `id`, `goal`, `agent`, `status: "running"`, `created_at`）；
      - 首个 `task_event`（`kind: "dispatched"`）；
      - 对应 `runtime_event`（`type: "task.changed"`）；
    - **阻断红线**：若启动失败或未能在超时内捕获原生 Session ID，将 `dispatch_attempt` 标记为 `failed`，**严禁创建空 Task 记录**。

@@ -1,6 +1,6 @@
 # 001: SQLite 存储层与版本迁移机制
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: None (*Frontier*)  
 **Blocks**: 004, 005, 006, 007, 008, 009  
 
@@ -19,10 +19,11 @@ Rover 是单用户本地桌面 Agent，Node Runtime 是本地 SQLite 唯一写�
    - 维护 `schema_migrations` 表（`version INTEGER PRIMARY KEY, applied_at TEXT`）。
    - 提供迁移执行器，按数字版本号递增执行原子 DDL/DML。
 4. **统一事件序列表 (`runtime_event`)**：
-   - 表结构：`event_seq INTEGER PRIMARY KEY AUTOINCREMENT, event_type TEXT NOT NULL, payload TEXT NOT NULL, created_at TEXT NOT NULL`。
+   - 表结构：`event_seq INTEGER PRIMARY KEY AUTOINCREMENT, event_type TEXT NOT NULL, payload TEXT NOT NULL CHECK (json_valid(payload)), created_at INTEGER NOT NULL`。
    - 所有持久领域变更必须与对应的 `runtime_event` 在同一个 SQLite 事务中提交。
-5. **初始化核心表 DDL**（预备空表与索引，字段详见 TRD 第 6 节）：
-   - `rover_message`
+5. **初始化核心表 DDL**（预备空表与索引，历史模型以 [ADR-0014](../../adr/0014-linear-rover-entries-and-compaction.md) 为准，其余字段见 TRD 第 6 节）：
+   - `rover_turn`（回合生命周期投影与原始 `PromptDocumentV1`，以 ADR-0014 DDL 为准）
+   - `rover_entry`（消息粒度的线性日志及独立 compaction 条目，外键关联 `rover_turn`）
    - `dispatch_attempt`
    - `session_ref`
    - `task`
@@ -41,10 +42,11 @@ Rover 是单用户本地桌面 Agent，Node Runtime 是本地 SQLite 唯一写�
 - `packages/runtime/src/__tests__/storage.test.ts`
 
 ## Acceptance Criteria
-- [ ] 在内存及本地临时目录中能成功初始化 SQLite 数据库并应用迁移脚本。
-- [ ] 验证 WAL 模式与外键约束正常生效（违反外键抛出 SQLite 错误）。
-- [ ] 提供统一事务包装工具 `db.transaction()`，确保领域数据写入与 `runtime_event` 递增在同一事务内完成。
-- [ ] 自动化测试覆盖迁移幂等性（重复运行不报错）、并发事务超时重试与 `runtime_event` 单调递增性。
+- [x] 在内存及本地临时目录中能成功初始化 SQLite 数据库并应用迁移脚本。
+- [x] 验证 WAL 模式与外键约束正常生效（违反外键抛出 SQLite 错误）。
+- [x] 提供统一事务包装工具 `db.transaction()`，确保领域数据写入与 `runtime_event` 递增在同一事务内完成。
+- [x] 自动化测试覆盖迁移幂等性（重复运行不报错）、并发事务超时重试与 `runtime_event` 单调递增性。
+- [x] `rover_entry` 的稳定 ID 唯一性、回合外键、类型/回合关联约束与 JSON 语法校验生效；不创建旧 `rover_message` 或归档标记字段。
 
 ## Verification Plan
 ```bash

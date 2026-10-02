@@ -1,6 +1,8 @@
 # 记忆分层、带锚点压缩与动态上下文预算
 
-> 状态：已采纳 · 2026-09-29
+> 状态：部分被替代 · 原采纳日期 2026-09-29，更新于 2026-10-02
+>
+> [ADR-0014](./0014-linear-rover-entries-and-compaction.md) 替代本文的 `rover_message` 表结构、`is_compacted` 归档标记、混入 system 摘要、默认剥离 Thinking 及拒绝线性 Entry 的决定。本文保留为决策历史，不再作为这些部分的实施依据。动态上下文预算与历史/长期记忆分离的原则继续适用；独立长期记忆的具体机制另行设计。
 
 Rover 将 Agent 记忆严格划分为两层治理：**“SQLite 中的工作记忆（`rover_message`）”** 与 **“文件系统中的长期记忆（Markdown 文件）”**。工作记忆服务于当前连续交互流，采用多对一的**逻辑归档标记（`is_compacted = 1`）与锚点保留摘要**，杜绝简单物理 LRU/FIFO 删除；长期记忆存储于本地用户可审阅的 Markdown 文件中，并在 Compaction 阶段作为沉淀知识的提炼触点。同时，Compaction 触发阈值采用**动态配额扣减模型**，将系统人设、工具 Schema、长期记忆注入与思考模型（Thinking）的生成预算统一统筹；放弃类似 `divisor-agent` 的 DAG 树状 `Entry` 抽象，坚持单线全局对话与职责正交。
 
