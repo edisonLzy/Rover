@@ -1,6 +1,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
+#[cfg(not(debug_assertions))]
+use tauri::{path::BaseDirectory, Manager};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
@@ -65,6 +67,20 @@ impl NodeSidecarManager {
         let port = preferred_port.unwrap_or(0);
         let token = preferred_token.unwrap_or_else(generate_auth_token);
         #[cfg(debug_assertions)]
+        let skills_dir =
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../resources/skills");
+        #[cfg(not(debug_assertions))]
+        let skills_dir = app
+            .path()
+            .resolve("skills", BaseDirectory::Resource)
+            .map_err(|error| format!("Failed to resolve bundled skills: {error}"))?;
+        if !skills_dir.is_dir() {
+            return Err(format!(
+                "App skills directory is missing: {}",
+                skills_dir.display()
+            ));
+        }
+        #[cfg(debug_assertions)]
         let runtime_command = {
             let runtime_entry = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("../../runtime/dist/index.js");
@@ -88,6 +104,7 @@ impl NodeSidecarManager {
                 format!("--port={port}"),
                 format!("--token={token}"),
                 "--host=127.0.0.1".into(),
+                format!("--skills-dir={}", skills_dir.to_string_lossy()),
             ])
             .spawn()
             .map_err(|error| format!("Failed to start runtime process: {error}"))?;

@@ -3,6 +3,8 @@ import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import WebSocket from 'ws';
 import { createRuntimeServer, RuntimeServer, type AppRouter } from '../transport/index.js';
 import { RUNTIME_VERSION } from '../index.js';
+import { fileURLToPath } from 'node:url';
+import { BuiltinSkillService } from '../agent/skills/skill-service.js';
 
 describe('Transport & Security Invariants (M0-2)', () => {
   let server: RuntimeServer | null = null;
@@ -32,6 +34,40 @@ describe('Transport & Security Invariants (M0-2)', () => {
         token: '   ',
       });
     }).toThrow(/requires a non-empty auth token/);
+  });
+
+  it('serves host-provided skill metadata and bodies through authenticated queries', async () => {
+    const skillsDir = fileURLToPath(new URL('../../../app/resources/skills/', import.meta.url));
+    const expected = new BuiltinSkillService({ skillsDir }).getSkill('dispatch-agent')!;
+    server = await createRuntimeServer({ port: 0, token: validToken, skillsDir });
+    const { httpUrl } = server.getAddress();
+    const client = createTRPCClient<AppRouter>({
+      links: [
+        httpBatchLink({
+          url: `${httpUrl}/trpc`,
+          headers: { Authorization: `Bearer ${validToken}` },
+        }),
+      ],
+    });
+    expect(await client.skills.list.query()).toContainEqual({
+      id: expected.id,
+      name: expected.name,
+      description: expected.description,
+      source: 'builtin',
+      isEnabled: true,
+    });
+    expect(await client.skills.read.query({ name: expected.name })).toEqual({
+      name: expected.name,
+      body: expected.body,
+    });
+    await expect(client.skills.read.query({ name: 'missing' })).rejects.toThrow(/Skill not found/);
+    const unauthenticated = createTRPCClient<AppRouter>({
+      links: [httpBatchLink({ url: `${httpUrl}/trpc` })],
+    });
+    await expect(unauthenticated.skills.list.query()).rejects.toThrow(/Unauthorized/);
+    await expect(unauthenticated.skills.read.query({ name: expected.name })).rejects.toThrow(
+      /Unauthorized/
+    );
   });
 
   describe('REST /api/v1/health Probe', () => {

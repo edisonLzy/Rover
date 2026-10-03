@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, publicProcedure, protectedProcedure } from './trpc.js';
 import {
   RUNTIME_VERSION,
@@ -48,6 +49,28 @@ export const appRouter = router({
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
   })),
+
+  skills: router({
+    list: protectedProcedure.query(() =>
+      getDefaultTurnEngine()
+        .getSkillService()
+        .getSkills()
+        .map(({ id, name, description }) => ({
+          id,
+          name,
+          description,
+          source: 'builtin' as const,
+          isEnabled: true,
+        }))
+    ),
+    read: protectedProcedure.input(z.object({ name: z.string().min(1) })).query(({ input }) => {
+      const body = getDefaultTurnEngine().getSkillService().readSkillBody(input.name);
+      if (body === null) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: `Skill not found: ${input.name}` });
+      }
+      return { name: input.name, body };
+    }),
+  }),
 
   // Models management router (Ticket 003 & ADR-0015)
   models: router({

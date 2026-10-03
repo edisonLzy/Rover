@@ -32,6 +32,8 @@ import { AgentEventHandler, type TurnExecutionResult } from './handler.js';
 import { ModelRegistry, getModelRegistry } from '../models/index.js';
 import { assessContextBudget } from './compaction.js';
 import type { WebSocketManager } from '../transport/websocket.js';
+import { BuiltinSkillService } from './skills/skill-service.js';
+import { createReadSkillTool } from './tools/skill.js';
 
 export type { TurnExecutionResult };
 
@@ -41,6 +43,8 @@ export interface RoverTurnEngineOptions {
   modelRegistry?: ModelRegistry;
   customConfigPath?: string;
   tools?: AgentTool[];
+  skillsDir?: string;
+  skillService?: BuiltinSkillService;
   streamFn?: StreamFn;
   systemPrompt?: string;
   handler?: AgentEventHandler;
@@ -75,6 +79,7 @@ export class RoverTurnEngine {
   private wsManager?: WebSocketManager;
   private modelRegistry: ModelRegistry;
   private systemPromptService: SystemPromptService;
+  private skillService: BuiltinSkillService;
   private tools: AgentTool[];
   private streamFn?: StreamFn;
   private handler: AgentEventHandler;
@@ -84,8 +89,11 @@ export class RoverTurnEngine {
     this.dbInstance = options.db || getDefaultDatabase();
     this.wsManager = options.wsManager;
     this.modelRegistry = options.modelRegistry || getModelRegistry(options.customConfigPath);
-    this.tools = options.tools || [];
     this.streamFn = options.streamFn;
+    this.skillService =
+      options.skillService || new BuiltinSkillService({ skillsDir: options.skillsDir });
+
+    this.tools = options.tools || [createReadSkillTool(this.skillService)];
 
     this.handler =
       options.handler ||
@@ -104,6 +112,11 @@ export class RoverTurnEngine {
         return raw ? `${base}\n\n${raw}` : base;
       },
     });
+    this.systemPromptService.addBuilder(this.skillService);
+  }
+
+  public getSkillService(): BuiltinSkillService {
+    return this.skillService;
   }
 
   public get db(): Database.Database {

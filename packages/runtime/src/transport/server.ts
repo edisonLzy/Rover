@@ -11,6 +11,7 @@ export interface RuntimeServerOptions {
   port?: number;
   token: string;
   host?: string;
+  skillsDir?: string;
 }
 
 export interface ServerAddress {
@@ -69,7 +70,9 @@ export class RuntimeServer {
     }
 
     this.wsManager = new WebSocketManager({ expectedToken: this.token });
-    getDefaultTurnEngine().setWebSocketManager(this.wsManager);
+    getDefaultTurnEngine(
+      options.skillsDir === undefined ? undefined : { skillsDir: options.skillsDir }
+    ).setWebSocketManager(this.wsManager);
     this.server = http.createServer(this.handleHttpRequest.bind(this));
 
     this.server.on('upgrade', (req, socket, head) => {
