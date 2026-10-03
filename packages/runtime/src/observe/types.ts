@@ -103,3 +103,13 @@ export interface AgentHookAdapter {
   uninstall(options?: HookUninstallOptions): void;
   checkHealth(options?: HookHealthOptions): HookHealthStatus;
 }
+
+export interface TaskProjectionResult {
+  taskId: string;
+  previousStatus: string;
+  currentStatus: string;
+  deduplicated: boolean;
+  eventKind: string;
+  summary?: string | null;
+  resultText?: string | null;
+}

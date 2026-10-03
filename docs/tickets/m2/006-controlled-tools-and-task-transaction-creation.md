@@ -1,6 +1,6 @@
 # 006: 受控工具链与 Task 事务原子创建
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 001, 005  
 **Blocks**: 007, 008, 009, 010  
 
@@ -42,11 +42,11 @@ Rover Agent 在回合中通过工具调用派发 Code Agent。根据 TRD 第 4 �
 - `packages/runtime/src/__tests__/dispatch_flow.test.ts`
 
 ## Acceptance Criteria
-- [ ] Rover Agent 仅能访问 `read_only_bash` 与 `dispatch_agent` 两个受控工具，工具入参受 TypeBox 强类型校验。
-- [ ] `read_only_bash` 严格限制只读命令白名单，拦截任意网络命令（`curl`, `wget`）、修改删除命令（`rm`, `git commit`）与写重定向（`>`），并具备超时与截断防护。
-- [ ] 模拟触发派发流程，在拿到 Native Session ID 之前，数据库中 `task` 表条目为 0。
-- [ ] 成功捕获原生 Session ID 后，原子事务执行，`task`、`session_ref`、`task_event` 三表同时存在记录，并经 WebSocket 广播 `task.changed`。
-- [ ] 模拟 CLI 启动崩溃场景，验证 `dispatch_attempt` 记录失败原因，不残留任何孤儿或空 Task。
+- [x] Rover Agent 仅能访问 `read_only_bash` 与 `dispatch_agent` 两个受控工具，工具入参受 TypeBox 强类型校验。
+- [x] `read_only_bash` 严格限制只读命令白名单，拦截任意网络命令（`curl`, `wget`）、修改删除命令（`rm`, `git commit`）与写重定向（`>`），并具备超时与截断防护。
+- [x] 模拟触发派发流程，在拿到 Native Session ID 之前，数据库中 `task` 表条目为 0。
+- [x] 成功捕获原生 Session ID 后，原子事务执行，`task`、`session_ref`、`task_event` 三表同时存在记录，并经 WebSocket 广播 `task.changed`。
+- [x] 模拟 CLI 启动崩溃场景，验证 `dispatch_attempt` 记录失败原因，不残留任何孤儿或空 Task。
 
 ## Verification Plan
 ```bash

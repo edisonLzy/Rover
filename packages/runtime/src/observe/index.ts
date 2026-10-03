@@ -10,3 +10,5 @@ export * from './codex.js';
 export * from './opencode.js';
 export * from './manager.js';
 export * from './spool.js';
+export * from './projector.js';
+export * from './consumer.js';

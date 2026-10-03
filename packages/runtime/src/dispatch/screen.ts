@@ -198,7 +198,7 @@ export async function startScreenSession(options: StartScreenOptions): Promise<S
     child.unref();
 
     // Allow screen socket initialization and detect immediate exits
-    setTimeout(resolve, 150);
+    setTimeout(resolve, 350);
   });
 
   // Verify session registered in screen list and is actively running

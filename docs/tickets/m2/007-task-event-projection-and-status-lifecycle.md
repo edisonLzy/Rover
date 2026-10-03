@@ -1,6 +1,6 @@
 # 007: 任务事件投影与状态生命周期管理
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 001, 006  
 **Blocks**: 008, 010, 011  
 
@@ -31,9 +31,9 @@ M1 建立了基于 Hook Helper 与本地 Spool 的事件采集管道。根据 TR
 - `packages/runtime/src/__tests__/projection.test.ts`
 
 ## Acceptance Criteria
-- [ ] 模拟写入连续的 Spool 文件（含重复的 event id），验证 `task_event` 表能准确去重。
-- [ ] 接收到权限申请事件时，Task 状态变为 `needs_intervention`，并通过 WebSocket 广播给前端。
-- [ ] 进程意外退出且无完成回报时，状态为 `unverified`；只有显式调用 report 成功时才变为 `completed`。
+- [x] 模拟写入连续的 Spool 文件（含重复的 event id），验证 `task_event` 表能准确去重。
+- [x] 接收到权限申请事件时，Task 状态变为 `needs_intervention`，并通过 WebSocket 广播给前端。
+- [x] 进程意外退出且无完成回报时，状态为 `unverified`；只有显式调用 report 成功时才变为 `completed`。
 
 ## Verification Plan
 ```bash

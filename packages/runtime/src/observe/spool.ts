@@ -22,6 +22,9 @@ export interface SpoolEnvelope {
   payload?: any;
   agentType?: string;
   reservedTaskUuid?: string;
+  // Unique event IDs for idempotent deduplication
+  eventId?: string;
+  sourceEventId?: string;
   // Report command fields
   token?: string;
   status?: string;
