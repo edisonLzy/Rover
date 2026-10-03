@@ -79,6 +79,21 @@ export const appRouter = router({
       return maskModelsConfig(config);
     }),
 
+    getActive: protectedProcedure.query(() => {
+      const engine = getDefaultTurnEngine();
+      const activeModel = engine.getModelRegistry().resolveActiveModel();
+      return {
+        hasActiveModel: !!activeModel,
+        activeModel: activeModel
+          ? {
+              id: activeModel.id,
+              name: activeModel.name,
+              provider: activeModel.provider,
+            }
+          : null,
+      };
+    }),
+
     setActive: protectedProcedure
       .input(
         z.object({
@@ -88,6 +103,7 @@ export const appRouter = router({
       )
       .mutation(({ input }) => {
         const updated = setActiveModel(input);
+        getDefaultTurnEngine().getModelRegistry().reload();
         return maskModelsConfig(updated);
       }),
 
@@ -100,6 +116,7 @@ export const appRouter = router({
       )
       .mutation(({ input }) => {
         const updated = saveProvider(input.id, input.provider);
+        getDefaultTurnEngine().getModelRegistry().reload();
         return maskModelsConfig(updated);
       }),
 
@@ -107,6 +124,7 @@ export const appRouter = router({
       .input(z.object({ id: z.string().min(1) }))
       .mutation(({ input }) => {
         const updated = deleteProvider(input.id);
+        getDefaultTurnEngine().getModelRegistry().reload();
         return maskModelsConfig(updated);
       }),
 
@@ -119,6 +137,7 @@ export const appRouter = router({
       )
       .mutation(({ input }) => {
         const updated = addModelToProvider(input.providerId, input.model);
+        getDefaultTurnEngine().getModelRegistry().reload();
         return maskModelsConfig(updated);
       }),
 
@@ -131,6 +150,7 @@ export const appRouter = router({
       )
       .mutation(({ input }) => {
         const updated = deleteModelFromProvider(input.providerId, input.modelId);
+        getDefaultTurnEngine().getModelRegistry().reload();
         return maskModelsConfig(updated);
       }),
 
@@ -162,6 +182,7 @@ export const appRouter = router({
       )
       .mutation(({ input }) => {
         const result = importFromPi({ overwrite: input?.overwrite });
+        getDefaultTurnEngine().getModelRegistry().reload();
         const config = loadModelsConfig();
         return {
           ...result,
@@ -220,6 +241,13 @@ export const appRouter = router({
       )
       .mutation(async ({ input }) => {
         const engine = getDefaultTurnEngine();
+        const activeModel = engine.getModelRegistry().resolveActiveModel();
+        if (!activeModel) {
+          throw new TRPCError({
+            code: 'PRECONDITION_FAILED',
+            message: 'No active model configured in ~/.rover/models.json',
+          });
+        }
         const turnId = input.turnId || crypto.randomUUID();
         // Fire-and-forget background execution, frontend subscribes via WebSocket
         void engine.executeTurn({

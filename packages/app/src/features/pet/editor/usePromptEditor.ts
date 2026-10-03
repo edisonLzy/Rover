@@ -23,7 +23,7 @@ export interface UsePromptEditorOptions {
   disabled?: boolean;
   placeholder?: string;
   autoFocus?: boolean;
-  onSubmit: (doc: PromptDocumentV1) => Promise<void> | void;
+  onSubmit: (doc: PromptDocumentV1) => Promise<void | boolean> | void | boolean;
   availableAgents?: SuggestionItemData[];
   availableSkills?: SuggestionItemData[];
   availableInboxes?: SuggestionItemData[];
@@ -42,6 +42,7 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
 
   const [hasContent, setHasContent] = useState(false);
   const isComposingRef = useRef(false);
+  const editorRef = useRef<Editor | null>(null);
   const agentsRef = useRef(availableAgents);
   const skillsRef = useRef(availableSkills);
   const inboxesRef = useRef(availableInboxes);
@@ -54,15 +55,23 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
     onSubmitRef.current = onSubmit;
   }, [availableAgents, availableSkills, availableInboxes, onSubmit]);
 
-  const handleSubmit = useCallback(() => {
-    if (!editor || disabled) return;
+  const handleSubmit = useCallback(async () => {
+    const currentEditor = editorRef.current;
+    if (!currentEditor || disabled) return;
 
-    const doc = serializeEditorContent(editor);
+    const doc = serializeEditorContent(currentEditor);
     if (!doc) return;
 
-    void onSubmitRef.current(doc);
-    editor.commands.clearContent();
-    setHasContent(false);
+    try {
+      const result = await onSubmitRef.current(doc);
+      if (result === false) {
+        return;
+      }
+      currentEditor.commands.clearContent();
+      setHasContent(false);
+    } catch {
+      // Keep editor content on submission error so user doesn't lose text
+    }
   }, [disabled]);
 
   const isAnySuggestionActive = useCallback((editorInstance: Editor): boolean => {
@@ -155,6 +164,7 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
   });
 
   useEffect(() => {
+    editorRef.current = editor;
     editor?.setEditable(!disabled);
   }, [disabled, editor]);
 

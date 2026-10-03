@@ -17,21 +17,32 @@ import { AddProviderModal } from './AddProviderModal.js';
 import { AddModelModal } from './AddModelModal.js';
 
 export function ModelsView() {
+  const utils = trpc.useUtils();
   const { data: config, isLoading, error, refetch } = trpc.models.getConfig.useQuery();
   const { data: piInfo } = trpc.models.checkPiAvailability.useQuery();
 
   const setActiveMutation = trpc.models.setActive.useMutation({
-    onSuccess: () => refetch(),
+    onSuccess: () => {
+      refetch();
+      utils.models.invalidate();
+    },
   });
   const deleteProviderMutation = trpc.models.deleteProvider.useMutation({
-    onSuccess: () => refetch(),
+    onSuccess: () => {
+      refetch();
+      utils.models.invalidate();
+    },
   });
   const deleteModelMutation = trpc.models.deleteModel.useMutation({
-    onSuccess: () => refetch(),
+    onSuccess: () => {
+      refetch();
+      utils.models.invalidate();
+    },
   });
   const importFromPiMutation = trpc.models.importFromPi.useMutation({
     onSuccess: (res) => {
       refetch();
+      utils.models.invalidate();
       setNotice(
         `成功从 Pi CLI 导入 ${res.importedProviders.length} 个提供商，共 ${res.totalModels} 个模型！`
       );

@@ -31,7 +31,7 @@ export function AddModelModal({ providerId }: AddModelModalProps) {
 
   const addModelMutation = trpc.models.addModel.useMutation({
     onSuccess: () => {
-      utils.models.getConfig.invalidate();
+      utils.models.invalidate();
       handleClose();
     },
   });

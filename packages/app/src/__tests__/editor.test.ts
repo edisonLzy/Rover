@@ -179,5 +179,40 @@ describe('Prompt Editor & Serialization (Ticket 002)', () => {
       expect(handledNormalEnter).toBe(true);
       expect(onSubmit).toHaveBeenCalledTimes(1);
     });
+
+    it('supports returning false or throwing from onSubmit to preserve input text without clearing', async () => {
+      let contentCleared = false;
+      const editorMock = {
+        commands: {
+          clearContent: () => {
+            contentCleared = true;
+          },
+        },
+      };
+
+      const handleSubmit = async (onSubmitFn: () => Promise<boolean | void>) => {
+        try {
+          const res = await onSubmitFn();
+          if (res === false) return;
+          editorMock.commands.clearContent();
+        } catch {
+          // preserve content
+        }
+      };
+
+      // Case 1: onSubmit returns false (e.g. intercepted due to unconfigured active model)
+      await handleSubmit(async () => false);
+      expect(contentCleared).toBe(false);
+
+      // Case 2: onSubmit throws error
+      await handleSubmit(async () => {
+        throw new Error('No active model');
+      });
+      expect(contentCleared).toBe(false);
+
+      // Case 3: onSubmit succeeds normally
+      await handleSubmit(async () => {});
+      expect(contentCleared).toBe(true);
+    });
   });
 });

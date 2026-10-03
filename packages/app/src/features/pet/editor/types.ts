@@ -13,7 +13,7 @@ export interface SuggestionItemData {
 export interface PromptInputProps {
   disabled?: boolean;
   placeholder?: string;
-  onSubmit: (doc: PromptDocumentV1) => Promise<void> | void;
+  onSubmit: (doc: PromptDocumentV1) => Promise<void | boolean> | void | boolean;
   availableAgents?: SuggestionItemData[];
   availableSkills?: SuggestionItemData[];
   availableInboxes?: SuggestionItemData[];

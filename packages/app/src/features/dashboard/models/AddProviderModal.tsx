@@ -33,7 +33,7 @@ export function AddProviderModal() {
 
   const saveProviderMutation = trpc.models.saveProvider.useMutation({
     onSuccess: () => {
-      utils.models.getConfig.invalidate();
+      utils.models.invalidate();
       handleClose();
     },
   });

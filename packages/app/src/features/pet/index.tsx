@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useRuntime } from '../../context/RuntimeContext.js';
 import { trpc } from '../../utils/trpc.js';
@@ -32,6 +32,8 @@ export function PetWindow() {
   const [wsLatency, setWsLatency] = useState<number | null>(null);
   const [activeTurnId, setActiveTurnId] = useState<string | null>(null);
   const [turnStatusText, setTurnStatusText] = useState<string | null>(null);
+  const [isErrorStatus, setIsErrorStatus] = useState(false);
+  const finishedTurnIdsRef = useRef<Set<string>>(new Set());
 
   // tRPC health query (safely disabled until connection info is loaded)
   const healthQuery = trpc.health.useQuery(undefined, {
@@ -39,14 +41,36 @@ export function PetWindow() {
     refetchInterval: 3000,
   });
 
+  // tRPC active model query to detect whether a model is configured and active
+  const activeModelQuery = trpc.models.getActive.useQuery(undefined, {
+    enabled: !!connection,
+    refetchInterval: 3000,
+  });
+
+  const hasActiveModel = Boolean(activeModelQuery.data?.hasActiveModel);
+  const activeModel = activeModelQuery.data?.activeModel;
+
   const startTurnMutation = trpc.turns.start.useMutation({
     onSuccess: (data) => {
+      // Race-condition guard: If turn.end arrived before HTTP response, do not lock activeTurnId
+      if (finishedTurnIdsRef.current.has(data.turnId)) {
+        return;
+      }
       setActiveTurnId(data.turnId);
+      setIsErrorStatus(false);
       setTurnStatusText('Rover 启动中...');
     },
     onError: (err) => {
-      setTurnStatusText(`启动失败: ${err.message}`);
-      setTimeout(() => setTurnStatusText(null), 4000);
+      setActiveTurnId(null);
+      setIsErrorStatus(true);
+      const msg = err.message.includes('No active model')
+        ? '未配置激活模型，请前往控制面板配置'
+        : err.message;
+      setTurnStatusText(`启动失败: ${msg}`);
+      setTimeout(() => {
+        setTurnStatusText(null);
+        setIsErrorStatus(false);
+      }, 5000);
     },
   });
 
@@ -61,14 +85,35 @@ export function PetWindow() {
       onLatency: (ms) => setWsLatency(ms),
       onEvent: (event: any) => {
         if (event.type === 'turn.started') {
-          setActiveTurnId(event.payload?.turnId ?? null);
+          const tId = event.payload?.turnId ?? null;
+          setActiveTurnId(tId);
+          setIsErrorStatus(false);
           setTurnStatusText('思考中...');
         } else if (event.type === 'turn.delta') {
+          setIsErrorStatus(false);
           setTurnStatusText(event.payload?.isThinking ? '思考中...' : '回复中...');
         } else if (event.type === 'turn.end') {
-          setActiveTurnId(null);
-          setTurnStatusText('回复完成');
-          setTimeout(() => setTurnStatusText(null), 3000);
+          const { turnId, status, error: turnError } = event.payload || {};
+          if (turnId) {
+            finishedTurnIdsRef.current.add(turnId);
+          }
+          setActiveTurnId((prev) => (prev === turnId || !turnId ? null : prev));
+
+          if (status === 'failed' || turnError) {
+            setIsErrorStatus(true);
+            const displayError = turnError?.includes('No active model')
+              ? '未配置激活模型，请前往配置'
+              : turnError || '执行失败';
+            setTurnStatusText(`回合失败: ${displayError}`);
+            setTimeout(() => {
+              setTurnStatusText(null);
+              setIsErrorStatus(false);
+            }, 6000);
+          } else {
+            setIsErrorStatus(false);
+            setTurnStatusText('回复完成');
+            setTimeout(() => setTurnStatusText(null), 3000);
+          }
         }
       },
     });
@@ -147,9 +192,23 @@ export function PetWindow() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold text-zinc-100 flex items-center gap-1.5">
-              <span>{isOnline ? 'Rover 已就绪' : loading ? '连接 Runtime 中...' : '连接离线'}</span>
+              <span>
+                {isOnline
+                  ? hasActiveModel
+                    ? 'Rover 已就绪'
+                    : '未检测到激活模型'
+                  : loading
+                    ? '连接 Runtime 中...'
+                    : '连接离线'}
+              </span>
               {turnStatusText && (
-                <span className="text-[11px] font-normal px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 animate-pulse">
+                <span
+                  className={`text-[11px] font-normal px-2 py-0.5 rounded-full border ${
+                    isErrorStatus
+                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 animate-pulse'
+                  }`}
+                >
                   {turnStatusText}
                 </span>
               )}
@@ -157,12 +216,35 @@ export function PetWindow() {
             <p className="text-xs text-zinc-400 truncate mt-0.5">
               {isOnline
                 ? turnStatusText
-                  ? '回答生成中，可打开 Dashboard 查阅完整记录'
-                  : `环回通信延迟 ${wsLatency !== null ? `${wsLatency}ms` : '<1ms'} • 常驻后台`
+                  ? isErrorStatus
+                    ? turnStatusText
+                    : '回答生成中，可打开 Dashboard 查阅完整记录'
+                  : !hasActiveModel
+                    ? '尚未在 ~/.rover/models.json 配置或激活大模型'
+                    : activeModel
+                      ? `当前模型: ${activeModel.name || activeModel.id} (${activeModel.provider})`
+                      : `环回通信延迟 ${wsLatency !== null ? `${wsLatency}ms` : '<1ms'} • 常驻后台`
                 : error || '正在等待 Node.js Sidecar 启动...'}
             </p>
           </div>
         </div>
+
+        {/* Warning Banner when no active model is configured */}
+        {isOnline && !hasActiveModel && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 flex items-center justify-between gap-2 text-xs text-amber-300 shadow-xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="shrink-0 text-sm">⚠️</span>
+              <span className="truncate text-[11px]">未检测到激活大模型，请先配置后开始使用。</span>
+            </div>
+            <button
+              onClick={handleOpenDashboard}
+              type="button"
+              className="shrink-0 px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-medium transition-colors border border-amber-500/30 cursor-pointer"
+            >
+              前往配置
+            </button>
+          </div>
+        )}
 
         {/* Status Chips */}
         <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
@@ -187,12 +269,25 @@ export function PetWindow() {
         {/* Native Tiptap 3 Prompt Input */}
         <PromptInput
           placeholder={
-            activeTurnId ? 'Rover 正在生成回答中...' : '呼唤 Rover 或输入指令，按 @ 派发，/ 技能...'
+            !hasActiveModel && isOnline
+              ? '未配置激活模型，请点击上方按钮前往配置...'
+              : activeTurnId
+                ? 'Rover 正在生成回答中...'
+                : '呼唤 Rover 或输入指令，按 @ 派发，/ 技能...'
           }
           availableAgents={DEFAULT_AGENTS}
           availableSkills={DEFAULT_SKILLS}
           disabled={startTurnMutation.isPending || !!activeTurnId}
           onSubmit={(doc) => {
+            if (!hasActiveModel) {
+              setIsErrorStatus(true);
+              setTurnStatusText('无法发送：未配置激活模型，请先配置');
+              setTimeout(() => {
+                setTurnStatusText(null);
+                setIsErrorStatus(false);
+              }, 4000);
+              return false;
+            }
             startTurnMutation.mutate({ promptDoc: doc });
           }}
         />

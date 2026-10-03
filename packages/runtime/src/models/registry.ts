@@ -1,5 +1,6 @@
+import fs from 'node:fs';
 import type { Model } from '@earendil-works/pi-ai';
-import { loadModelsConfig, saveModelsConfig, resolveApiKey } from './config.js';
+import { loadModelsConfig, saveModelsConfig, resolveApiKey, getModelsConfigPath } from './config.js';
 import type { RoverModelsConfig } from './types.js';
 
 type ModelKey = `${string}/${string}`;
@@ -13,16 +14,50 @@ export class ModelRegistry {
   private customConfigPath?: string;
   private loadedModels = new Map<ModelKey, Model<any>>();
   private cachedConfig: RoverModelsConfig | null = null;
+  private lastMtimeMs = 0;
+  private lastCheckMs = 0;
+  private readonly CHECK_INTERVAL_MS = 500; // 500ms 探测节流，避免高频调用中反复进行磁盘 stat
 
   constructor(customConfigPath?: string) {
     this.customConfigPath = customConfigPath;
     this.reload();
   }
 
+  private checkAndReloadIfChanged(): void {
+    const now = Date.now();
+    // 节流保护：若 500ms 内已检查过且缓存有效，直接跳过 I/O
+    if (now - this.lastCheckMs < this.CHECK_INTERVAL_MS && this.cachedConfig) {
+      return;
+    }
+    this.lastCheckMs = now;
+
+    const filePath = this.customConfigPath || getModelsConfigPath();
+    try {
+      if (fs.existsSync(filePath)) {
+        const stat = fs.statSync(filePath);
+        if (stat.mtimeMs !== this.lastMtimeMs || !this.cachedConfig) {
+          this.reload();
+        }
+      }
+    } catch {
+      // In case of stat failure, keep existing cache
+    }
+  }
+
   public reload(): RoverModelsConfig {
     const config = loadModelsConfig(this.customConfigPath);
     this.cachedConfig = config;
     this.loadedModels.clear();
+
+    const filePath = this.customConfigPath || getModelsConfigPath();
+    try {
+      if (fs.existsSync(filePath)) {
+        this.lastMtimeMs = fs.statSync(filePath).mtimeMs;
+      }
+    } catch {
+      this.lastMtimeMs = Date.now();
+    }
+    this.lastCheckMs = Date.now();
 
     if (!config.providers) {
       return config;
@@ -59,10 +94,8 @@ export class ModelRegistry {
   }
 
   public getConfig(): RoverModelsConfig {
-    if (!this.cachedConfig) {
-      return this.reload();
-    }
-    return this.cachedConfig;
+    this.checkAndReloadIfChanged();
+    return this.cachedConfig!;
   }
 
   public saveConfig(config: RoverModelsConfig): void {
@@ -71,25 +104,30 @@ export class ModelRegistry {
   }
 
   public resolveModel(providerId: string, modelId: string): Model<any> | undefined {
+    this.checkAndReloadIfChanged();
     return this.loadedModels.get(`${providerId}/${modelId}`);
   }
 
   public resolveActiveModel(): Model<any> | undefined {
-    const config = this.getConfig();
-    if (!config.active) {
+    // 统一进行一次一致性校验，后续直接读取内部更新好的状态，杜绝嵌套重复调用
+    this.checkAndReloadIfChanged();
+    const config = this.cachedConfig;
+    if (!config?.active) {
       // Fallback: pick the first available model from the first provider
-      const firstProviderEntry = Object.entries(config.providers || {})[0];
+      const firstProviderEntry = Object.entries(config?.providers || {})[0];
       if (firstProviderEntry && firstProviderEntry[1].models?.[0]) {
-        return this.resolveModel(firstProviderEntry[0], firstProviderEntry[1].models[0].id);
+        return this.loadedModels.get(`${firstProviderEntry[0]}/${firstProviderEntry[1].models[0].id}`);
       }
       return undefined;
     }
-    return this.resolveModel(config.active.provider, config.active.model);
+    return this.loadedModels.get(`${config.active.provider}/${config.active.model}`);
   }
 
   public resolveApiKey(providerId: string): string | undefined {
-    const config = this.getConfig();
-    const provider = config.providers[providerId];
+    // 统一进行一次一致性校验，直接读取内部状态
+    this.checkAndReloadIfChanged();
+    const config = this.cachedConfig;
+    const provider = config?.providers?.[providerId];
     if (!provider) return undefined;
     return resolveApiKey(provider.apiKey);
   }

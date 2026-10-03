@@ -5,6 +5,8 @@ import { createRuntimeServer, RuntimeServer, type AppRouter } from '../transport
 import { RUNTIME_VERSION } from '../index.js';
 import { fileURLToPath } from 'node:url';
 import { BuiltinSkillService } from '../agent/skills/skill-service.js';
+import { ModelRegistry } from '../models/registry.js';
+import { getDefaultTurnEngine } from '../agent/index.js';
 
 describe('Transport & Security Invariants (M0-2)', () => {
   let server: RuntimeServer | null = null;
@@ -294,6 +296,57 @@ describe('Transport & Security Invariants (M0-2)', () => {
       const effective = await client.history.getEffective.query();
       expect(effective).toHaveProperty('messages');
       expect(effective).toHaveProperty('latestSeq');
+    });
+  });
+
+  describe('Models & Turns Active Model Guard (Active Model Resolution)', () => {
+    it('queries models.getActive and accurately reports hasActiveModel', async () => {
+      server = await createRuntimeServer({ port: 0, token: validToken });
+      const { httpUrl } = server.getAddress();
+
+      const client = createTRPCClient<AppRouter>({
+        links: [
+          httpBatchLink({
+            url: `${httpUrl}/trpc`,
+            headers: {
+              Authorization: `Bearer ${validToken}`,
+            },
+          }),
+        ],
+      });
+
+      const activeRes = await client.models.getActive.query();
+      expect(activeRes).toHaveProperty('hasActiveModel');
+      expect(typeof activeRes.hasActiveModel).toBe('boolean');
+    });
+
+    it('rejects turns.start with PRECONDITION_FAILED when no active model is configured', async () => {
+      const emptyRegistry = new ModelRegistry();
+      emptyRegistry.saveConfig({ providers: {} });
+      getDefaultTurnEngine({ modelRegistry: emptyRegistry });
+
+      server = await createRuntimeServer({ port: 0, token: validToken });
+      const { httpUrl } = server.getAddress();
+
+      const client = createTRPCClient<AppRouter>({
+        links: [
+          httpBatchLink({
+            url: `${httpUrl}/trpc`,
+            headers: {
+              Authorization: `Bearer ${validToken}`,
+            },
+          }),
+        ],
+      });
+
+      await expect(
+        client.turns.start.mutate({
+          promptDoc: {
+            v: 1,
+            parts: [{ type: 'text', text: 'Hello without model' }],
+          },
+        })
+      ).rejects.toThrow(/No active model configured/);
     });
   });
 });

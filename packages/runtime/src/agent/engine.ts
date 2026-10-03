@@ -127,6 +127,10 @@ export class RoverTurnEngine {
     return this.skillService;
   }
 
+  public getModelRegistry(): ModelRegistry {
+    return this.modelRegistry;
+  }
+
   public getTools(): AgentTool[] {
     return [...this.tools];
   }
