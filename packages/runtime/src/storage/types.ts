@@ -127,3 +127,56 @@ export interface EffectiveHistory {
   messages: RoverEntryRecord<AgentMessage>[];
   latestSeq: number;
 }
+
+export type TaskAgent = 'claude' | 'codex' | 'opencode';
+export type TaskStatus = 'running' | 'needs_intervention' | 'completed' | 'failed' | 'unverified';
+export type DispatchAttemptDbStatus = 'starting' | 'registered' | 'failed';
+export type SessionAvailability = 'available' | 'unavailable';
+
+export interface DispatchAttemptRecord {
+  id: string;
+  candidateTaskId: string;
+  sourceKind: 'turn' | 'plan' | 'inbox';
+  sourceId: string;
+  agent: TaskAgent;
+  cwd: string;
+  status: DispatchAttemptDbStatus;
+  nativeSessionId: string | null;
+  reportTokenHash: string;
+  error: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TaskRecord {
+  id: string;
+  goal: string;
+  agent: TaskAgent;
+  status: TaskStatus;
+  progressText: string | null;
+  resultText: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SessionRefRecord {
+  taskId: string;
+  agent: TaskAgent;
+  nativeSessionId: string;
+  configDir: string;
+  carrierKind: string;
+  carrierName: string;
+  availability: SessionAvailability;
+  lastSeen: number;
+}
+
+export interface TaskEventRecord {
+  id: string;
+  taskId: string;
+  source: string;
+  sourceEventId: string;
+  kind: string;
+  observedAt: number;
+  summary: string | null;
+  evidenceRef: string | null;
+}

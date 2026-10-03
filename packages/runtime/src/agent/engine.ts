@@ -34,6 +34,7 @@ import { assessContextBudget } from './compaction.js';
 import type { WebSocketManager } from '../transport/websocket.js';
 import { BuiltinSkillService } from './skills/skill-service.js';
 import { createReadSkillTool } from './tools/skill.js';
+import { createDispatchAgentTool } from './tools/dispatch.js';
 
 export type { TurnExecutionResult };
 
@@ -93,7 +94,14 @@ export class RoverTurnEngine {
     this.skillService =
       options.skillService || new BuiltinSkillService({ skillsDir: options.skillsDir });
 
-    this.tools = options.tools || [createReadSkillTool(this.skillService)];
+    this.tools = options.tools || [
+      createReadSkillTool(this.skillService),
+      createDispatchAgentTool({
+        db: this.dbInstance,
+        wsManager: this.wsManager,
+        getCurrentTurnId: () => this.currentTurnId || undefined,
+      }),
+    ];
 
     this.handler =
       options.handler ||
@@ -117,6 +125,10 @@ export class RoverTurnEngine {
 
   public getSkillService(): BuiltinSkillService {
     return this.skillService;
+  }
+
+  public getTools(): AgentTool[] {
+    return [...this.tools];
   }
 
   public get db(): Database.Database {
