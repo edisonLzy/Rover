@@ -103,7 +103,6 @@ export const appRouter = router({
       )
       .mutation(({ input }) => {
         const updated = setActiveModel(input);
-        getDefaultTurnEngine().getModelRegistry().reload();
         return maskModelsConfig(updated);
       }),
 
@@ -116,7 +115,6 @@ export const appRouter = router({
       )
       .mutation(({ input }) => {
         const updated = saveProvider(input.id, input.provider);
-        getDefaultTurnEngine().getModelRegistry().reload();
         return maskModelsConfig(updated);
       }),
 
@@ -124,7 +122,6 @@ export const appRouter = router({
       .input(z.object({ id: z.string().min(1) }))
       .mutation(({ input }) => {
         const updated = deleteProvider(input.id);
-        getDefaultTurnEngine().getModelRegistry().reload();
         return maskModelsConfig(updated);
       }),
 
@@ -137,7 +134,6 @@ export const appRouter = router({
       )
       .mutation(({ input }) => {
         const updated = addModelToProvider(input.providerId, input.model);
-        getDefaultTurnEngine().getModelRegistry().reload();
         return maskModelsConfig(updated);
       }),
 
@@ -150,7 +146,6 @@ export const appRouter = router({
       )
       .mutation(({ input }) => {
         const updated = deleteModelFromProvider(input.providerId, input.modelId);
-        getDefaultTurnEngine().getModelRegistry().reload();
         return maskModelsConfig(updated);
       }),
 
@@ -182,7 +177,6 @@ export const appRouter = router({
       )
       .mutation(({ input }) => {
         const result = importFromPi({ overwrite: input?.overwrite });
-        getDefaultTurnEngine().getModelRegistry().reload();
         const config = loadModelsConfig();
         return {
           ...result,

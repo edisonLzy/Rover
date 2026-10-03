@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EventStream, type AssistantMessage, type Model, Type } from '@earendil-works/pi-ai';
 import type { AgentTool } from '@earendil-works/pi-agent-core';
@@ -38,8 +41,10 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
   let db: RoverDatabase;
   let modelRegistry: ModelRegistry;
   let testModel: Model<any>;
+  let tempConfigPath: string;
 
   beforeEach(() => {
+    tempConfigPath = path.join(os.tmpdir(), `rover-turns-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
     db = openDatabase({ path: ':memory:' });
     runMigrations(db.raw);
 
@@ -56,7 +61,7 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
       maxTokens: 4096,
     };
 
-    modelRegistry = new ModelRegistry();
+    modelRegistry = new ModelRegistry(tempConfigPath);
     // Inject mock provider and model
     modelRegistry.saveConfig({
       active: { provider: 'test-provider', model: 'test-model' },
@@ -84,6 +89,13 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
   afterEach(() => {
     if (db) {
       db.close();
+    }
+    try {
+      if (fs.existsSync(tempConfigPath)) {
+        fs.unlinkSync(tempConfigPath);
+      }
+    } catch {
+      // Ignore cleanup error
     }
   });
 
@@ -334,7 +346,8 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
   describe('4. 异常容错性 (No Crash)', () => {
     it('当未配置激活模型或提供商不存在时，返回结构化错误码，状态置为 failed 且进程不崩溃', async () => {
       // 构造未配置模型的空注册中心
-      const emptyRegistry = new ModelRegistry();
+      const emptyConfigPath = path.join(os.tmpdir(), `rover-turns-empty-${Date.now()}.json`);
+      const emptyRegistry = new ModelRegistry(emptyConfigPath);
       emptyRegistry.saveConfig({ providers: {} });
 
       const engine = new RoverTurnEngine({

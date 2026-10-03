@@ -11,8 +11,6 @@ import {
   type RoverModelsConfig,
 } from './types.js';
 
-let cachedConfig: RoverModelsConfig | null = null;
-
 export function getModelsConfigPath(): string {
   if (process.env.ROVER_MODELS_PATH) {
     return path.resolve(process.env.ROVER_MODELS_PATH);
@@ -58,6 +56,7 @@ export function getDefaultModelsConfig(): RoverModelsConfig {
 
 /**
  * Loads models configuration from file.
+ * Treats the filesystem file as the Single Source of Truth (no memory caching).
  * Automatically initializes with default template if not present.
  */
 export function loadModelsConfig(customPath?: string): RoverModelsConfig {
@@ -66,7 +65,6 @@ export function loadModelsConfig(customPath?: string): RoverModelsConfig {
   if (!fs.existsSync(filePath)) {
     const defaultConfig = getDefaultModelsConfig();
     saveModelsConfig(defaultConfig, filePath);
-    cachedConfig = defaultConfig;
     return defaultConfig;
   }
 
@@ -74,16 +72,12 @@ export function loadModelsConfig(customPath?: string): RoverModelsConfig {
     const raw = fs.readFileSync(filePath, 'utf-8');
     const parsed = JSON.parse(raw);
     const validated = RoverModelsConfigSchema.parse(parsed);
-    cachedConfig = validated;
     return validated;
   } catch (error) {
     console.error(`[Rover Model Config] Failed to load config from ${filePath}:`, error);
-    if (cachedConfig) {
-      return cachedConfig;
-    }
-    const fallback = getDefaultModelsConfig();
-    cachedConfig = fallback;
-    return fallback;
+    throw new Error(
+      `Failed to load models configuration from ${filePath}: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
@@ -110,8 +104,6 @@ export function saveModelsConfig(config: RoverModelsConfig, customPath?: string)
   } catch {
     // Ignore chmod errors on systems that don't support posix modes
   }
-
-  cachedConfig = validated;
 }
 
 /**

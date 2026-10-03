@@ -16,6 +16,7 @@ import {
 } from '../models/config.js';
 import { importFromPi, isPiConfigAvailable } from '../models/importer.js';
 import { testModelConnection } from '../models/tester.js';
+import { ModelRegistry } from '../models/registry.js';
 import type { RoverModelsConfig } from '../models/types.js';
 
 describe('Model Configuration & Pi AI Contract (Ticket 003 & ADR-0015)', () => {
@@ -378,4 +379,86 @@ describe('Model Configuration & Pi AI Contract (Ticket 003 & ADR-0015)', () => {
       expect(config.active).toBeUndefined();
     });
   });
+
+  describe('Stateless ModelRegistry & Direct File SSOT', () => {
+    it('reads directly from disk without caching and immediately reflects external file changes', () => {
+      const registry = new ModelRegistry(configPath);
+      // Automatically initializes configPath on first read
+      const active1 = registry.resolveActiveModel();
+      expect(active1?.id).toBe('deepseek-chat');
+
+      // Directly overwrite file on disk (simulate external editor or other process)
+      const updatedConfig: RoverModelsConfig = {
+        active: { provider: 'custom-prov', model: 'custom-model' },
+        providers: {
+          'custom-prov': {
+            baseUrl: 'https://custom.api.com',
+            apiKey: 'key-123',
+            api: 'openai-completions',
+            models: [
+              {
+                id: 'custom-model',
+                name: 'Custom Model',
+                contextWindow: 100000,
+                maxTokens: 4096,
+                reasoning: false,
+                input: ['text'],
+                cost: { input: 0, output: 0 },
+              },
+            ],
+          },
+        },
+      };
+      fs.writeFileSync(configPath, JSON.stringify(updatedConfig, null, 2));
+
+      // Without calling reload() or waiting, next call must immediately reflect changes
+      const active2 = registry.resolveActiveModel();
+      expect(active2?.id).toBe('custom-model');
+      expect(active2?.provider).toBe('custom-prov');
+      expect(active2?.baseUrl).toBe('https://custom.api.com');
+    });
+
+    it('resolves model descriptors conforming to Pi AI Model interface', () => {
+      const registry = new ModelRegistry(configPath);
+      const model = registry.resolveModel('deepseek', 'deepseek-reasoner');
+      expect(model).toBeDefined();
+      expect(model?.id).toBe('deepseek-reasoner');
+      expect(model?.reasoning).toBe(true);
+      expect(model?.api).toBe('openai-completions');
+      expect(model?.cost.input).toBe(0.55);
+    });
+
+    it('resolves API keys expanding environment variables', () => {
+      process.env.TEST_KEY_ENV = 'test-token-val';
+      saveModelsConfig(
+        {
+          providers: {
+            p1: {
+              baseUrl: 'https://p1.com',
+              apiKey: '${TEST_KEY_ENV}',
+              api: 'openai-completions',
+              models: [],
+            },
+          },
+        },
+        configPath
+      );
+
+      const registry = new ModelRegistry(configPath);
+      expect(registry.resolveApiKey('p1')).toBe('test-token-val');
+      expect(registry.resolveApiKey('non-existent')).toBeUndefined();
+
+      delete process.env.TEST_KEY_ENV;
+    });
+
+    it('safely returns undefined when file contains invalid JSON', () => {
+      fs.writeFileSync(configPath, '{ invalid json: broken syntax');
+      const registry = new ModelRegistry(configPath);
+
+      expect(registry.resolveActiveModel()).toBeUndefined();
+      expect(registry.resolveModel('deepseek', 'deepseek-chat')).toBeUndefined();
+      expect(registry.resolveApiKey('deepseek')).toBeUndefined();
+    });
+  });
 });
+

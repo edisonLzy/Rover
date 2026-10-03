@@ -45,6 +45,7 @@ export function PetWindow() {
   const activeModelQuery = trpc.models.getActive.useQuery(undefined, {
     enabled: !!connection,
     refetchInterval: 3000,
+    staleTime: 0,
   });
 
   const hasActiveModel = Boolean(activeModelQuery.data?.hasActiveModel);

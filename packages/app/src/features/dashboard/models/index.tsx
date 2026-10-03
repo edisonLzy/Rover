@@ -18,7 +18,9 @@ import { AddModelModal } from './AddModelModal.js';
 
 export function ModelsView() {
   const utils = trpc.useUtils();
-  const { data: config, isLoading, error, refetch } = trpc.models.getConfig.useQuery();
+  const { data: config, isLoading, error, refetch } = trpc.models.getConfig.useQuery(undefined, {
+    staleTime: 0,
+  });
   const { data: piInfo } = trpc.models.checkPiAvailability.useQuery();
 
   const setActiveMutation = trpc.models.setActive.useMutation({

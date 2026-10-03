@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it, afterEach } from 'vitest';
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import WebSocket from 'ws';
@@ -321,7 +324,8 @@ describe('Transport & Security Invariants (M0-2)', () => {
     });
 
     it('rejects turns.start with PRECONDITION_FAILED when no active model is configured', async () => {
-      const emptyRegistry = new ModelRegistry();
+      const tempConfig = path.join(os.tmpdir(), `rover-test-${Date.now()}-models.json`);
+      const emptyRegistry = new ModelRegistry(tempConfig);
       emptyRegistry.saveConfig({ providers: {} });
       getDefaultTurnEngine({ modelRegistry: emptyRegistry });
 
