@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect, type MouseEvent } from 'react';
 import { EditorContent } from '@tiptap/react';
 import { ArrowUp } from 'lucide-react';
 import { usePromptEditor } from './usePromptEditor.js';
@@ -13,6 +13,7 @@ export function PromptInput({
   availableSkills = [],
   availableInboxes = [],
   className = '',
+  onContentChange,
 }: PromptInputProps) {
   const { editor, hasContent, handleSubmit } = usePromptEditor({
     disabled,
@@ -23,31 +24,30 @@ export function PromptInput({
     availableSkills,
     availableInboxes,
   });
-
+  const handleContainerClick = (event: MouseEvent) => {
+    if (!(event.target as HTMLElement).closest('button') && editor && !disabled)
+      editor.commands.focus('end');
+  };
+  useEffect(() => { onContentChange?.(hasContent); }, [hasContent, onContentChange]);
   return (
     <div
-      className={`relative flex items-end gap-2 rounded-2xl border border-zinc-800 bg-zinc-950/80 p-2 backdrop-blur-xl shadow-2xl transition-all focus-within:border-zinc-700/80 focus-within:ring-1 focus-within:ring-zinc-700/50 ${
-        disabled ? 'opacity-60 cursor-not-allowed' : ''
-      } ${className}`}
+      onClick={handleContainerClick}
+      className={`pet-composer flex min-h-[60px] cursor-text items-center gap-2 rounded-[30px] bg-white pl-5 pr-[10px] py-[7px] shadow-[0_5px_17px_#1e314115] focus-within:shadow-[0_0_0_3px_#d9e6ff,0_5px_17px_#1e314115] ${className}`}
       data-testid="prompt-input-container"
     >
-      <div className="flex-1 min-w-0">
+      <div className="pet-editor-content min-w-0 flex-1">
         <EditorContent editor={editor} />
       </div>
-
       <button
         type="button"
         disabled={!hasContent || disabled}
         onClick={handleSubmit}
-        className={`shrink-0 mb-0.5 inline-flex items-center justify-center w-7 h-7 rounded-xl transition-all ${
-          hasContent && !disabled
-            ? 'bg-white text-zinc-950 hover:bg-zinc-200 shadow-sm active:scale-95'
-            : 'bg-zinc-800/60 text-zinc-600 cursor-not-allowed'
-        }`}
+        className="pet-circle-btn pet-send grid size-[42px] shrink-0 place-items-center rounded-full border-0 bg-[#3479ed] p-0 text-white hover:bg-[#2266d9] disabled:opacity-50"
         title="发送 (Enter)"
+        aria-label="发送给 Rover"
         data-testid="prompt-submit-button"
       >
-        <ArrowUp className="w-4 h-4 stroke-[2.5]" />
+        <ArrowUp size={22} />
       </button>
     </div>
   );

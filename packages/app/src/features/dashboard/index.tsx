@@ -4,8 +4,9 @@ import { useRuntime } from '../../context/RuntimeContext.js';
 import { ProbeView } from './probe/index.js';
 import { ModelsView } from './models/index.js';
 import { HistoryView } from './history/index.js';
+import { PetSettingsView } from './pet-settings/index.js';
 
-type TabType = 'probe' | 'history' | 'skills' | 'schedules' | 'memory' | 'models';
+type TabType = 'probe' | 'history' | 'skills' | 'schedules' | 'memory' | 'models' | 'pet';
 
 export function DashboardWindow() {
   const { connection, loading, error, restartRuntime } = useRuntime();
@@ -78,6 +79,7 @@ export function DashboardWindow() {
           { id: 'schedules', label: '定时计划' },
           { id: 'memory', label: '最近活动' },
           { id: 'models', label: '模型配置' },
+          { id: 'pet', label: '宠物设置' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -95,7 +97,9 @@ export function DashboardWindow() {
 
       {/* Scrollable Main Area (Only this region scrolls) */}
       <main className="flex-1 overflow-y-auto min-h-0 pr-1">
-        {loading ? (
+        {activeTab === 'pet' ? (
+          <PetSettingsView />
+        ) : loading ? (
           <div className="py-20 text-center text-zinc-500 text-sm">
             <div className="inline-block animate-spin w-5 h-5 border-2 border-zinc-600 border-t-emerald-400 rounded-full mb-3" />
             <div>Acquiring runtime connection from Rust host...</div>

@@ -15,8 +15,8 @@
       {
         "label": "main",
         "title": "Rover",
-        "width": 320,
-        "height": 420,
+        "width": 417,
+        "height": 189,
         "resizable": false,
         "decorations": false,
         "transparent": true,

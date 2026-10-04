@@ -5,6 +5,8 @@
 
 History、消息写入粒度与 Compaction 以 [ADR-0014](../../adr/0014-linear-rover-entries-and-compaction.md) 为准，替代 ADR-0012 中相应的旧设计。回合生命周期与恢复策略仍需在存储实施前定稿。
 
+宠物交互重构拆为 012–015 四条可验收切片，修订已完成的 010 中的交互；010 保留历史完成状态。新票均从 TODO 开始，已有局部代码不等同于完成验收。执行时只补齐差异，沿用现有 Tailwind、编辑器、Task 接管及 compact 尺寸设置；SQLite Inbox 与外部告警仍属于 M3。
+
 ## 任务依赖拓扑（DAG Frontier）
 
 ```mermaid
@@ -51,6 +53,17 @@ flowchart TD
   T007 --> T011
   T008 --> T011
   T009 --> T011
+
+  T012["012: 宠物待命、工具栏与输入交互"]
+  T002 --> T012
+  T010 --> T012
+  T013["013: Task 堆叠/展开与 Panel 滚动"]
+  T012 --> T013
+  T014["014: 本地 Inbox 与 Loop follow-up"]
+  T005 --> T014
+  T013 --> T014
+  T015["015: LLM 气泡职责收敛"]
+  T012 --> T015
 ```
 
 ## Ticket 列表与状态
@@ -66,5 +79,17 @@ flowchart TD
 | [007](./007-task-event-projection-and-status-lifecycle.md)     | 任务事件投影与状态生命周期管理            | 001, 006            | DONE | `packages/runtime` (observe/spool consumer, task_event, state projection)                  |
 | [008](./008-task-recall-and-activity-ledger.md)                | 任务摘要回忆 (task-recall) 与最近活动台账 | 001, 006, 007       | TODO | `packages/runtime` (n-gram index, task_summary, activity)                                  |
 | [009](./009-skill-management-and-safe-installation.md)         | 内置 Skill 发现与加载机制                 | 001, 006            | DONE | `packages/app/resources/skills` (内容与附件), `packages/runtime` (loader, SKILL.md parser) |
-| [010](./010-pet-window-ui-and-task-interaction.md)             | 宠物窗口交互展开态、任务卡片与终端接管    | 002, 005, 006, 007  | TODO | `packages/app` (PetWindow, cards, queue), `src-tauri` (open_task)                          |
+| [010](./010-pet-window-ui-and-task-interaction.md)             | 宠物窗口交互展开态、任务卡片与终端接管    | 002, 005, 006, 007  | DONE | `packages/app` (PetWindow, cards, queue), `src-tauri` (open_task)                          |
 | [011](./011-dashboard-window-ui.md)                            | Dashboard 管理面板完整功能视图            | 003, 007, 008, 009  | TODO | `packages/app` (DashboardWindow, skills, models, activity, attention)                      |
+| [012](./012-pet-toolbar-and-prompt-interaction.md) | 宠物待命、工具栏与输入交互重构 | 002, 010 | TODO | `packages/app` (Pet, PetToolbar, PromptInput, PetWindow) |
+| [013](./013-pet-task-panel-and-scroll.md) | Task 堆叠、展开与 Panel 滚动 | 012 | TODO | `packages/app` (PetPanel/tasks, useActivePanel) |
+| [014](./014-local-inbox-and-agent-follow-up.md) | 本地 Inbox 与 Agent Loop follow-up | 005, 013 | TODO | `packages/app` (PetPanel/inbox), `packages/runtime` (Agent 提交) |
+| [015](./015-pet-bubble-output-isolation.md) | PetBubble 的 LLM 输出职责收敛 | 012 | TODO | `packages/app` (PetBubble, 类型化事件订阅) |
+
+## 宠物重构执行边界
+
+- 每个独立功能对应一个目录，主实现放在该目录的 `index.tsx`：气泡使用 `pet/PetBubble/index.tsx`，工具栏使用 `pet/PetToolbar/index.tsx`，面板沿用 `pet/PetPanel/`；`pet/index.tsx` 是窗口组合入口。组件专用的子组件、事件处理和私有 Hook 留在所属功能内，不为它们另建功能目录。
+- 建议顺序：012 → 013 → 014；015 在 012 完成后可独立进行，不要求并行执行。
+- 每票同时交付实际交互与对应验证，避免先做一次全量机械拆文件，再集中补交互。
+- 按 TRD §2.1 将私有逻辑留在所属组件内，仅提取真实共享状态或有独立生命周期的接口；不扩大为 Dashboard、Task 服务或全局状态重构。
+- 已有未提交实现先保留，按对应票逐项核对；后续实施只迁移必要引用，删除明确不再使用的旧代码。

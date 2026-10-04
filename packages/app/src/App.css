@@ -21,6 +21,16 @@ body,
   -webkit-user-select: none;
 }
 
+/* Allow text selection and cursor focus in editable and selectable elements */
+[contenteditable],
+[contenteditable='true'],
+.ProseMirror,
+input,
+textarea {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
 /* Custom subtle scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
@@ -38,4 +48,23 @@ body,
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(161, 161, 170, 0.4);
+}
+
+@theme {
+  --animate-pet-bob: pet-bob 3.8s ease-in-out infinite;
+  --animate-pet-task-border: pet-task-border 2.7s ease-in-out infinite;
+
+  @keyframes pet-bob {
+    50% {
+      transform: translateY(-4px);
+    }
+  }
+  @keyframes pet-task-border {
+    50% {
+      border-color: #4f8cef;
+      box-shadow:
+        0 0 0 5px #8bb9ff36,
+        0 7px 20px #1f344b17;
+    }
+  }
 }

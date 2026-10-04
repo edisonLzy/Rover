@@ -22,6 +22,7 @@
     "@tanstack/react-query": "catalog:",
     "@tauri-apps/api": "^2.3.0",
     "@tauri-apps/plugin-opener": "^2.2.6",
+    "@tauri-apps/plugin-store": "^2.5.0",
     "@tiptap/core": "^3.31.4",
     "@tiptap/extension-mention": "^3.31.4",
     "@tiptap/extension-placeholder": "^3.31.4",

@@ -67,8 +67,10 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
       if (result === false) {
         return;
       }
+      if (currentEditor.isDestroyed) return;
       currentEditor.commands.clearContent();
       setHasContent(false);
+      currentEditor.commands.focus();
     } catch {
       // Keep editor content on submission error so user doesn't lose text
     }
@@ -123,8 +125,11 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
     autofocus: autoFocus,
     editorProps: {
       attributes: {
+        role: 'textbox',
+        'aria-label': '问 Rover 或交办任务',
+        'aria-multiline': 'true',
         class:
-          'ProseMirror min-h-[36px] max-h-[160px] overflow-y-auto px-2.5 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none selection:bg-indigo-500/30 font-normal leading-relaxed',
+          'ProseMirror min-h-6 max-h-[100px] overflow-y-auto p-0 text-base font-medium leading-normal text-[#232934] outline-none selection:bg-[#d9e6ff] select-text cursor-text [&_p]:m-0 [&_p.is-editor-empty:first-child]:before:content-[attr(data-placeholder)] [&_p.is-editor-empty:first-child]:before:float-left [&_p.is-editor-empty:first-child]:before:h-0 [&_p.is-editor-empty:first-child]:before:pointer-events-none [&_p.is-editor-empty:first-child]:before:text-[#b3b6bd]',
       },
       handleDOMEvents: {
         compositionstart: () => {
@@ -165,8 +170,24 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
 
   useEffect(() => {
     editorRef.current = editor;
-    editor?.setEditable(!disabled);
-  }, [disabled, editor]);
+    if (editor && !editor.isDestroyed) {
+      editor.setEditable(!disabled);
+      if (!disabled && autoFocus) {
+        editor.commands.focus('end');
+      }
+    }
+  }, [disabled, editor, autoFocus]);
+
+  useEffect(() => {
+    if (autoFocus && editor && !disabled) {
+      const timer = setTimeout(() => {
+        if (!editor.isDestroyed) {
+          editor.commands.focus('end');
+        }
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [editor, autoFocus, disabled]);
 
   return {
     editor,

@@ -4,29 +4,29 @@ import { Bot, Wrench, Bell } from 'lucide-react';
 import type { MentionKind } from '../types.js';
 
 export function ReferencePill({ node }: NodeViewProps) {
-  const kind = (node.attrs.kind as MentionKind) || 'agent';
+  const rawKind = (node.attrs.kind as MentionKind) || 'agent';
+  const kind: 'agent' | 'skill' | 'inbox' =
+    rawKind === 'agent' || rawKind === 'skill' || rawKind === 'inbox' ? rawKind : 'agent';
   const label = (node.attrs.label as string) || node.attrs.id || '';
 
-  const config = {
+  const pillConfigs = {
     agent: {
       icon: Bot,
       prefix: '@',
-      className:
-        'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border-indigo-500/30 hover:bg-indigo-500/25',
+      className: 'bg-[#edf3ff] text-[#3266ba] border-[#dce8fa] hover:bg-[#dfebff]',
     },
     skill: {
       icon: Wrench,
       prefix: '/',
-      className:
-        'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/25',
+      className: 'bg-amber-500/15 text-amber-700 border-amber-500/30 hover:bg-amber-500/25',
     },
     inbox: {
       icon: Bell,
       prefix: '#',
-      className:
-        'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25',
+      className: 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/25',
     },
-  }[kind];
+  };
+  const config = pillConfigs[kind];
 
   const Icon = config.icon;
   const displayLabel = label.startsWith(config.prefix) ? label : `${config.prefix}${label}`;

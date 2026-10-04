@@ -1,14 +1,27 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import {
+  currentMonitor,
+  getCurrentWindow,
+  LogicalSize,
+  PhysicalPosition,
+} from '@tauri-apps/api/window';
+import { Bell, SquarePen, AudioLines } from 'lucide-react';
+import { isTauriEnvironment } from '../../utils/window.js';
+import { usePetPreferences } from '../../shared/preferences/pet.js';
 import { useRuntime } from '../../context/RuntimeContext.js';
 import { trpc } from '../../utils/trpc.js';
 import { RoverWebSocketClient, type ConnectionStatus } from '../../utils/websocket.js';
 import { PromptInput } from './editor/PromptInput.js';
-import type { SuggestionItemData } from './editor/types.js';
+import type { SuggestionItemData, PromptDocumentV1 } from './editor/types.js';
+import { PetAvatar, type PetState } from './components/PetAvatar.js';
+import { PetBubble } from './PetBubble/index.js';
+import { TaskCard, type TaskItem } from './components/TaskCard.js';
+import { PendingQueue, type PendingPromptItem } from './components/PendingQueue.js';
 
 const DEFAULT_AGENTS: SuggestionItemData[] = [
   { id: 'claude-code', kind: 'agent', label: 'Claude Code', description: 'Anthropic Coding CLI' },
-  { id: 'codex', kind: 'agent', label: 'Codex CLI', description: 'OpenAI Code Generator' },
+  { id: 'codex', kind: 'agent', label: 'Codex', description: 'OpenAI Code Generator' },
 ];
 
 const DEFAULT_SKILLS: SuggestionItemData[] = [
@@ -26,103 +39,245 @@ const DEFAULT_SKILLS: SuggestionItemData[] = [
   },
 ];
 
+function extractPromptText(doc: PromptDocumentV1): string {
+  const prefixes = { agent: '@', skill: '/', inbox: '#' };
+  return doc.parts
+    .map((part) =>
+      part.type === 'text'
+        ? part.text
+        : part.label.startsWith(prefixes[part.kind])
+          ? part.label
+          : `${prefixes[part.kind]}${part.label}`
+    )
+    .join('')
+    .trim();
+}
+
 export function PetWindow() {
   const { connection, loading, error } = useRuntime();
   const [wsStatus, setWsStatus] = useState<ConnectionStatus>('connecting');
-  const [wsLatency, setWsLatency] = useState<number | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [focusComposer, setFocusComposer] = useState(false);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const isNative = isTauriEnvironment();
+  const { size: petSize } = usePetPreferences();
+  const scale = petSize / 100;
+
+  // Turn state
   const [activeTurnId, setActiveTurnId] = useState<string | null>(null);
-  const [turnStatusText, setTurnStatusText] = useState<string | null>(null);
+  const [bubbleTaskId, setBubbleTaskId] = useState<string | null>(null);
+  const [bubbleText, setBubbleText] = useState<string | null>(null);
+  const [isThinking, setIsThinking] = useState(false);
   const [isErrorStatus, setIsErrorStatus] = useState(false);
   const finishedTurnIdsRef = useRef<Set<string>>(new Set());
 
-  // tRPC health query (safely disabled until connection info is loaded)
+  // Tasks state
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [openingTaskId, setOpeningTaskId] = useState<string | null>(null);
+
+  // Pending Prompt Queue
+  const [pendingQueue, setPendingQueue] = useState<PendingPromptItem[]>([]);
+  const [queueDeferred, setQueueDeferred] = useState(false);
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!isNative || !shell) return;
+    const petWindow = getCurrentWindow();
+    let previousHeight = 0;
+    let disposed = false;
+    let resizePromise = Promise.resolve();
+    const resize = () => {
+      resizePromise = resizePromise
+        .then(async () => {
+          if (disposed) return;
+          const [monitor, position] = await Promise.all([
+            currentMonitor(),
+            petWindow.outerPosition(),
+          ]);
+          if (disposed) return;
+          if (monitor) {
+            const availableHeight = monitor.workArea.size.height / monitor.scaleFactor;
+            shell.style.setProperty(
+              '--pet-main-max-height',
+              `${Math.max(60, Math.min(610, availableHeight / scale - 184))}px`
+            );
+          }
+          const height = Math.ceil(shell.getBoundingClientRect().height + 78 * scale);
+          if (height === previousHeight) return;
+          previousHeight = height;
+          await petWindow.setSize(new LogicalSize(Math.ceil(556 * scale), height));
+          if (monitor && !disposed) {
+            const area = monitor.workArea;
+            const x = Math.max(
+              area.position.x,
+              Math.min(
+                position.x,
+                area.position.x + area.size.width - Math.ceil(556 * scale) * monitor.scaleFactor
+              )
+            );
+            const y = Math.max(
+              area.position.y,
+              Math.min(
+                position.y,
+                area.position.y + area.size.height - height * monitor.scaleFactor
+              )
+            );
+            if (x !== position.x || y !== position.y)
+              await petWindow.setPosition(new PhysicalPosition(Math.round(x), Math.round(y)));
+          }
+        })
+        .catch(console.error);
+    };
+    const observer = new ResizeObserver(resize);
+    observer.observe(shell);
+    resize();
+    return () => {
+      disposed = true;
+      observer.disconnect();
+    };
+  }, [isNative, scale]);
+
   const healthQuery = trpc.health.useQuery(undefined, {
     enabled: !!connection,
     refetchInterval: 3000,
   });
-
-  // tRPC active model query to detect whether a model is configured and active
   const activeModelQuery = trpc.models.getActive.useQuery(undefined, {
     enabled: !!connection,
     refetchInterval: 3000,
     staleTime: 0,
   });
-
+  const tasksQuery = trpc.tasks.list.useQuery(undefined, {
+    enabled: !!connection,
+    refetchInterval: 5000,
+  });
+  const openTerminalMutation = trpc.tasks.openTerminal.useMutation();
   const hasActiveModel = Boolean(activeModelQuery.data?.hasActiveModel);
-  const activeModel = activeModelQuery.data?.activeModel;
+
+  useEffect(() => {
+    if (tasksQuery.data) setTasks(tasksQuery.data as TaskItem[]);
+  }, [tasksQuery.data]);
 
   const startTurnMutation = trpc.turns.start.useMutation({
     onSuccess: (data) => {
-      // Race-condition guard: If turn.end arrived before HTTP response, do not lock activeTurnId
-      if (finishedTurnIdsRef.current.has(data.turnId)) {
-        return;
-      }
+      if (finishedTurnIdsRef.current.has(data.turnId)) return;
+      setBubbleTaskId(null);
       setActiveTurnId(data.turnId);
       setIsErrorStatus(false);
-      setTurnStatusText('Rover 启动中...');
+      setIsThinking(true);
+      setBubbleText('Rover 启动中...');
     },
     onError: (err) => {
       setActiveTurnId(null);
+      setIsThinking(false);
       setIsErrorStatus(true);
       const msg = err.message.includes('No active model')
         ? '未配置激活模型，请前往控制面板配置'
         : err.message;
-      setTurnStatusText(`启动失败: ${msg}`);
-      setTimeout(() => {
-        setTurnStatusText(null);
-        setIsErrorStatus(false);
-      }, 5000);
+      setBubbleText(`启动失败: ${msg}`);
     },
   });
 
-  // WebSocket connection for real-time state
   useEffect(() => {
     if (!connection) return;
-
     const client = new RoverWebSocketClient({
       url: connection.ws_url,
       token: connection.token,
       onStatusChange: (status) => setWsStatus(status),
-      onLatency: (ms) => setWsLatency(ms),
       onEvent: (event: any) => {
         if (event.type === 'turn.started') {
-          const tId = event.payload?.turnId ?? null;
-          setActiveTurnId(tId);
+          setBubbleTaskId(null);
+          setActiveTurnId(event.payload?.turnId ?? null);
+          setIsThinking(true);
           setIsErrorStatus(false);
-          setTurnStatusText('思考中...');
+          setBubbleText('思考中...');
         } else if (event.type === 'turn.delta') {
           setIsErrorStatus(false);
-          setTurnStatusText(event.payload?.isThinking ? '思考中...' : '回复中...');
+          const {
+            textDelta,
+            accumulated,
+            thinkingDelta,
+            isThinking: deltaThinking,
+          } = event.payload || {};
+          if (deltaThinking) {
+            setIsThinking(true);
+            setBubbleText(accumulated || thinkingDelta || '深度思考中...');
+          } else {
+            setIsThinking(false);
+            if (accumulated !== undefined && accumulated !== '') setBubbleText(accumulated);
+            else if (textDelta) {
+              setBubbleText((prev) => {
+                if (
+                  !prev ||
+                  prev === '思考中...' ||
+                  prev === '深度思考中...' ||
+                  prev === 'Rover 启动中...'
+                )
+                  return textDelta;
+                return prev + textDelta;
+              });
+            }
+          }
         } else if (event.type === 'turn.end') {
           const { turnId, status, error: turnError } = event.payload || {};
-          if (turnId) {
-            finishedTurnIdsRef.current.add(turnId);
-          }
+          if (turnId) finishedTurnIdsRef.current.add(turnId);
           setActiveTurnId((prev) => (prev === turnId || !turnId ? null : prev));
-
+          setIsThinking(false);
           if (status === 'failed' || turnError) {
             setIsErrorStatus(true);
             const displayError = turnError?.includes('No active model')
               ? '未配置激活模型，请前往配置'
               : turnError || '执行失败';
-            setTurnStatusText(`回合失败: ${displayError}`);
-            setTimeout(() => {
-              setTurnStatusText(null);
-              setIsErrorStatus(false);
-            }, 6000);
+            setBubbleText(`回合失败: ${displayError}`);
           } else {
             setIsErrorStatus(false);
-            setTurnStatusText('回复完成');
-            setTimeout(() => setTurnStatusText(null), 3000);
+            setBubbleText((prev) =>
+              prev === '思考中...' || prev === '深度思考中...' || prev === 'Rover 启动中...'
+                ? '回复完成'
+                : prev
+            );
+          }
+        }
+
+        if (event.type === 'task.changed') {
+          const payload = event.payload;
+          setTasks((prev) => {
+            const idx = prev.findIndex((task) => task.id === payload.taskId);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = {
+                ...next[idx],
+                status: payload.status,
+                progressText:
+                  payload.progressText !== undefined
+                    ? payload.progressText
+                    : next[idx].progressText,
+                resultText:
+                  payload.resultText !== undefined ? payload.resultText : next[idx].resultText,
+                updatedAt: payload.updatedAt || Date.now(),
+              };
+              return next;
+            }
+            const newTask: TaskItem = {
+              id: payload.taskId,
+              goal: payload.goal || '任务进行中',
+              agent: payload.agent || 'claude',
+              status: payload.status,
+              progressText: payload.progressText,
+              resultText: payload.resultText,
+              createdAt: payload.createdAt || Date.now(),
+              updatedAt: payload.updatedAt || Date.now(),
+            };
+            return [newTask, ...prev];
+          });
+          if (payload.status === 'needs_intervention') {
+            setBubbleTaskId(payload.taskId);
+            setBubbleText('任务需要你确认，请返回原 Agent 会话处理。');
           }
         }
       },
     });
-
     client.connect();
-    return () => {
-      client.disconnect();
-    };
+    return () => client.disconnect();
   }, [connection]);
 
   const handleOpenDashboard = async () => {
@@ -133,165 +288,249 @@ export function PetWindow() {
     }
   };
 
-  const handleHidePet = async () => {
+  const handleOpenTerminal = async (taskId: string) => {
+    setOpeningTaskId(taskId);
     try {
-      await invoke('hide_window', { label: 'main' });
-    } catch (e) {
-      console.error('Failed to hide pet window:', e);
+      const res = await openTerminalMutation.mutateAsync({ taskId });
+      if (!res.success) {
+        setIsErrorStatus(true);
+        setBubbleText(res.error || '唤起终端失败');
+      } else {
+        setIsErrorStatus(false);
+        setBubbleText(
+          `已在终端中接入会话 (${res.actionType === 'attach' ? '实时附着' : '恢复会话'})`
+        );
+      }
+    } catch (err: any) {
+      setIsErrorStatus(true);
+      setBubbleText(`接管失败: ${err?.message || '通信异常'}`);
+    } finally {
+      setOpeningTaskId(null);
     }
   };
 
   const isOnline = !loading && !error && healthQuery.isSuccess && wsStatus === 'connected';
 
+  const handleSubmitPrompt = (doc: PromptDocumentV1) => {
+    if (!isOnline || !hasActiveModel) {
+      setIsErrorStatus(true);
+      setBubbleText(
+        !isOnline
+          ? 'Runtime 连接离线，请稍后重试。'
+          : '无法发送：未配置激活模型，请前往 Dashboard 配置。'
+      );
+      return false;
+    }
+    if (activeTurnId || startTurnMutation.isPending || pendingQueue.length > 0) {
+      setQueueDeferred(false);
+      setPendingQueue((prev) => [
+        ...prev,
+        {
+          id: `pending_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          doc,
+          textSnippet: extractPromptText(doc),
+          createdAt: Date.now(),
+        },
+      ]);
+      setBubbleText('已加入待处理 Prompt，确认后继续下一条。');
+      return true;
+    }
+    startTurnMutation.mutate({ promptDoc: doc });
+    return true;
+  };
+
+  const handleProceedNextPending = () => {
+    if (
+      !pendingQueue.length ||
+      activeTurnId ||
+      startTurnMutation.isPending ||
+      !isOnline ||
+      !hasActiveModel
+    )
+      return;
+    const nextItem = pendingQueue[0];
+    setQueueDeferred(false);
+    setPendingQueue((prev) => prev.slice(1));
+    startTurnMutation.mutate({ promptDoc: nextItem.doc });
+  };
+
+  const hasInterventionTask = tasks.some((task) => task.status === 'needs_intervention');
+  const attentionCount = tasks.filter(
+    (task) =>
+      task.status === 'needs_intervention' ||
+      task.status === 'failed' ||
+      task.status === 'unverified'
+  ).length;
+  const bubbleTask = tasks.find((task) => task.id === bubbleTaskId);
+  const sortedTasks = [...tasks].sort((a, b) => {
+    const priority = (task: TaskItem) =>
+      task.status === 'needs_intervention' ? 0 : task.status === 'running' ? 1 : 2;
+    return priority(a) - priority(b) || b.updatedAt - a.updatedAt;
+  });
+  const petState: PetState = !isOnline
+    ? 'idle'
+    : hasInterventionTask
+      ? 'alert'
+      : isThinking
+        ? 'thinking'
+        : activeTurnId
+          ? 'talking'
+          : isErrorStatus
+            ? 'error'
+            : 'idle';
+
   return (
-    <div className="w-full h-full bg-transparent flex flex-col justify-center items-center p-3 select-none">
-      {/* Floating Pet Card / Island */}
-      <div className="w-full rounded-2xl bg-zinc-900 border border-zinc-700/80 shadow-2xl p-4 text-zinc-100 flex flex-col gap-3">
-        {/* Header & Drag Handle */}
-        <div
-          data-tauri-drag-region
-          className="flex items-center justify-between pb-2 border-b border-zinc-800 cursor-grab active:cursor-grabbing"
-        >
-          <div className="flex items-center gap-2 pointer-events-none">
-            {/* Status indicator dot */}
-            <span className="relative flex h-2.5 w-2.5">
-              {isOnline && (
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              )}
-              <span
-                className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                  isOnline ? 'bg-emerald-500' : loading ? 'bg-amber-500' : 'bg-rose-500'
-                }`}
-              />
-            </span>
-            <span className="text-xs font-bold tracking-wide text-zinc-200">Rover Pet</span>
-            <span className="text-[10px] text-zinc-500 font-mono">v0.1.0</span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={handleOpenDashboard}
-              title="打开 Dashboard 管理面板"
-              className="p-1 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors text-xs cursor-pointer"
-            >
-              📊
-            </button>
-            <button
-              onClick={handleHidePet}
-              title="隐藏宠物（可通过菜单栏恢复）"
-              className="p-1 rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors text-xs font-mono cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        {/* Pet Avatar & Status Card */}
-        <div className="flex items-center gap-3.5 py-1">
-          <div className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-700/20 border border-emerald-500/30 flex items-center justify-center text-2xl shadow-inner select-none">
-            🐕
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-zinc-100 flex items-center gap-1.5">
-              <span>
-                {isOnline
-                  ? hasActiveModel
-                    ? 'Rover 已就绪'
-                    : '未检测到激活模型'
-                  : loading
-                    ? '连接 Runtime 中...'
-                    : '连接离线'}
-              </span>
-              {turnStatusText && (
-                <span
-                  className={`text-[11px] font-normal px-2 py-0.5 rounded-full border ${
-                    isErrorStatus
-                      ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 animate-pulse'
-                  }`}
-                >
-                  {turnStatusText}
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-zinc-400 truncate mt-0.5">
-              {isOnline
-                ? turnStatusText
-                  ? isErrorStatus
-                    ? turnStatusText
-                    : '回答生成中，可打开 Dashboard 查阅完整记录'
-                  : !hasActiveModel
-                    ? '尚未在 ~/.rover/models.json 配置或激活大模型'
-                    : activeModel
-                      ? `当前模型: ${activeModel.name || activeModel.id} (${activeModel.provider})`
-                      : `环回通信延迟 ${wsLatency !== null ? `${wsLatency}ms` : '<1ms'} • 常驻后台`
-                : error || '正在等待 Node.js Sidecar 启动...'}
-            </p>
-          </div>
-        </div>
-
-        {/* Warning Banner when no active model is configured */}
-        {isOnline && !hasActiveModel && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5 flex items-center justify-between gap-2 text-xs text-amber-300 shadow-xs">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="shrink-0 text-sm">⚠️</span>
-              <span className="truncate text-[11px]">未检测到激活大模型，请先配置后开始使用。</span>
-            </div>
-            <button
-              onClick={handleOpenDashboard}
-              type="button"
-              className="shrink-0 px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-medium transition-colors border border-amber-500/30 cursor-pointer"
-            >
-              前往配置
-            </button>
-          </div>
-        )}
-
-        {/* Status Chips */}
-        <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-          <div className="rounded-lg bg-zinc-950/80 border border-zinc-800/80 p-2 flex flex-col justify-between">
-            <span className="text-zinc-500">tRPC HTTP</span>
-            <span
-              className={`font-semibold ${healthQuery.isSuccess ? 'text-emerald-400' : 'text-zinc-400'}`}
-            >
-              {healthQuery.isSuccess ? '200 OK' : healthQuery.isPending ? 'Probing...' : 'Error'}
-            </span>
-          </div>
-          <div className="rounded-lg bg-zinc-950/80 border border-zinc-800/80 p-2 flex flex-col justify-between">
-            <span className="text-zinc-500">Events WS</span>
-            <span
-              className={`font-semibold ${wsStatus === 'connected' ? 'text-emerald-400' : 'text-zinc-400'}`}
-            >
-              {wsStatus === 'connected' ? (wsLatency ? `${wsLatency}ms` : 'Active') : wsStatus}
-            </span>
-          </div>
-        </div>
-
-        {/* Native Tiptap 3 Prompt Input */}
-        <PromptInput
-          placeholder={
-            !hasActiveModel && isOnline
-              ? '未配置激活模型，请点击上方按钮前往配置...'
-              : activeTurnId
-                ? 'Rover 正在生成回答中...'
-                : '呼唤 Rover 或输入指令，按 @ 派发，/ 技能...'
-          }
-          availableAgents={DEFAULT_AGENTS}
-          availableSkills={DEFAULT_SKILLS}
-          disabled={startTurnMutation.isPending || !!activeTurnId}
-          onSubmit={(doc) => {
-            if (!hasActiveModel) {
-              setIsErrorStatus(true);
-              setTurnStatusText('无法发送：未配置激活模型，请先配置');
-              setTimeout(() => {
-                setTurnStatusText(null);
-                setIsErrorStatus(false);
-              }, 4000);
-              return false;
+    <div
+      className={`pet-window box-border flex h-full w-full items-start justify-end pt-[calc(58px*var(--pet-scale))] px-[calc(18px*var(--pet-scale))] pb-[calc(20px*var(--pet-scale))] font-sans leading-[normal] text-[#263246] [&_button]:cursor-pointer [&_button:disabled]:cursor-default [&_button:focus-visible]:outline-3 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-[#8bb8ff]${isNative ? ' pet-window--native' : ''}`}
+      style={{ '--pet-scale': scale } as CSSProperties}
+    >
+      <div
+        className="pet-shell ml-[100px] w-[420px] shrink-0"
+        style={{ zoom: scale }}
+        ref={shellRef}
+      >
+        <div className="pet-area relative flex h-[106px] items-center justify-center">
+          <PetAvatar
+            isOnline={isOnline}
+            state={petState}
+            isExpanded={isExpanded}
+            onToggleExpand={() => {
+              setFocusComposer(false);
+              setIsExpanded((value) => !value);
+            }}
+            attentionCount={attentionCount}
+          />
+          <PetBubble
+            text={bubbleText}
+            isThinking={isThinking}
+            isError={isErrorStatus}
+            statusLabel={bubbleTask?.status === 'needs_intervention' ? '需要你确认' : undefined}
+            onClose={() => setBubbleText(null)}
+            onOpenSession={
+              bubbleTask && bubbleTask.sessionRef?.availability !== 'unavailable'
+                ? () => {
+                    void handleOpenTerminal(bubbleTask.id);
+                  }
+                : undefined
             }
-            startTurnMutation.mutate({ promptDoc: doc });
-          }}
-        />
+            sessionLabel={bubbleTask?.status === 'needs_intervention' ? '去确认' : '打开原会话'}
+          />
+        </div>
+        <div
+          className={`pet-main overflow-y-auto [scrollbar-width:thin] [scrollbar-color:#ffffff80_transparent] ${isNative ? 'max-h-[var(--pet-main-max-height,610px)]' : 'max-h-[min(610px,calc(100vh/var(--pet-scale)_-_184px))]'}`}
+        >
+          {!isExpanded ? (
+            <div
+              className="compact-controls mx-auto mt-[9px] flex h-[58px] w-[201px] items-center justify-center rounded-full bg-white shadow-[0_7px_20px_#172a4140] [&>button]:relative [&>button]:grid [&>button]:h-[39px] [&>button]:w-[64px] [&>button]:place-items-center [&>button]:border-0 [&>button]:bg-transparent [&>button]:text-[#252c34] [&>button:hover]:text-[#3479ed] [&>button+button]:border-l [&>button+button]:border-[#e6e8ec] [&_svg]:size-[22px] [&_svg]:stroke-2"
+              aria-label="快捷操作胶囊"
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setFocusComposer(true);
+                  setIsExpanded(true);
+                }}
+                aria-label="问 Rover 或交办任务"
+              >
+                <SquarePen />
+              </button>
+              <button
+                type="button"
+                aria-label="语音输入"
+                onClick={() => {
+                  setIsErrorStatus(false);
+                  setBubbleTaskId(null);
+                  setBubbleText('语音输入暂未接入，可以点击左侧按钮用文字告诉 Rover。');
+                }}
+              >
+                <AudioLines />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFocusComposer(false);
+                  setIsExpanded(true);
+                }}
+                aria-label="展开任务列表，查看需关注任务"
+              >
+                <Bell />
+                {attentionCount > 0 && (
+                  <em className="absolute -top-px right-[10px] grid h-[21px] min-w-[21px] place-items-center rounded-full border-2 border-white bg-[#37c56b] text-[11px] font-extrabold text-white not-italic">
+                    {attentionCount}
+                  </em>
+                )}
+              </button>
+            </div>
+          ) : (
+            <>
+              <PromptInput
+                autoFocus={focusComposer}
+                placeholder="问 Rover，或交给它一件事"
+                availableAgents={DEFAULT_AGENTS}
+                availableSkills={DEFAULT_SKILLS}
+                onSubmit={handleSubmitPrompt}
+              />
+              {!isOnline ? (
+                <div
+                  className="pet-connection-notice mt-[10px] flex items-center justify-between gap-2 rounded-[19px] bg-[#fffffff4] px-[14px] py-[10px] text-[11px] text-[#657993] [&>button]:rounded-full [&>button]:border-0 [&>button]:bg-[#edf3ff] [&>button]:px-[9px] [&>button]:py-[6px] [&>button]:text-[10px] [&>button]:whitespace-nowrap [&>button]:text-[#3266ba]"
+                  role="status"
+                >
+                  {loading ? '正在连接 Runtime…' : 'Runtime 连接离线，请稍后重试。'}
+                </div>
+              ) : !hasActiveModel ? (
+                <div
+                  className="pet-connection-notice mt-[10px] flex items-center justify-between gap-2 rounded-[19px] bg-[#fffffff4] px-[14px] py-[10px] text-[11px] text-[#657993] [&>button]:rounded-full [&>button]:border-0 [&>button]:bg-[#edf3ff] [&>button]:px-[9px] [&>button]:py-[6px] [&>button]:text-[10px] [&>button]:whitespace-nowrap [&>button]:text-[#3266ba]"
+                  role="status"
+                >
+                  <span>尚未配置 Rover 使用的模型</span>
+                  <button type="button" onClick={handleOpenDashboard}>
+                    去配置
+                  </button>
+                </div>
+              ) : null}
+              {(activeTurnId || startTurnMutation.isPending) && (
+                <div
+                  className="pending-question mx-[11px] mt-[6px] text-[10px] font-bold text-[#f4f8ff] [text-shadow:0_1px_5px_#20395470]"
+                  role="status"
+                >
+                  Rover 正在处理当前输入；可以继续提交，后续 Prompt 会先存入界面队列。
+                </div>
+              )}
+              <PendingQueue
+                queue={pendingQueue}
+                onRemove={(id) => setPendingQueue((prev) => prev.filter((item) => item.id !== id))}
+                onConfirmNext={handleProceedNextPending}
+                onDefer={() => setQueueDeferred(true)}
+                isDeferred={queueDeferred}
+                canProceed={
+                  isOnline &&
+                  hasActiveModel &&
+                  !activeTurnId &&
+                  !startTurnMutation.isPending &&
+                  pendingQueue.length > 0
+                }
+              />
+              <div className="task-list-label mx-[5px] mt-[14px] flex items-center justify-between text-[11px] font-extrabold tracking-[0.3px] text-[#f6f9ff] [text-shadow:0_1px_5px_#20395470] [&>span]:min-w-[19px] [&>span]:rounded-full [&>span]:bg-[#ffffffbf] [&>span]:px-[6px] [&>span]:py-[2px] [&>span]:text-center [&>span]:text-[#446080] [&>span]:[text-shadow:none]">
+                任务列表 <span>{tasks.length}</span>
+              </div>
+              <div className="task-list mt-2 grid gap-[10px]" aria-label="任务列表">
+                {sortedTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onOpenTerminal={handleOpenTerminal}
+                    isOpening={openingTaskId === task.id}
+                  />
+                ))}
+                {tasks.length === 0 && (
+                  <div className="pet-empty rounded-[27px] border border-[#ffffffee] bg-[#fffffff4] px-5 py-[19px] text-[11px] text-[#686f7c] shadow-[0_7px_20px_#1f344b17]">
+                    目前没有任务
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

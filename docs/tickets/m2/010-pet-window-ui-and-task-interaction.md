@@ -1,6 +1,6 @@
 # 010: 宠物窗口完整交互 UI 与终端接管
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 002, 005, 006, 007  
 **Blocks**: None  
 
@@ -26,17 +26,17 @@
 ## Affected Components & Files
 - `packages/app/src/features/pet/PetWindow.tsx`
 - `packages/app/src/features/pet/components/PetAvatar.tsx`
-- `packages/app/src/features/pet/components/PetBubble.tsx`
+- `packages/app/src/features/pet/PetBubble/index.tsx`
 - `packages/app/src/features/pet/components/TaskCard.tsx`
 - `packages/app/src/features/pet/components/PendingQueue.tsx`
 - `src-tauri/src/terminal.rs` (Tauri invoke `open_task`)
 - `packages/app/src/__tests__/PetWindow.test.tsx`
 
 ## Acceptance Criteria
-- [ ] 宠物悬浮与展开切换顺畅，透明窗口无穿透问题。
-- [ ] 提交 Prompt 后，气泡能流式打字渲染；若回合未完输入新内容，自动进入暂存队列。
-- [ ] 任务状态变更时（如 `needs_intervention`），卡片实时呈现警示样式。
-- [ ] 点击任务卡片能成功唤起 Terminal.app 并执行 Screen attach。
+- [x] 宠物悬浮与展开切换顺畅，透明窗口无穿透问题。
+- [x] 提交 Prompt 后，气泡能流式打字渲染；若回合未完输入新内容，自动进入暂存队列。
+- [x] 任务状态变更时（如 `needs_intervention`），卡片实时呈现警示样式。
+- [x] 点击任务卡片能成功唤起 Terminal.app 并执行 Screen attach。
 
 ## Verification Plan
 ```bash

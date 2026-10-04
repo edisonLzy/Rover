@@ -1,4 +1,5 @@
 import type { PromptDocumentV1, PromptReferenceKind } from '@rover/runtime/expose';
+export type { PromptDocumentV1, PromptReferenceKind };
 
 export type MentionKind = PromptReferenceKind;
 
@@ -19,4 +20,5 @@ export interface PromptInputProps {
   availableInboxes?: SuggestionItemData[];
   className?: string;
   autoFocus?: boolean;
+  onContentChange?: (hasContent: boolean) => void;
 }
