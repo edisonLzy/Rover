@@ -209,6 +209,13 @@ export function getDispatchAttempt(
   return row ? parseDispatchAttemptRow(row) : null;
 }
 
+export function getDispatchAttemptIdForTask(db: Database.Database, taskId: string): string | null {
+  const row = db
+    .prepare('SELECT id FROM dispatch_attempt WHERE candidate_task_id = ?')
+    .get(taskId) as { id: string } | undefined;
+  return row?.id ?? null;
+}
+
 export interface CommitTaskWithSessionParams {
   attemptId: string;
   taskId: string;

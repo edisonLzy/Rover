@@ -37,6 +37,7 @@ import {
   getDefaultDatabase,
 } from '../storage/index.js';
 import crypto from 'node:crypto';
+import { tasksRouter } from '../tasks/router.js';
 
 export const appRouter = router({
   // Unauthenticated ping for basic liveness check
@@ -267,6 +268,8 @@ export const appRouter = router({
       return engine.getTurnDetails(input.turnId);
     }),
   }),
+
+  tasks: tasksRouter,
 
   // Rover History & Compaction router (Ticket 004 & Dashboard)
   history: router({
