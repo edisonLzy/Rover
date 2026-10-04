@@ -50,6 +50,28 @@ textarea {
   background: rgba(161, 161, 170, 0.4);
 }
 
+.pet-toolbar[hidden],
+.pet-toolbar [hidden] {
+  display: none !important;
+}
+
+.pet-toolbar-trigger {
+  @apply relative z-10 row-start-1 grid h-[58px] w-[64px] place-items-center border-0 bg-transparent p-0 text-[#252c34] hover:text-[#3479ed] disabled:opacity-40;
+}
+
+.pet-toolbar-trigger svg {
+  @apply size-[22px];
+}
+
+.pet-toolbar-count {
+  @apply absolute top-[7px] right-[7px] grid h-[21px] min-w-[21px] place-items-center rounded-full border-2 border-white bg-[#37c56b] px-1 text-[10px] font-bold text-white;
+}
+
+.pet-feature-list {
+  @apply min-h-0 overflow-y-auto overscroll-contain px-[5px] pt-[6px] pb-[14px] [scrollbar-width:thin] [scrollbar-color:#ffffff80_transparent];
+  max-height: var(--pet-list-max-height);
+}
+
 @theme {
   --animate-pet-bob: pet-bob 3.8s ease-in-out infinite;
   --animate-pet-task-border: pet-task-border 2.7s ease-in-out infinite;

@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import type { PromptDocumentV1 } from '../editor/types.js';
+import type { PromptDocumentV1 } from './PromptInput/types.js';
 
 export interface PendingPromptItem {
   id: string;
@@ -15,6 +15,7 @@ export interface PendingQueueProps {
   onDefer: () => void;
   isDeferred?: boolean;
   canProceed: boolean;
+  disabled?: boolean;
 }
 
 export function PendingQueue({
@@ -24,6 +25,7 @@ export function PendingQueue({
   onDefer,
   isDeferred = false,
   canProceed,
+  disabled = false,
 }: PendingQueueProps) {
   if (queue.length === 0) return null;
   return (
@@ -53,6 +55,7 @@ export function PendingQueue({
             </span>
             <button
               type="button"
+              disabled={disabled}
               onClick={() => onRemove(item.id)}
               aria-label={`移除待处理 Prompt ${idx + 1}`}
               className="border-0 bg-transparent p-0 text-[#8394aa]"

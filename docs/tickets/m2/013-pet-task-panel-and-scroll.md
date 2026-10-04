@@ -1,4 +1,4 @@
-# 013: Task 面板的堆叠、展开与收起交互
+# 013: Toolbar 内 Task 的堆叠、展开与收起交互
 
 **Status**: TODO  
 **Blocked By**: 012  
@@ -6,11 +6,11 @@
 
 ## Context & Goal
 
-在新的宠物工具栏下实现 Task 三态交互，并将任务展示及接管行为收敛到 PetPanel 的 tasks 区域。沿用现有 Task 查询、状态投影与 Terminal 接管，不修改 Task 领域语义。
+在新的宠物工具栏下实现 Task 三态交互，并将任务展示及接管行为收敛到 PetToolbar 的 Task 功能。沿用现有 Task 查询、状态投影与 Terminal 接管，不修改 Task 领域语义。
 
 ## Specification & Invariants
 
-1. **状态**：共享 `activePanel: 'none' | 'inbox' | 'task'`；Task 内另有堆叠/列表展开状态。只在真正需要跨工具栏与面板同步的状态上使用 `useActivePanel`。
+1. **状态**：PetToolbar 管理 `activeFeature: 'none' | 'inbox' | 'task'`；Task 内另有堆叠/列表展开状态。Task 自己管理堆叠/展开；通过 active 与开关回调和 Toolbar 协作，取消 PetPanel/useActivePanel。
 2. **转换**：
 
    | 当前状态 | 操作 | 结果 |
@@ -23,33 +23,32 @@
 
 3. **工具栏反馈**：关闭时显示铃铛与任务数量 badge；打开时切换为展开状态图标。数量来自已有 Task 数据源，不把 Prompt 或普通 LLM 回答计作 Task。
 4. **任务列表**：继续展示已有目标、Agent、状态与摘要，保留任务更新和终端接管。卡片专用逻辑归 tasks 区域；任务查询通过类型约束的数据 Hook/Runtime client，复用 Query 缓存，WS 事件更新或失效查询。
-5. **滚动边界**：只有 PetPanel 的列表区域滚动。Pet、PetBubble、PetToolbar（包括输入模式）位置固定；inbox/tasks 子列表不再建立嵌套滚动容器。沿用现有窗口边界与尺寸偏好。
-6. **组织**：按已确认的目录落地；卡片与堆叠等专用子组件优先留在 `tasks/index.tsx` 下方。PetPanel 负责选择内容与滚动容器，不承载任务请求、终端动作或 Inbox 发送业务。
+5. **滚动边界**：只有 Task/Inbox 的列表区域滚动，列表应用相同的窗口高度限制与滚动样式。Pet、PetBubble、PetToolbar 的快捷按钮与输入框位置固定；列表内部不再嵌套滚动容器。沿用现有窗口边界与尺寸偏好。
+6. **组织**：Task 属于 PetToolbar。`Task/index.tsx` 组合 trigger、数据与内部状态；`Task/list.tsx` 承载列表、卡片及终端接管的视图。专用卡片留在列表文件下方。Toolbar 管理互斥与布局，不承载任务查询和终端业务。
 
 ```text
-PetPanel/
-  inbox/
-    index.tsx             # 由 014 实现 Inbox 内容
-  tasks/
-    index.tsx             # Task 展示与接管交互
-  useActivePanel.ts       # 工具栏/面板共用的状态与转换
-  index.tsx               # 内容选择与唯一列表滚动容器
+PetToolbar/
+  Task/
+    index.tsx       # trigger、堆叠/展开状态与数据
+    list.tsx        # 列表与专用卡片
+  Inbox/            # 由 014 完成
+  PromptInput/
+  index.tsx         # 输入模式、功能互斥与布局
 ```
 
 ## Affected Components & Files
 
-- `packages/app/src/features/pet/PetPanel/index.tsx`
-- `packages/app/src/features/pet/PetPanel/tasks/index.tsx`
-- `packages/app/src/features/pet/PetPanel/useActivePanel.ts`
+- `packages/app/src/features/pet/PetToolbar/Task/index.tsx`
+- `packages/app/src/features/pet/PetToolbar/Task/list.tsx`
 - `packages/app/src/features/pet/PetToolbar/index.tsx`
-- 原 `packages/app/src/features/pet/components/TaskCard.tsx`：迁移后删除无用实现。
-- `packages/app/src/__tests__/PetWindow.test.tsx` 及必要的面板状态测试。
+- 现有任务卡片：必要时迁入 list.tsx，引用迁移后删除无用实现。
+- `packages/app/src/__tests__/PetWindow.test.tsx` 及 Task 交互测试。
 
 ## Acceptance Criteria
 
 - [ ] 完整走通「关闭 → 堆叠 → 展开 → 堆叠 → 关闭」，图标与 badge 同步。
 - [ ] Task 堆叠或展开时，失焦不会隐藏工具栏或丢失面板。
-- [ ] 大量任务仅在 PetPanel 内滚动；宠物、气泡和工具栏不随列表滚动。
+- [ ] 大量任务仅在 Task 列表内滚动；宠物、气泡和工具栏不随列表滚动。
 - [ ] 零任务、查询失败和实时任务更新均有正确呈现，不保留过期的本地任务副本。
 - [ ] 已有 Terminal 接管仍有效，错误呈现在任务交互附近，不覆盖 LLM 气泡。
 - [ ] 不额外抽出单调用点工具函数；数据与接管行为不经 PetWindow 无意义转发。

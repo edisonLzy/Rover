@@ -10,10 +10,10 @@
 
 ## Specification & Invariants
 
-1. **内容边界**：PetBubble 展示当前 Rover 回合的 LLM 输出及相关状态。任务变化留在 Task 面板，Inbox 发送错误留在 Inbox/输入区域，终端接管错误留在任务卡片。
+1. **内容边界**：PetBubble 展示当前 Rover 回合的 LLM 输出及相关状态。任务变化留在 PetToolbar/Task，Inbox 发送错误留在 Inbox/输入区域，终端接管错误留在任务卡片。
 2. **事件边界**：使用受类型约束的 Runtime 事件；区分回合 ID，避免旧回合迟到的 delta/end 覆盖当前输出。沿用既有 thinking、回答流与结束/失败行为，不因组件重挂载重复订阅。
 3. **状态归属**：关闭、hover 与既有自动隐藏生命周期属于 PetBubble；只有同时被其他组件实际使用的连接/回合状态才共享，禁止将气泡所有事件处理提升至 PetWindow 再透传。
-4. **布局**：与 Pet、PetToolbar 一起位于面板滚动区域之外；保持原型视觉和 compact 尺寸适配。保留已有输出展示能力，不引入聊天历史列表或新动画。
+4. **布局**：与 Pet、PetToolbar 一起位于 Task/Inbox 列表滚动区域之外；保持原型视觉和 compact 尺寸适配。保留已有输出展示能力，不引入聊天历史列表或新动画。
 5. **清理**：删除旧入口中已完成迁移的重复事件处理与气泡状态；不为本票创建通用事件总线或重构全局 RuntimeContext。
 
 ## Affected Components & Files

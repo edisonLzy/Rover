@@ -15,6 +15,7 @@ export interface PromptInputProps {
   disabled?: boolean;
   placeholder?: string;
   onSubmit: (doc: PromptDocumentV1) => Promise<void | boolean> | void | boolean;
+  onAccepted?: () => void;
   availableAgents?: SuggestionItemData[];
   availableSkills?: SuggestionItemData[];
   availableInboxes?: SuggestionItemData[];

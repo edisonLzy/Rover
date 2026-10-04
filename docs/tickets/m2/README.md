@@ -57,7 +57,7 @@ flowchart TD
   T012["012: 宠物待命、工具栏与输入交互"]
   T002 --> T012
   T010 --> T012
-  T013["013: Task 堆叠/展开与 Panel 滚动"]
+  T013["013: Toolbar Task 堆叠/展开与列表滚动"]
   T012 --> T013
   T014["014: 本地 Inbox 与 Loop follow-up"]
   T005 --> T014
@@ -81,14 +81,15 @@ flowchart TD
 | [009](./009-skill-management-and-safe-installation.md)         | 内置 Skill 发现与加载机制                 | 001, 006            | DONE | `packages/app/resources/skills` (内容与附件), `packages/runtime` (loader, SKILL.md parser) |
 | [010](./010-pet-window-ui-and-task-interaction.md)             | 宠物窗口交互展开态、任务卡片与终端接管    | 002, 005, 006, 007  | DONE | `packages/app` (PetWindow, cards, queue), `src-tauri` (open_task)                          |
 | [011](./011-dashboard-window-ui.md)                            | Dashboard 管理面板完整功能视图            | 003, 007, 008, 009  | TODO | `packages/app` (DashboardWindow, skills, models, activity, attention)                      |
-| [012](./012-pet-toolbar-and-prompt-interaction.md) | 宠物待命、工具栏与输入交互重构 | 002, 010 | TODO | `packages/app` (Pet, PetToolbar, PromptInput, PetWindow) |
-| [013](./013-pet-task-panel-and-scroll.md) | Task 堆叠、展开与 Panel 滚动 | 012 | TODO | `packages/app` (PetPanel/tasks, useActivePanel) |
-| [014](./014-local-inbox-and-agent-follow-up.md) | 本地 Inbox 与 Agent Loop follow-up | 005, 013 | TODO | `packages/app` (PetPanel/inbox), `packages/runtime` (Agent 提交) |
+| [012](./012-pet-toolbar-and-prompt-interaction.md) | 宠物待命、工具栏与输入交互重构 | 002, 010 | IN_PROGRESS | `packages/app` (Pet, PetToolbar, PromptInput, PetWindow) |
+| [013](./013-pet-task-panel-and-scroll.md) | Task 堆叠、展开与列表滚动 | 012 | TODO | `packages/app` (PetToolbar/Task) |
+| [014](./014-local-inbox-and-agent-follow-up.md) | 本地 Inbox 与 Agent Loop follow-up | 005, 013 | TODO | `packages/app` (PetToolbar/Inbox), `packages/runtime` (Agent 提交) |
 | [015](./015-pet-bubble-output-isolation.md) | PetBubble 的 LLM 输出职责收敛 | 012 | TODO | `packages/app` (PetBubble, 类型化事件订阅) |
 
 ## 宠物重构执行边界
 
-- 每个独立功能对应一个目录，主实现放在该目录的 `index.tsx`：气泡使用 `pet/PetBubble/index.tsx`，工具栏使用 `pet/PetToolbar/index.tsx`，面板沿用 `pet/PetPanel/`；`pet/index.tsx` 是窗口组合入口。组件专用的子组件、事件处理和私有 Hook 留在所属功能内，不为它们另建功能目录。
+- 每个独立功能对应一个目录，主实现放在该目录的 `index.tsx`：气泡使用 `pet/PetBubble/index.tsx`，工具栏使用 `pet/PetToolbar/index.tsx`，Task、Inbox、PromptInput 分别位于 `pet/PetToolbar/` 下的功能目录；取消 PetPanel；`pet/index.tsx` 是窗口组合入口。组件专用的子组件、事件处理和私有 Hook 留在所属功能内，不为它们另建功能目录。
+- PetToolbar 管理输入模式与 `activeFeature` 互斥；Task/Inbox 管理各自的列表与业务状态。012 接通现有 Task 列表、保留既有队列并禁用尚未实现的 Inbox 入口；013/014 分别完成新交互。
 - 建议顺序：012 → 013 → 014；015 在 012 完成后可独立进行，不要求并行执行。
 - 每票同时交付实际交互与对应验证，避免先做一次全量机械拆文件，再集中补交互。
 - 按 TRD §2.1 将私有逻辑留在所属组件内，仅提取真实共享状态或有独立生命周期的接口；不扩大为 Dashboard、Task 服务或全局状态重构。

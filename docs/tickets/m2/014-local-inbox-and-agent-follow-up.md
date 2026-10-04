@@ -17,16 +17,15 @@
 3. **接收与处理**：Runtime 成功接收提交后移除对应临时 item；该确认表示接收成功，不表示 LLM 已处理完。明确接口回执语义，避免把 `turn.end` 当作队列移除信号。
 4. **失败与重复**：提交失败保留原 `PromptDocumentV1` 和错误，允许重试；发送中禁止重复确认。离线或模型不可用时不丢输入，错误留在输入/Inbox 区域。本票不承诺网络响应丢失后的跨重启 exactly-once 投递，不新增通用投递系统。
 5. **Runtime 边界**：只增加必要的类型化提交能力；follow-up 使用实际 Pi Agent 的队列机制，不并行启动第二个 Loop。接收的输入按既有 history 契约记录；挂起未确认输入不写 history。普通 Prompt 不创建 Task。
-6. **列表与互斥**：点击 Inbox 按钮打开/关闭 Inbox；打开时关闭 Task。切回 Task 从堆叠态开始。列表滚动复用 PetPanel，不额外增加滚动区域；数量由本地待处理 item 提供。
-7. **职责归属**：Inbox 的临时 item 与发送生命周期由 inbox 区域负责；只有在输入入口、badge 与列表确有共享时建立宠物窗口范围的共享状态。私有列表项留在 `inbox/index.tsx`；PetWindow 不实现队列发送、删除和重试。
+6. **列表与互斥**：点击 Inbox 按钮打开/关闭 Inbox；打开时关闭 Task。切回 Task 从堆叠态开始。Inbox/list.tsx 沿用 Task 列表的高度限制与滚动样式，内部不嵌套滚动区域；数量由本地待处理 item 提供。
+7. **职责归属**：Inbox 的临时 item 与发送生命周期由 inbox 区域负责；只有在输入入口、badge 与列表确有共享时建立宠物窗口范围的共享状态。私有列表项留在 `Inbox/list.tsx`；Inbox/index.tsx 组合入口与功能状态，PetToolbar 管理 activeFeature 互斥；PetWindow 不实现队列发送、删除和重试。
 8. **引用**：item 保存完整结构化 Prompt，不把 mention 降成纯文本。临时 Prompt 的 item ID 不能冒充持久化 Inbox 消息 ID；`#` 继续使用真实且受支持的消息来源，没有来源时按编辑器既有空候选行为处理。
 
 ## Affected Components & Files
 
-- `packages/app/src/features/pet/PetPanel/inbox/index.tsx` 及确实共享的本地状态实现。
-- `packages/app/src/features/pet/PetToolbar/index.tsx`：输入模式与数量 badge。
-- `packages/app/src/features/pet/PetPanel/useActivePanel.ts`：Inbox/Task 互斥。
-- 原 `packages/app/src/features/pet/components/PendingQueue.tsx`：引用迁移后移除。
+- `packages/app/src/features/pet/PetToolbar/Inbox/index.tsx`、`list.tsx` 及确实共享的本地状态实现。
+- `packages/app/src/features/pet/PetToolbar/index.tsx`：输入模式、数量 badge 与 activeFeature 互斥。
+- 012 沿用的 `packages/app/src/features/pet/PetToolbar/PendingQueue.tsx`：引用迁移后移除。
 - `packages/runtime/src/agent/engine.ts`：必要的 follow-up 用例。
 - `packages/runtime/src/transport/router.ts`：类型化提交入口，路由不承载 Loop 业务规则。
 - app Inbox 状态测试、Runtime 回合/follow-up 契约测试。

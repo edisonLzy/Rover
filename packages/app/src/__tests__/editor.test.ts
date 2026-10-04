@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { serializeProseMirrorDoc } from '../features/pet/editor/serializer.js';
-import { filterSuggestions } from '../features/pet/editor/extensions/agentMention.js';
-import type { SuggestionItemData } from '../features/pet/editor/types.js';
+import { serializeProseMirrorDoc } from '../features/pet/PetToolbar/PromptInput/serializer.js';
+import { filterSuggestions } from '../features/pet/PetToolbar/PromptInput/extensions/agentMention.js';
+import type { SuggestionItemData } from '../features/pet/PetToolbar/PromptInput/types.js';
 
 describe('Prompt Editor & Serialization (Ticket 002)', () => {
   describe('serializeProseMirrorDoc', () => {

@@ -24,6 +24,7 @@ export interface UsePromptEditorOptions {
   placeholder?: string;
   autoFocus?: boolean;
   onSubmit: (doc: PromptDocumentV1) => Promise<void | boolean> | void | boolean;
+  onAccepted?: () => void;
   availableAgents?: SuggestionItemData[];
   availableSkills?: SuggestionItemData[];
   availableInboxes?: SuggestionItemData[];
@@ -35,60 +36,58 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
     placeholder = '输入指令，按 @ 派发 Agent，/ 调用技能，# 引用消息...',
     autoFocus = false,
     onSubmit,
+    onAccepted,
     availableAgents = [],
     availableSkills = [],
     availableInboxes = [],
   } = options;
 
   const [hasContent, setHasContent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const isComposingRef = useRef(false);
   const editorRef = useRef<Editor | null>(null);
   const agentsRef = useRef(availableAgents);
   const skillsRef = useRef(availableSkills);
   const inboxesRef = useRef(availableInboxes);
   const onSubmitRef = useRef(onSubmit);
+  const onAcceptedRef = useRef(onAccepted);
 
   useEffect(() => {
     agentsRef.current = availableAgents;
     skillsRef.current = availableSkills;
     inboxesRef.current = availableInboxes;
     onSubmitRef.current = onSubmit;
-  }, [availableAgents, availableSkills, availableInboxes, onSubmit]);
+    onAcceptedRef.current = onAccepted;
+  }, [availableAgents, availableSkills, availableInboxes, onSubmit, onAccepted]);
 
   const handleSubmit = useCallback(async () => {
     const currentEditor = editorRef.current;
-    if (!currentEditor || disabled) return;
+    if (!currentEditor || disabled || submittingRef.current) return;
 
     const doc = serializeEditorContent(currentEditor);
     if (!doc) return;
 
+    const submittedContent = currentEditor.state.doc;
+    submittingRef.current = true;
+    setIsSubmitting(true);
     try {
       const result = await onSubmitRef.current(doc);
       if (result === false) {
         return;
       }
       if (currentEditor.isDestroyed) return;
+      if (!currentEditor.state.doc.eq(submittedContent)) return;
       currentEditor.commands.clearContent();
       setHasContent(false);
-      currentEditor.commands.focus();
+      onAcceptedRef.current?.();
     } catch {
       // Keep editor content on submission error so user doesn't lose text
+    } finally {
+      submittingRef.current = false;
+      if (!currentEditor.isDestroyed) setIsSubmitting(false);
     }
   }, [disabled]);
-
-  const isAnySuggestionActive = useCallback((editorInstance: Editor): boolean => {
-    const state = editorInstance.state;
-    // Check if any mention plugin state has active suggestion
-    const agentState = agentSuggestionPluginKey.getState(state);
-    const skillState = skillSuggestionPluginKey.getState(state);
-    const inboxState = inboxSuggestionPluginKey.getState(state);
-
-    return Boolean(
-      (agentState && (agentState as any).active) ||
-      (skillState && (skillState as any).active) ||
-      (inboxState && (inboxState as any).active)
-    );
-  }, []);
 
   const extensions = useMemo(() => {
     return [
@@ -150,7 +149,10 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
         // When pressing Enter without Shift
         if (event.key === 'Enter' && !event.shiftKey) {
           // If any suggestion dropdown is active, let suggestion handle it
-          if (editor && isAnySuggestionActive(editor)) {
+          const agentSuggestion = agentSuggestionPluginKey.getState(view.state);
+          const skillSuggestion = skillSuggestionPluginKey.getState(view.state);
+          const inboxSuggestion = inboxSuggestionPluginKey.getState(view.state);
+          if (agentSuggestion?.active || skillSuggestion?.active || inboxSuggestion?.active) {
             return false;
           }
 
@@ -171,12 +173,12 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
   useEffect(() => {
     editorRef.current = editor;
     if (editor && !editor.isDestroyed) {
-      editor.setEditable(!disabled);
-      if (!disabled && autoFocus) {
+      editor.setEditable(!disabled && !isSubmitting);
+      if (!disabled && !isSubmitting && autoFocus) {
         editor.commands.focus('end');
       }
     }
-  }, [disabled, editor, autoFocus]);
+  }, [disabled, editor, autoFocus, isSubmitting]);
 
   useEffect(() => {
     if (autoFocus && editor && !disabled) {
@@ -192,6 +194,7 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
   return {
     editor,
     hasContent,
+    isSubmitting,
     handleSubmit,
     clearContent: () => {
       editor?.commands.clearContent();

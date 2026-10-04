@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { TaskCard, type TaskItem } from '../features/pet/components/TaskCard.js';
-import { PetAvatar } from '../features/pet/components/PetAvatar.js';
+import { Pet } from '../features/pet/Pet/index.js';
 import { PetBubble } from '../features/pet/PetBubble/index.js';
-import { PendingQueue, type PendingPromptItem } from '../features/pet/components/PendingQueue.js';
+import { PendingQueue, type PendingPromptItem } from '../features/pet/PetToolbar/PendingQueue.js';
 
 const task: TaskItem = {
   id: 'task_123',
@@ -68,20 +68,11 @@ describe('Pet window prototype interaction states', () => {
     expect(html).toContain('is-unavailable');
   });
 
-  it('uses the prototype pet and counts tasks needing attention', () => {
-    const html = renderToString(
-      <PetAvatar
-        isOnline={true}
-        state="alert"
-        isExpanded={false}
-        onToggleExpand={vi.fn()}
-        attentionCount={2}
-      />
-    );
+  it('uses the prototype pet with a drag and Dashboard affordance', () => {
+    const html = renderToString(<Pet onHoverChange={vi.fn()} />);
     expect(html).toContain('Rover 桌面宠物');
     expect(html).toContain('rover-pet.png');
-    expect(html).toContain('2 个任务需要关注');
-    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('拖动可移动 · 右键打开 Dashboard');
   });
 
   it('keeps thinking bubbles dismissible and exposes the session action', () => {

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { isTauriEnvironment } from '../../utils/window.js';
-import petImage from '../../../../../docs/prototype/assets/rover-pet.png';
+import { isTauriEnvironment } from '../../../utils/window.js';
+import petImage from '../../../../../../docs/prototype/assets/rover-pet.png';
 
 interface PetProps {
   onHoverChange: (hovered: boolean) => void;

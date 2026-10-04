@@ -1,50 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { Bot, Wrench, Bell } from 'lucide-react';
-import { usePetPreferences } from '../../../../shared/preferences/pet.js';
+import { usePetPreferences } from '../../../../../shared/preferences/pet.js';
 import type { SuggestionItemData } from '../types.js';
 
-export interface SuggestionItemProps {
+interface SuggestionItemProps {
   item: SuggestionItemData;
   isSelected: boolean;
   onSelect: () => void;
   onMouseEnter: () => void;
-}
-
-export function SuggestionItem({ item, isSelected, onSelect, onMouseEnter }: SuggestionItemProps) {
-  const Icon = item.kind === 'agent' ? Bot : item.kind === 'skill' ? Wrench : Bell;
-
-  return (
-    <button
-      type="button"
-      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-left transition-colors text-xs ${
-        isSelected
-          ? 'bg-[#edf3ff] text-[#3266ba] font-medium shadow-xs'
-          : 'text-[#485e85] hover:bg-[#edf3ff]'
-      }`}
-      onClick={(e) => {
-        e.preventDefault();
-        onSelect();
-      }}
-      onMouseEnter={onMouseEnter}
-      data-suggestion-item={item.id}
-      data-selected={isSelected}
-    >
-      <div className="flex items-center gap-2 min-w-0">
-        <Icon className="w-3.5 h-3.5 shrink-0 text-[#657993]" />
-        <span className="truncate font-medium">{item.label}</span>
-        {item.description && (
-          <span className="truncate text-[#657993] text-[11px] max-w-[160px]">
-            {item.description}
-          </span>
-        )}
-      </div>
-      {item.detail && (
-        <span className="text-[10px] text-[#657993] uppercase tracking-wider shrink-0 ml-2">
-          {item.detail}
-        </span>
-      )}
-    </button>
-  );
 }
 
 export interface SuggestionsPanelProps {
@@ -115,5 +78,43 @@ export function SuggestionsPanel({
         <span>Enter 确认 / Esc 关闭</span>
       </div>
     </div>
+  );
+}
+
+function SuggestionItem({ item, isSelected, onSelect, onMouseEnter }: SuggestionItemProps) {
+  const Icon = item.kind === 'agent' ? Bot : item.kind === 'skill' ? Wrench : Bell;
+
+  return (
+    <button
+      type="button"
+      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-left transition-colors text-xs ${
+        isSelected
+          ? 'bg-[#edf3ff] text-[#3266ba] font-medium shadow-xs'
+          : 'text-[#485e85] hover:bg-[#edf3ff]'
+      }`}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={(e) => {
+        e.preventDefault();
+        onSelect();
+      }}
+      onMouseEnter={onMouseEnter}
+      data-suggestion-item={item.id}
+      data-selected={isSelected}
+    >
+      <div className="flex items-center gap-2 min-w-0">
+        <Icon className="w-3.5 h-3.5 shrink-0 text-[#657993]" />
+        <span className="truncate font-medium">{item.label}</span>
+        {item.description && (
+          <span className="truncate text-[#657993] text-[11px] max-w-[160px]">
+            {item.description}
+          </span>
+        )}
+      </div>
+      {item.detail && (
+        <span className="text-[10px] text-[#657993] uppercase tracking-wider shrink-0 ml-2">
+          {item.detail}
+        </span>
+      )}
+    </button>
   );
 }

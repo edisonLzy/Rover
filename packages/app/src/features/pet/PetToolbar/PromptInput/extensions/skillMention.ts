@@ -4,39 +4,26 @@ import Suggestion from '@tiptap/suggestion';
 import { PluginKey } from '@tiptap/pm/state';
 import { SuggestionsPanel } from '../components/SuggestionsPanel.js';
 import { insertReferenceNode } from './mentionNode.js';
+import { filterSuggestions } from './agentMention.js';
 import type { SuggestionItemData } from '../types.js';
 
-export const agentSuggestionPluginKey = new PluginKey('agentSuggestion');
+export const skillSuggestionPluginKey = new PluginKey('skillSuggestion');
 
-export function filterSuggestions(
-  items: SuggestionItemData[],
-  query: string
-): SuggestionItemData[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return items;
-  return items.filter(
-    (item) =>
-      item.label.toLowerCase().includes(q) ||
-      item.id.toLowerCase().includes(q) ||
-      (item.description && item.description.toLowerCase().includes(q))
-  );
+export interface CreateSkillMentionOptions {
+  getSkills: () => SuggestionItemData[];
 }
 
-export interface CreateAgentMentionOptions {
-  getAgents: () => SuggestionItemData[];
-}
-
-export function createAgentMentionExtension(options: CreateAgentMentionOptions) {
+export function createSkillMentionExtension(options: CreateSkillMentionOptions) {
   return Extension.create({
-    name: 'agentMention',
+    name: 'skillMention',
 
     addProseMirrorPlugins() {
       return [
         Suggestion({
           editor: this.editor,
-          char: '@',
-          pluginKey: agentSuggestionPluginKey,
-          items: ({ query }) => filterSuggestions(options.getAgents(), query),
+          char: '/',
+          pluginKey: skillSuggestionPluginKey,
+          items: ({ query }) => filterSuggestions(options.getSkills(), query),
           command: ({ editor, range, props }) => {
             insertReferenceNode({
               editor,
@@ -56,7 +43,7 @@ export function createAgentMentionExtension(options: CreateAgentMentionOptions) 
               if (!popup || !clientRect) return;
               popup.style.position = 'fixed';
               popup.style.left = `${clientRect.left}px`;
-              popup.style.bottom = `${window.innerHeight - clientRect.top + 8}px`;
+              popup.style.top = `${clientRect.bottom + 8}px`;
               popup.style.zIndex = '9999';
             };
 
@@ -73,7 +60,7 @@ export function createAgentMentionExtension(options: CreateAgentMentionOptions) 
                   props: {
                     items: currentItems,
                     selectedIndex,
-                    title: 'Agent 派发候选',
+                    title: '可用 Skill 候选',
                     onSelect: (item: SuggestionItemData) => props.command(item),
                     onHighlight: (index: number) => {
                       selectedIndex = index;

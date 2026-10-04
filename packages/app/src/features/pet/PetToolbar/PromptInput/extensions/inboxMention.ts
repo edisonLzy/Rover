@@ -7,23 +7,23 @@ import { insertReferenceNode } from './mentionNode.js';
 import { filterSuggestions } from './agentMention.js';
 import type { SuggestionItemData } from '../types.js';
 
-export const skillSuggestionPluginKey = new PluginKey('skillSuggestion');
+export const inboxSuggestionPluginKey = new PluginKey('inboxSuggestion');
 
-export interface CreateSkillMentionOptions {
-  getSkills: () => SuggestionItemData[];
+export interface CreateInboxMentionOptions {
+  getInboxes: () => SuggestionItemData[];
 }
 
-export function createSkillMentionExtension(options: CreateSkillMentionOptions) {
+export function createInboxMentionExtension(options: CreateInboxMentionOptions) {
   return Extension.create({
-    name: 'skillMention',
+    name: 'inboxMention',
 
     addProseMirrorPlugins() {
       return [
         Suggestion({
           editor: this.editor,
-          char: '/',
-          pluginKey: skillSuggestionPluginKey,
-          items: ({ query }) => filterSuggestions(options.getSkills(), query),
+          char: '#',
+          pluginKey: inboxSuggestionPluginKey,
+          items: ({ query }) => filterSuggestions(options.getInboxes(), query),
           command: ({ editor, range, props }) => {
             insertReferenceNode({
               editor,
@@ -43,7 +43,7 @@ export function createSkillMentionExtension(options: CreateSkillMentionOptions) 
               if (!popup || !clientRect) return;
               popup.style.position = 'fixed';
               popup.style.left = `${clientRect.left}px`;
-              popup.style.bottom = `${window.innerHeight - clientRect.top + 8}px`;
+              popup.style.top = `${clientRect.bottom + 8}px`;
               popup.style.zIndex = '9999';
             };
 
@@ -60,7 +60,8 @@ export function createSkillMentionExtension(options: CreateSkillMentionOptions) 
                   props: {
                     items: currentItems,
                     selectedIndex,
-                    title: '可用 Skill 候选',
+                    title: 'Inbox 消息引用',
+                    emptyText: '暂无未处理的 Inbox 消息',
                     onSelect: (item: SuggestionItemData) => props.command(item),
                     onHighlight: (index: number) => {
                       selectedIndex = index;

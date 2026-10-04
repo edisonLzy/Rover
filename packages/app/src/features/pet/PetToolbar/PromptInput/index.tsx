@@ -9,17 +9,19 @@ export function PromptInput({
   placeholder,
   autoFocus = true,
   onSubmit,
+  onAccepted,
   availableAgents = [],
   availableSkills = [],
   availableInboxes = [],
   className = '',
   onContentChange,
 }: PromptInputProps) {
-  const { editor, hasContent, handleSubmit } = usePromptEditor({
+  const { editor, hasContent, isSubmitting, handleSubmit } = usePromptEditor({
     disabled,
     placeholder,
     autoFocus,
     onSubmit,
+    onAccepted,
     availableAgents,
     availableSkills,
     availableInboxes,
@@ -28,7 +30,9 @@ export function PromptInput({
     if (!(event.target as HTMLElement).closest('button') && editor && !disabled)
       editor.commands.focus('end');
   };
-  useEffect(() => { onContentChange?.(hasContent); }, [hasContent, onContentChange]);
+  useEffect(() => {
+    onContentChange?.(hasContent);
+  }, [hasContent, onContentChange]);
   return (
     <div
       onClick={handleContainerClick}
@@ -40,7 +44,7 @@ export function PromptInput({
       </div>
       <button
         type="button"
-        disabled={!hasContent || disabled}
+        disabled={!hasContent || disabled || isSubmitting}
         onClick={handleSubmit}
         className="pet-circle-btn pet-send grid size-[42px] shrink-0 place-items-center rounded-full border-0 bg-[#3479ed] p-0 text-white hover:bg-[#2266d9] disabled:opacity-50"
         title="发送 (Enter)"
