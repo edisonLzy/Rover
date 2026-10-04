@@ -1,6 +1,6 @@
 # 009: 内置 Skill 发现与加载机制
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 001, 006  
 **Blocks**: 011
 
@@ -40,11 +40,11 @@
 
 ## Acceptance Criteria
 
-- [ ] 随包内置的核心 Skill（如 `agent-dispatch`、`task-recall`）能够被正确解析 Frontmatter 元数据。
-- [ ] `skills.list` 接口能正确返回只读内置 Skill 列表。
-- [ ] 系统启动时 `SystemPromptService` 能够正确加载内置 Skill 描述并注入至 Agent 系统提示词中。
-- [ ] 只扫描宿主注入的 App 资源目录，不扫描用户目录、不使用源码兜底或 `skill_install` 数据库表。
-- [ ] 开发 loader、CJS bundle 和 SEA 对同一资源树返回相同列表和正文；安装包中全部资源文件与源码一致。
+- [x] 随包内置的核心 Skill（如 `agent-dispatch`、`task-recall`）能够被正确解析 Frontmatter 元数据。
+- [x] `skills.list` 接口能正确返回只读内置 Skill 列表。
+- [x] 系统启动时 `SystemPromptService` 能够正确加载内置 Skill 描述并注入至 Agent 系统提示词中。
+- [x] 只扫描宿主注入的 App 资源目录，不扫描用户目录、不使用源码兜底或 `skill_install` 数据库表。
+- [x] 开发 loader、CJS bundle 和 SEA 对同一资源树返回相同列表和正文；安装包中全部资源文件与源码一致。
 
 ## Verification Plan
 

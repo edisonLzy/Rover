@@ -65,6 +65,6 @@ flowchart TD
 | [006](./006-controlled-tools-and-task-transaction-creation.md) | 受控工具链与 Task 事务原子创建            | 001, 005            | DONE | `packages/runtime` (dispatch_attempt, session_ref, task, agent-dispatch)                   |
 | [007](./007-task-event-projection-and-status-lifecycle.md)     | 任务事件投影与状态生命周期管理            | 001, 006            | DONE | `packages/runtime` (observe/spool consumer, task_event, state projection)                  |
 | [008](./008-task-recall-and-activity-ledger.md)                | 任务摘要回忆 (task-recall) 与最近活动台账 | 001, 006, 007       | TODO | `packages/runtime` (n-gram index, task_summary, activity)                                  |
-| [009](./009-skill-management-and-safe-installation.md)         | 内置 Skill 发现与加载机制                 | 001, 006            | TODO | `packages/app/resources/skills` (内容与附件), `packages/runtime` (loader, SKILL.md parser) |
+| [009](./009-skill-management-and-safe-installation.md)         | 内置 Skill 发现与加载机制                 | 001, 006            | DONE | `packages/app/resources/skills` (内容与附件), `packages/runtime` (loader, SKILL.md parser) |
 | [010](./010-pet-window-ui-and-task-interaction.md)             | 宠物窗口交互展开态、任务卡片与终端接管    | 002, 005, 006, 007  | TODO | `packages/app` (PetWindow, cards, queue), `src-tauri` (open_task)                          |
 | [011](./011-dashboard-window-ui.md)                            | Dashboard 管理面板完整功能视图            | 003, 007, 008, 009  | TODO | `packages/app` (DashboardWindow, skills, models, activity, attention)                      |
