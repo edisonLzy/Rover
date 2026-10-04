@@ -119,7 +119,7 @@ export function formatActionShellCommand(action: TerminalAction): string {
     parts.push(`cd ${escapeShellArg(action.cwd.trim())}`);
   }
 
-  const cmdParts = [action.command, ...action.args.map(escapeShellArg)];
+  const cmdParts = [escapeShellArg(action.command), ...action.args.map(escapeShellArg)];
   parts.push(cmdParts.join(' '));
 
   return parts.join(' && ');
@@ -135,9 +135,52 @@ export function escapeAppleScriptString(str: string): string {
 /**
  * Generates an AppleScript payload to launch or focus Terminal.app and execute the action.
  */
-export function generateTerminalAppleScript(action: TerminalAction): string {
+export type TerminalApp = 'Terminal' | 'iTerm2';
+
+/** Resolve the macOS default terminal (Unix executable Shell role), without opening a window. */
+export async function resolveDefaultTerminalApp(
+  readBundleId: () => Promise<string> = readDefaultTerminalBundleId
+): Promise<TerminalApp> {
+  const id = (await readBundleId()).trim();
+  if (id === 'com.googlecode.iterm2') return 'iTerm2';
+  if (id === 'com.apple.Terminal') return 'Terminal';
+  throw new Error(`默认终端 ${id} 暂不支持，请将系统默认终端设为 iTerm2 或 Terminal。`);
+}
+
+async function readDefaultTerminalBundleId(): Promise<string> {
+  const { stdout } = await execFileAsync('osascript', [
+    '-l',
+    'JavaScript',
+    '-e',
+    [
+      'ObjC.import("CoreServices");',
+      // CFStringRef is toll-free bridged to NSString; bind as id for the JXA bridge.
+      'ObjC.bindFunction("LSCopyDefaultRoleHandlerForContentType", ["id", ["id", "unsigned int"]]);',
+      // kLSRolesShell = 1 << 3. This is the same preference used by iTerm's Make Default action.
+      'ObjC.unwrap($.LSCopyDefaultRoleHandlerForContentType($("public.unix-executable"), 8)) || "com.apple.Terminal";',
+    ].join('\n'),
+  ]);
+  return stdout.trim();
+}
+
+export function generateTerminalAppleScript(
+  action: TerminalAction,
+  app: TerminalApp = 'Terminal'
+): string {
   const shellCommand = formatActionShellCommand(action);
   const escapedCommand = escapeAppleScriptString(shellCommand);
+
+  if (app === 'iTerm2') {
+    return [
+      'tell application id "com.googlecode.iterm2"',
+      '    activate',
+      '    set sessionWindow to (create window with default profile)',
+      '    tell current session of sessionWindow',
+      `        write text "${escapedCommand}"`,
+      '    end tell',
+      'end tell',
+    ].join('\n');
+  }
 
   return [
     'tell application "Terminal"',
@@ -161,11 +204,14 @@ export interface TerminalExecutionResult {
  */
 export async function executeTerminalAction(
   action: TerminalAction,
-  customRunner?: (script: string) => Promise<string>
+  customRunner?: (script: string) => Promise<string>,
+  resolveApp: () => Promise<TerminalApp> = resolveDefaultTerminalApp
 ): Promise<TerminalExecutionResult> {
-  const script = generateTerminalAppleScript(action);
-
+  let app: TerminalApp = 'Terminal';
+  let script = '';
   try {
+    app = await resolveApp();
+    script = generateTerminalAppleScript(action, app);
     let output = '';
     if (customRunner) {
       output = await customRunner(script);
@@ -180,16 +226,16 @@ export async function executeTerminalAction(
       script,
       output: output.trim(),
     };
-  } catch (err: any) {
-    const errMsg = err?.message || String(err);
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
     const isPermissionDenied =
       errMsg.includes('-1743') ||
       errMsg.toLowerCase().includes('not authorized') ||
       errMsg.toLowerCase().includes('not permitted');
 
     const formattedError = isPermissionDenied
-      ? 'Terminal.app automation permission denied (Apple Events error -1743). Please grant Automation permission in macOS System Settings > Privacy & Security > Automation.'
-      : `Failed to automate Terminal.app: ${errMsg}`;
+      ? `${app === 'Terminal' ? 'Terminal.app' : app} automation permission denied (Apple Events error -1743). Please grant Automation permission in macOS System Settings > Privacy & Security > Automation.`
+      : `Failed to open default terminal: ${errMsg}`;
 
     return {
       success: false,

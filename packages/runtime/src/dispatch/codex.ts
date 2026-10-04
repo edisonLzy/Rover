@@ -58,7 +58,7 @@ export class CodexAdapter implements AgentAdapter {
   ): Promise<LaunchSpec> {
     const command = await this.resolveCliPath(options.cliPath);
 
-    const args: string[] = ['-C', options.cwd];
+    const args: string[] = ['--dangerously-bypass-approvals-and-sandbox', '-C', options.cwd];
 
     if (options.prompt && options.prompt.trim()) {
       args.push(options.prompt.trim());
@@ -92,7 +92,7 @@ export class CodexAdapter implements AgentAdapter {
     const command = await this.resolveCliPath(customPath);
     return {
       command,
-      args: ['resume', nativeSessionId.trim()],
+      args: ['resume', '--dangerously-bypass-approvals-and-sandbox', nativeSessionId.trim()],
     };
   }
 }

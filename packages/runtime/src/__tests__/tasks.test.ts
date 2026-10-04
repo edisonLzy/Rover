@@ -103,11 +103,12 @@ describe('Task service and route contract', () => {
       expect.objectContaining({
         type: 'resume',
         nativeSessionId,
-        args: ['--resume', nativeSessionId],
+        args: ['--dangerously-skip-permissions', '--resume', nativeSessionId],
       })
     );
     expect(result).toMatchObject({ success: true, actionType: 'resume' });
     expect(result.shellCommand).toContain(nativeSessionId);
+    expect(result.notice).toContain('Yes, I trust this folder');
   });
 
   it('preserves terminal permission errors in the public result', async () => {

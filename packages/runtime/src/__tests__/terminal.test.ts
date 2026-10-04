@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   resolveTerminalAction,
+  resolveDefaultTerminalApp,
   generateTerminalAppleScript,
   formatActionShellCommand,
   executeTerminalAction,
@@ -57,7 +58,11 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
 
       expect(action.type).toBe('resume');
       expect(action.command).toContain('claude');
-      expect(action.args).toEqual(['--resume', '990ee48b-3e2b-426b-bfdc-b620ee6d41dc']);
+      expect(action.args).toEqual([
+        '--dangerously-skip-permissions',
+        '--resume',
+        '990ee48b-3e2b-426b-bfdc-b620ee6d41dc',
+      ]);
     });
 
     it('resolves to codex resume action when screen session has exited', async () => {
@@ -73,7 +78,11 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
 
       expect(action.type).toBe('resume');
       expect(action.command).toContain('codex');
-      expect(action.args).toEqual(['resume', 'sess_codex_7788']);
+      expect(action.args).toEqual([
+        'resume',
+        '--dangerously-bypass-approvals-and-sandbox',
+        'sess_codex_7788',
+      ]);
     });
 
     it('throws error if session has exited but nativeSessionId is missing', async () => {
@@ -103,7 +112,7 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
 
       const shellCmd = formatActionShellCommand(action);
       expect(shellCmd).toContain('cd \'/Users/test/path with "quotes"\'');
-      expect(shellCmd).toContain("claude '--resume' 'session with spaces'");
+      expect(shellCmd).toContain("'claude' '--resume' 'session with spaces'");
     });
 
     it('generates valid AppleScript telling Terminal.app to activate and do script', () => {
@@ -119,7 +128,7 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
       const script = generateTerminalAppleScript(action);
       expect(script).toContain('tell application "Terminal"');
       expect(script).toContain('activate');
-      expect(script).toContain("do script \"screen '-r' 'rover_att_attach'\"");
+      expect(script).toContain("do script \"'screen' '-r' 'rover_att_attach'\"");
       expect(script).toContain('end tell');
     });
   });
@@ -136,7 +145,7 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
       };
 
       const customRunner = vi.fn().mockResolvedValue('tab 1 of window 1\n');
-      const result = await executeTerminalAction(action, customRunner);
+      const result = await executeTerminalAction(action, customRunner, async () => 'Terminal');
 
       expect(result.success).toBe(true);
       expect(result.output).toBe('tab 1 of window 1');
@@ -159,7 +168,11 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
           new Error('execution error: Not authorized to send Apple events to Terminal. (-1743)')
         );
 
-      const result = await executeTerminalAction(action, permissionErrorRunner);
+      const result = await executeTerminalAction(
+        action,
+        permissionErrorRunner,
+        async () => 'Terminal'
+      );
 
       expect(result.success).toBe(false);
       expect(result.permissionDenied).toBe(true);
@@ -168,5 +181,39 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
       );
       expect(result.error).toContain('System Settings > Privacy & Security > Automation');
     });
+  });
+});
+
+describe('Default terminal routing', () => {
+  it('uses the macOS default terminal', async () => {
+    expect(await resolveDefaultTerminalApp(async () => 'com.googlecode.iterm2')).toBe('iTerm2');
+    expect(await resolveDefaultTerminalApp(async () => 'com.apple.Terminal')).toBe('Terminal');
+    await expect(resolveDefaultTerminalApp(async () => 'unknown.app')).rejects.toThrow('暂不支持');
+  });
+  it('routes iTerm attach and resume into a fresh shell without reusing a busy session', async () => {
+    const action: TerminalAction = {
+      type: 'attach',
+      attemptId: 'a',
+      sessionName: 'rover_a',
+      command: '/path with spaces/agent',
+      args: ['--resume', "id'with$()`quotes"],
+      cwd: '/project with spaces',
+      agentType: 'claude',
+    };
+    const runner = vi.fn(async () => 'window 1');
+    const result = await executeTerminalAction(action, runner, async () => 'iTerm2');
+    expect(result.success).toBe(true);
+    expect(result.script).toContain('tell application id "com.googlecode.iterm2"');
+    expect(result.script).toContain('create window with default profile');
+    expect(result.script).toContain('write text');
+    expect(formatActionShellCommand(action)).toContain("'/path with spaces/agent'");
+    const failure = await executeTerminalAction(
+      action,
+      async () => {
+        throw new Error('-1743');
+      },
+      async () => 'iTerm2'
+    );
+    expect(failure.error).toContain('iTerm2 automation permission denied');
   });
 });

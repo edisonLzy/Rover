@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { trpc } from '../../../../utils/trpc.js';
-import { TaskCard, type TaskItem } from '../../components/TaskCard.js';
+import { TaskCard, type TaskItem } from './TaskCard.js';
 
 interface TaskListProps {
   tasks: TaskItem[];
@@ -11,15 +11,18 @@ interface TaskListProps {
 export function TaskList({ tasks, loading, error }: TaskListProps) {
   const openTerminal = trpc.tasks.openTerminal.useMutation();
   const [openingTaskId, setOpeningTaskId] = useState<string | null>(null);
+  const [openNotice, setOpenNotice] = useState<string | null>(null);
   const [openError, setOpenError] = useState<string | null>(null);
 
   const handleOpenTerminal = async (taskId: string) => {
     if (openingTaskId) return;
     setOpeningTaskId(taskId);
     setOpenError(null);
+    setOpenNotice(null);
     try {
       const result = await openTerminal.mutateAsync({ taskId });
       if (!result.success) setOpenError(result.error || '唤起终端失败');
+      else setOpenNotice(result.notice || null);
     } catch (failure: unknown) {
       setOpenError(failure instanceof Error ? failure.message : '唤起终端失败');
     } finally {
@@ -41,6 +44,11 @@ export function TaskList({ tasks, loading, error }: TaskListProps) {
       {(error || openError) && (
         <p role="alert" className="rounded-[19px] bg-white/95 px-4 py-3 text-xs text-[#a45535]">
           {openError || error}
+        </p>
+      )}
+      {openNotice && (
+        <p role="status" className="rounded-[19px] bg-white/95 px-4 py-3 text-xs text-[#657993]">
+          {openNotice}
         </p>
       )}
       {sortedTasks.map((task) => (

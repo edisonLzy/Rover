@@ -6,6 +6,8 @@ import { PetToolbar } from '../features/pet/PetToolbar/index.js';
 import { EditorContent, type Editor } from '@tiptap/react';
 import { usePromptEditor } from '../features/pet/PetToolbar/PromptInput/usePromptEditor.js';
 
+const terminalMutation = vi.hoisted(() => vi.fn());
+
 vi.mock('../context/RuntimeContext.js', () => ({ useRuntime: () => ({ connection: {} }) }));
 vi.mock('../utils/trpc.js', () => ({
   trpc: {
@@ -26,7 +28,7 @@ vi.mock('../utils/trpc.js', () => ({
         }),
       },
       openTerminal: {
-        useMutation: () => ({ mutateAsync: vi.fn().mockResolvedValue({ success: true }) }),
+        useMutation: () => ({ mutateAsync: terminalMutation }),
       },
     },
   },
@@ -38,6 +40,7 @@ let mounted: boolean;
 let props: Parameters<typeof PetToolbar>[0];
 
 beforeEach(() => {
+  terminalMutation.mockReset().mockResolvedValue({ success: true });
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   Element.prototype.scrollIntoView = vi.fn();
   Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
@@ -276,6 +279,32 @@ describe('012 toolbar and real Tiptap interactions', () => {
     await key('Enter');
     expect(host.querySelector('[aria-label="任务列表"]')).toBe(list);
     expect(host.querySelector<HTMLButtonElement>('[aria-label="Inbox"]')!.disabled).toBe(true);
+  });
+
+  it('shows workspace trust guidance after opening a resumed session', async () => {
+    terminalMutation.mockResolvedValue({
+      success: true,
+      notice: '请在终端选择 Yes, I trust this folder',
+    });
+    await render();
+    await click('任务');
+    const sessionButton = [...host.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent === '查看会话'
+    );
+    expect(sessionButton).toBeDefined();
+    await act(async () => sessionButton!.click());
+    expect(host.querySelector('[role="status"]')?.textContent).toContain(
+      'Yes, I trust this folder'
+    );
+    terminalMutation.mockResolvedValue({
+      success: false,
+      error: 'iTerm2 automation permission denied',
+    });
+    await act(async () => sessionButton!.click());
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      'iTerm2 automation permission denied'
+    );
+    expect(host.querySelector('[role="status"]')).toBeNull();
   });
 
   it('does not clear a newer document when an older submission resolves', async () => {

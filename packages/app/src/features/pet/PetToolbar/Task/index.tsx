@@ -1,7 +1,7 @@
 import { Bell, ChevronDown } from 'lucide-react';
 import { useRuntime } from '../../../../context/RuntimeContext.js';
 import { trpc } from '../../../../utils/trpc.js';
-import { TaskList } from './list.js';
+import { TaskList } from './TaskList.js';
 
 interface TaskProps {
   active: boolean;

@@ -69,14 +69,19 @@ export class ClaudeAdapter implements AgentAdapter {
       throw new Error(`Invalid UUID provided for Claude session-id: ${sessionId}`);
     }
 
-    const args: string[] = ['--session-id', sessionId];
+    // Background work must not wait for interactive workspace trust or tool approval.
+    const args: string[] = ['--print', '--dangerously-skip-permissions', '--session-id', sessionId];
 
     if (options.prompt && options.prompt.trim()) {
       args.push(options.prompt.trim());
     }
 
     if (options.extraArgs && options.extraArgs.length > 0) {
-      args.push(...options.extraArgs);
+      args.push(
+        ...options.extraArgs.filter(
+          (arg) => arg !== '--dangerously-skip-permissions' && arg !== '--print'
+        )
+      );
     }
 
     const env: Record<string, string> = {
@@ -103,7 +108,7 @@ export class ClaudeAdapter implements AgentAdapter {
     const command = await this.resolveCliPath(customPath);
     return {
       command,
-      args: ['--resume', nativeSessionId.trim()],
+      args: ['--dangerously-skip-permissions', '--resume', nativeSessionId.trim()],
     };
   }
 }

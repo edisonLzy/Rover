@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
-import { TaskCard, type TaskItem } from '../features/pet/components/TaskCard.js';
+import { TaskCard, type TaskItem } from '../features/pet/PetToolbar/Task/TaskCard.js';
 import { Pet } from '../features/pet/Pet/index.js';
 import { PetBubble } from '../features/pet/PetBubble/index.js';
 import { PendingQueue, type PendingPromptItem } from '../features/pet/PetToolbar/PendingQueue.js';

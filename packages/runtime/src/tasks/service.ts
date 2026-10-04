@@ -36,6 +36,7 @@ export interface TaskTerminalResult {
   shellCommand: string;
   error?: string;
   permissionDenied?: boolean;
+  notice?: string;
 }
 
 export interface TaskService {
@@ -106,6 +107,10 @@ export function createTaskService(dependencies: TaskServiceDependencies): TaskSe
         shellCommand: formatActionShellCommand(action),
         error: execution.error,
         permissionDenied: execution.permissionDenied,
+        notice:
+          execution.success && action.type === 'resume' && task.agent === 'claude'
+            ? `已打开原会话。Claude 首次访问 ${action.cwd || '工作目录'} 时可能要求确认目录信任，请在终端选择 Yes, I trust this folder；完全授权模式已启用。`
+            : undefined,
       };
     },
   };

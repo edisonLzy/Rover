@@ -58,7 +58,7 @@ export class OpenCodeAdapter implements AgentAdapter {
   ): Promise<LaunchSpec> {
     const command = await this.resolveCliPath(options.cliPath);
 
-    const args: string[] = [];
+    const args: string[] = ['--auto'];
 
     if (context.preallocatedSessionId) {
       args.push('-s', context.preallocatedSessionId);
@@ -99,7 +99,7 @@ export class OpenCodeAdapter implements AgentAdapter {
     const command = await this.resolveCliPath(customPath);
     return {
       command,
-      args: ['-s', nativeSessionId.trim()],
+      args: ['--auto', '-s', nativeSessionId.trim()],
     };
   }
 }

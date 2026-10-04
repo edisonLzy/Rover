@@ -57,6 +57,8 @@ describe('Agent Dispatch & Session Binding (M1-2)', () => {
       );
 
       expect(spec.cwd).toBe('/tmp/repo');
+      expect(spec.args).toContain('--print');
+      expect(spec.args.filter((arg) => arg === '--dangerously-skip-permissions')).toHaveLength(1);
       expect(spec.args).toContain('--session-id');
       expect(spec.args).toContain(testUuid);
       expect(spec.args).toContain('Fix issue #123');
@@ -95,7 +97,7 @@ describe('Agent Dispatch & Session Binding (M1-2)', () => {
 
     it('constructs correct resume spec', async () => {
       const spec = await adapter.getResumeSpec('session-uuid-123');
-      expect(spec.args).toEqual(['--resume', 'session-uuid-123']);
+      expect(spec.args).toEqual(['--dangerously-skip-permissions', '--resume', 'session-uuid-123']);
     });
   });
 
@@ -120,13 +122,24 @@ describe('Agent Dispatch & Session Binding (M1-2)', () => {
       );
 
       expect(spec.cwd).toBe('/path/to/project');
-      expect(spec.args).toEqual(['-C', '/path/to/project', 'Run security audit', '--model', 'o3']);
+      expect(spec.args).toEqual([
+        '--dangerously-bypass-approvals-and-sandbox',
+        '-C',
+        '/path/to/project',
+        'Run security audit',
+        '--model',
+        'o3',
+      ]);
       expect(spec.env?.ROVER_AGENT_TYPE).toBe('codex');
     });
 
     it('constructs correct resume spec', async () => {
       const spec = await adapter.getResumeSpec('codex_sess_999');
-      expect(spec.args).toEqual(['resume', 'codex_sess_999']);
+      expect(spec.args).toEqual([
+        'resume',
+        '--dangerously-bypass-approvals-and-sandbox',
+        'codex_sess_999',
+      ]);
     });
   });
 
@@ -160,7 +173,7 @@ describe('Agent Dispatch & Session Binding (M1-2)', () => {
 
     it('constructs correct resume spec', async () => {
       const spec = await adapter.getResumeSpec('opencode_sess_456');
-      expect(spec.args).toEqual(['-s', 'opencode_sess_456']);
+      expect(spec.args).toEqual(['--auto', '-s', 'opencode_sess_456']);
     });
   });
 

@@ -276,6 +276,9 @@ function usePetRuntime() {
             if (!result.success) {
               setIsErrorStatus(true);
               setBubbleText(result.error || '唤起终端失败');
+            } else if (result.notice) {
+              setIsErrorStatus(false);
+              setBubbleText(result.notice);
             }
           } catch (failure: unknown) {
             setIsErrorStatus(true);
