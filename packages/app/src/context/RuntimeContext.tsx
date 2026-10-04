@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { httpBatchLink } from '@trpc/client';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { trpc } from '../utils/trpc';
 
@@ -52,8 +52,7 @@ export function RuntimeProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-      if (isTauri) {
+      if (isTauri()) {
         const info = await invoke<RuntimeConnectionInfo>('get_runtime_connection');
         setConnection(info);
       } else {
@@ -88,8 +87,7 @@ export function RuntimeProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-      if (isTauri) {
+      if (isTauri()) {
         const newInfo = await invoke<RuntimeConnectionInfo>('restart_runtime');
         setConnection(newInfo);
       } else {
@@ -109,8 +107,7 @@ export function RuntimeProvider({ children }: { children: React.ReactNode }) {
     void refreshConnection();
 
     let unlistenFn: (() => void) | undefined;
-    const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-    if (isTauri) {
+    if (isTauri()) {
       listen('runtime_restarted', () => {
         console.log('[RuntimeContext] runtime_restarted event received from Rust, refreshing...');
         void refreshConnection();

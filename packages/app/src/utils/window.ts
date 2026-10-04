@@ -1,11 +1,10 @@
+import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-export function isTauriEnvironment(): boolean {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
+export { isTauri as isTauriEnvironment };
 
 export function resolveInitialWindowLabel(searchQuery?: string): string {
-  if (isTauriEnvironment()) {
+  if (isTauri()) {
     try {
       return getCurrentWindow().label;
     } catch {
