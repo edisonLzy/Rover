@@ -5,31 +5,44 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { PetWindow } from '../features/pet/index.js';
 
 const runtime = vi.hoisted(() => ({
-  events: undefined as
-    | undefined
-    | { onEvent: (event: unknown) => void; onStatusChange: (status: string) => void },
+  handlersList: [] as Array<Record<string, (payload: any, envelope?: any) => void>>,
+  stateListeners: [] as Array<() => void>,
   accepted: undefined as undefined | ((data: { turnId: string }) => void),
   request: vi.fn(),
   invalidate: vi.fn(),
   connection: { ws_url: 'ws://test', token: 'test' },
   utils: undefined as unknown,
 }));
+
+const mockWsClient = {
+  getStatus: () => 'connected',
+  getState: () => 'connected',
+  subscribeState: (listener: () => void) => {
+    runtime.stateListeners.push(listener);
+    return () => {
+      const idx = runtime.stateListeners.indexOf(listener);
+      if (idx !== -1) runtime.stateListeners.splice(idx, 1);
+    };
+  },
+  registerEventHandler: (handlers: Record<string, (payload: any) => void>) => {
+    runtime.handlersList.push(handlers);
+    return () => {
+      const idx = runtime.handlersList.indexOf(handlers);
+      if (idx !== -1) runtime.handlersList.splice(idx, 1);
+    };
+  },
+};
+
 vi.mock('../context/RuntimeContext.js', () => ({
-  useRuntime: () => ({ connection: runtime.connection, loading: false, error: null }),
+  useRuntime: () => ({
+    connection: runtime.connection,
+    loading: false,
+    error: null,
+    wsClient: mockWsClient,
+  }),
 }));
 vi.mock('../shared/preferences/pet.js', () => ({ usePetPreferences: () => ({ size: 75 }) }));
 vi.mock('../utils/window.js', () => ({ isTauriEnvironment: () => false }));
-vi.mock('../utils/websocket.js', () => ({
-  RoverWebSocketClient: class {
-    constructor(options: typeof runtime.events) {
-      runtime.events = options;
-    }
-    connect() {
-      runtime.events!.onStatusChange('connected');
-    }
-    disconnect() {}
-  },
-}));
 vi.mock('../utils/trpc.js', () => ({
   trpc: {
     useUtils: () => runtime.utils,
@@ -58,6 +71,8 @@ beforeEach(async () => {
   Element.prototype.scrollIntoView = vi.fn();
   Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
   Range.prototype.getBoundingClientRect = () => new DOMRect();
+  runtime.handlersList.length = 0;
+  runtime.stateListeners.length = 0;
   runtime.invalidate.mockReset();
   runtime.utils = { tasks: { list: { invalidate: runtime.invalidate } } };
   runtime.request.mockReset().mockImplementation(() =>
@@ -102,7 +117,16 @@ async function submit() {
   );
 }
 async function event(type: string, payload: Record<string, unknown>) {
-  await act(async () => runtime.events!.onEvent({ type, payload }));
+  await act(async () => {
+    for (const handlers of runtime.handlersList) {
+      if (handlers[type]) {
+        handlers[type](payload);
+      }
+      if (handlers['*']) {
+        handlers['*'](payload, { type, payload });
+      }
+    }
+  });
 }
 
 describe('012 preserves Runtime streaming during composer migration', () => {
@@ -127,5 +151,47 @@ describe('012 preserves Runtime streaming during composer migration', () => {
   it('refreshes the shared Task query when task.changed arrives', async () => {
     await event('task.changed', { taskId: 'task-1', status: 'running' });
     expect(runtime.invalidate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('015 PetBubble output isolation & turn lifecycle', () => {
+  it('does not overwrite PetBubble output when task.changed arrives with needs_intervention', async () => {
+    await event('turn.started', { turnId: 'turn-1' });
+    await event('turn.delta', {
+      turnId: 'turn-1',
+      accumulated: '深度模型回复中...',
+      isThinking: false,
+    });
+    expect(host.querySelector('.pet-speech')!.textContent).toContain('深度模型回复中...');
+
+    // Task event arrives with needs_intervention
+    await event('task.changed', { taskId: 'task-1', status: 'needs_intervention' });
+    expect(runtime.invalidate).toHaveBeenCalledTimes(1);
+
+    // PetBubble text MUST remain intact and not be overwritten by task intervention text
+    expect(host.querySelector('.pet-speech')!.textContent).toContain('深度模型回复中...');
+    expect(host.querySelector('.pet-speech')!.textContent).not.toContain('需要你确认');
+  });
+
+  it('ignores stale turn deltas from a previous turn', async () => {
+    await event('turn.started', { turnId: 'turn-1' });
+    await event('turn.delta', { turnId: 'turn-1', accumulated: '第一轮回复', isThinking: false });
+    await event('turn.end', { turnId: 'turn-1', status: 'completed' });
+
+    // Second turn starts
+    await event('turn.started', { turnId: 'turn-2' });
+    expect(host.querySelector('.pet-speech')!.textContent).toContain('思考中…');
+
+    // Late arriving delta from turn-1
+    await event('turn.delta', {
+      turnId: 'turn-1',
+      accumulated: '迟到的第一轮内容',
+      isThinking: false,
+    });
+    expect(host.querySelector('.pet-speech')!.textContent).not.toContain('迟到的第一轮内容');
+
+    // Current turn delta arrives
+    await event('turn.delta', { turnId: 'turn-2', accumulated: '第二轮回复', isThinking: false });
+    expect(host.querySelector('.pet-speech')!.textContent).toContain('第二轮回复');
   });
 });

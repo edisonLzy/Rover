@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import type { RuntimeConnectionInfo } from '../../../context/RuntimeContext.js';
+import type { RuntimeConnectionInfo, ConnectionStatus } from '../../../context/RuntimeContext.js';
+import { useRuntime } from '../../../context/RuntimeContext.js';
 import { trpc } from '../../../utils/trpc.js';
-import { RoverWebSocketClient, type ConnectionStatus } from '../../../utils/websocket.js';
 
 interface EventLog {
   id: string;
@@ -11,8 +11,9 @@ interface EventLog {
 }
 
 export function ProbeView({ connection }: { connection: RuntimeConnectionInfo }) {
-  const [wsStatus, setWsStatus] = useState<ConnectionStatus>('connecting');
-  const [wsLatency, setWsLatency] = useState<number | null>(null);
+  const { wsClient } = useRuntime();
+  const [wsStatus, setWsStatus] = useState<ConnectionStatus>(() => wsClient.getState());
+  const [wsLatency, setWsLatency] = useState<number | null>(() => wsClient.getLatency());
   const [events, setEvents] = useState<EventLog[]>([]);
   const [showToken, setShowToken] = useState(false);
 
@@ -22,30 +23,35 @@ export function ProbeView({ connection }: { connection: RuntimeConnectionInfo })
   });
 
   useEffect(() => {
-    const client = new RoverWebSocketClient({
-      url: connection.ws_url,
-      token: connection.token,
-      onStatusChange: (status) => setWsStatus(status),
-      onLatency: (ms) => setWsLatency(ms),
-      onEvent: (event) => {
-        const evtObj = event as { type?: string; payload?: unknown };
+    setWsStatus(wsClient.getState());
+    setWsLatency(wsClient.getLatency());
+
+    const unsubscribeState = wsClient.subscribeState(() => {
+      setWsStatus(wsClient.getState());
+    });
+    const unsubscribeLatency = wsClient.subscribeLatency((ms) => {
+      setWsLatency(ms);
+    });
+    const unregisterEvents = wsClient.registerEventHandler({
+      '*': (payload, envelope) => {
         setEvents((prev) => [
           {
             id: Math.random().toString(36).slice(2, 9),
             time: new Date().toLocaleTimeString(),
-            type: evtObj.type || 'unknown',
-            payload: JSON.stringify(evtObj.payload ?? event),
+            type: envelope.type || 'unknown',
+            payload: JSON.stringify(payload ?? envelope),
           },
           ...prev.slice(0, 19),
         ]);
       },
     });
 
-    client.connect();
     return () => {
-      client.disconnect();
+      unsubscribeState();
+      unsubscribeLatency();
+      unregisterEvents();
     };
-  }, [connection.ws_url, connection.token]);
+  }, [wsClient]);
 
   const maskedToken = showToken
     ? connection.token

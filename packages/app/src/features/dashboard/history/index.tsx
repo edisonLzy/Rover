@@ -9,9 +9,8 @@ import {
   RotateCw,
   Sparkles,
 } from 'lucide-react';
-import { trpc } from '../../../utils/trpc.js';
 import { useRuntime } from '../../../context/RuntimeContext.js';
-import { RoverWebSocketClient } from '../../../utils/websocket.js';
+import { trpc } from '../../../utils/trpc.js';
 import { UserMessageItem } from './UserMessageItem.js';
 import { AssistantMessageItem } from './AssistantMessageItem.js';
 import { ToolResultItem } from './ToolResultItem.js';
@@ -22,7 +21,7 @@ type FilterType = 'all' | 'message' | 'compaction';
 type OrderType = 'asc' | 'desc';
 
 export function HistoryView() {
-  const { connection } = useRuntime();
+  const { wsClient } = useRuntime();
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [selectedTurnId, setSelectedTurnId] = useState<string>('all');
   const [order, setOrder] = useState<OrderType>('asc');
@@ -59,29 +58,13 @@ export function HistoryView() {
 
   // Live WebSocket update on events
   useEffect(() => {
-    if (!connection) return;
-
-    const client = new RoverWebSocketClient({
-      url: connection.ws_url,
-      token: connection.token,
-      onEvent: (event) => {
-        const evt = event as { type?: string };
-        if (
-          evt.type === 'rover.entry.appended' ||
-          evt.type === 'rover.compaction.appended' ||
-          evt.type === 'turn.started' ||
-          evt.type === 'turn.end'
-        ) {
-          handleRefresh();
-        }
-      },
+    return wsClient.registerEventHandler({
+      'rover.entry.appended': handleRefresh,
+      'rover.compaction.appended': handleRefresh,
+      'turn.started': handleRefresh,
+      'turn.end': handleRefresh,
     });
-
-    client.connect();
-    return () => {
-      client.disconnect();
-    };
-  }, [connection]);
+  }, [wsClient]);
 
   return (
     <div className="flex flex-col gap-5 pb-8 select-none">

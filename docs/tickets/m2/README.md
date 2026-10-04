@@ -84,7 +84,7 @@ flowchart TD
 | [012](./012-pet-toolbar-and-prompt-interaction.md) | 宠物待命、工具栏与输入交互重构 | 002, 010 | IN_PROGRESS | `packages/app` (Pet, PetToolbar, PromptInput, PetWindow) |
 | [013](./013-pet-task-panel-and-scroll.md) | Task 堆叠、展开与列表滚动 | 012 | TODO | `packages/app` (PetToolbar/Task) |
 | [014](./014-local-inbox-and-agent-follow-up.md) | 本地 Inbox 与 Agent Loop follow-up | 005, 013 | TODO | `packages/app` (PetToolbar/Inbox), `packages/runtime` (Agent 提交) |
-| [015](./015-pet-bubble-output-isolation.md) | PetBubble 的 LLM 输出职责收敛 | 012 | TODO | `packages/app` (PetBubble, 类型化事件订阅) |
+| [015](./015-pet-bubble-output-isolation.md) | PetBubble 的 LLM 输出职责收敛 | 012 | DONE | `packages/app` (PetBubble, 类型化事件订阅) |
 
 ## 宠物重构执行边界
 

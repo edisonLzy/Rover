@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, X } from 'lucide-react';
+import { useRuntime } from '../../../context/RuntimeContext.js';
 
 export interface PetBubbleProps {
-  text: string | null;
+  text?: string | null;
   isThinking?: boolean;
   isError?: boolean;
   statusLabel?: string;
@@ -11,7 +12,94 @@ export interface PetBubbleProps {
   sessionLabel?: string;
 }
 
-export function PetBubble({
+export function PetBubble(props: PetBubbleProps) {
+  if (props.text !== undefined) {
+    return <PetBubbleView {...props} />;
+  }
+  return <AutonomousPetBubble {...props} />;
+}
+
+function AutonomousPetBubble(props: Omit<PetBubbleProps, 'text'>) {
+  const { wsClient } = useRuntime();
+  const [text, setText] = useState<string | null>(null);
+  const [isThinking, setIsThinking] = useState(false);
+  const [isError, setIsError] = useState(false);
+
+  const activeTurnRef = useRef<string | null>(null);
+  const finishedTurnIdsRef = useRef<Set<string>>(new Set());
+  const answerRef = useRef('');
+  const thinkingRef = useRef(false);
+
+  useEffect(() => {
+    return wsClient.registerEventHandler({
+      'turn.started': (payload) => {
+        if (finishedTurnIdsRef.current.has(payload.turnId)) return;
+        activeTurnRef.current = payload.turnId;
+        answerRef.current = '';
+        thinkingRef.current = false;
+        setText('思考中…');
+        setIsThinking(true);
+        setIsError(false);
+      },
+      'turn.delta': (payload) => {
+        if (activeTurnRef.current !== payload.turnId) return;
+        const thinking = payload.isThinking === true;
+        if (thinkingRef.current !== thinking) {
+          answerRef.current = '';
+        }
+        thinkingRef.current = thinking;
+        if (typeof payload.accumulated === 'string' && payload.accumulated) {
+          answerRef.current = payload.accumulated;
+        } else {
+          const delta = thinking ? payload.thinkingDelta : payload.textDelta;
+          if (typeof delta === 'string') {
+            answerRef.current += delta;
+          }
+        }
+        setIsThinking(thinking);
+        setIsError(false);
+        setText(answerRef.current || (thinking ? '深度思考中…' : ''));
+      },
+      'turn.end': (payload) => {
+        finishedTurnIdsRef.current.add(payload.turnId);
+        if (finishedTurnIdsRef.current.size > 100) {
+          const oldest = finishedTurnIdsRef.current.values().next().value;
+          if (oldest) finishedTurnIdsRef.current.delete(oldest);
+        }
+        if (activeTurnRef.current !== payload.turnId) return;
+        activeTurnRef.current = null;
+        setIsThinking(false);
+        const failed = payload.status === 'failed' || typeof payload.error === 'string';
+        setIsError(failed);
+        if (failed) {
+          setText(typeof payload.error === 'string' ? payload.error : '回合失败');
+        } else if (!answerRef.current) {
+          setText('回复完成');
+        }
+      },
+    });
+  }, [wsClient]);
+
+  const handleClose = () => {
+    setText(null);
+    activeTurnRef.current = null;
+    props.onClose?.();
+  };
+
+  return (
+    <PetBubbleView
+      text={text}
+      isThinking={isThinking}
+      isError={isError}
+      statusLabel={props.statusLabel}
+      onClose={handleClose}
+      onOpenSession={props.onOpenSession}
+      sessionLabel={props.sessionLabel}
+    />
+  );
+}
+
+function PetBubbleView({
   text,
   isThinking = false,
   isError = false,

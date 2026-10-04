@@ -22,9 +22,9 @@
    | Inbox 打开 | 点击 Task 按钮 | 关闭 Inbox，显示 Task 堆叠 |
 
 3. **工具栏反馈**：关闭时显示铃铛与任务数量 badge；打开时切换为展开状态图标。数量来自已有 Task 数据源，不把 Prompt 或普通 LLM 回答计作 Task。
-4. **任务列表**：继续展示已有目标、Agent、状态与摘要，保留任务更新和终端接管。卡片专用逻辑归 tasks 区域；任务查询通过类型约束的数据 Hook/Runtime client，复用 Query 缓存，WS 事件更新或失效查询。
+4. **任务列表与状态交互**：继续展示已有目标、Agent、状态与摘要，保留任务更新和终端接管。`needs_intervention` 任务具备最高优先级置顶（`priority: 0`）并展示呼吸动效与高亮「去确认」操作按钮；终端唤起反馈（`openNotice`、`openError`）就地展示于列表上方或卡片旁（Inline Alert），严禁覆盖 PetBubble。卡片专用逻辑归 tasks 区域；任务查询通过类型约束的数据 Hook/Runtime client，复用 Query 缓存，WS 事件更新或失效查询。
 5. **滚动边界**：只有 Task/Inbox 的列表区域滚动，列表应用相同的窗口高度限制与滚动样式。Pet、PetBubble、PetToolbar 的快捷按钮与输入框位置固定；列表内部不再嵌套滚动容器。沿用现有窗口边界与尺寸偏好。
-6. **组织**：Task 属于 PetToolbar。`Task/index.tsx` 组合 trigger、数据与内部状态；`Task/list.tsx` 承载列表、卡片及终端接管的视图。专用卡片留在列表文件下方。Toolbar 管理互斥与布局，不承载任务查询和终端业务。
+6. **组织**：Task 属于 PetToolbar。`Task/index.tsx` 组合 trigger、数据与内部状态；`Task/list.tsx`（或 TaskList/TaskCard）承载列表、卡片及终端接管的视图。专用卡片留在列表文件下方或同级。Toolbar 管理互斥与布局，不承载任务查询和终端业务。
 
 ```text
 PetToolbar/

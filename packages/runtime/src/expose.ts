@@ -32,3 +32,21 @@ export type {
 
 // Core Runtime Status & Config
 export type { RuntimeConfig, RuntimeStatus } from './index.js';
+
+// Runtime WebSocket Events Specification (ADR-0017)
+export type {
+  RuntimeEventType,
+  RuntimeEventMap,
+  RuntimeEventEnvelope,
+  RuntimeEventHandlers,
+  SystemReadyPayload,
+  TurnStartedPayload,
+  TurnStepStartedPayload,
+  TurnDeltaPayload,
+  TurnToolCallPayload,
+  TurnToolResultPayload,
+  TurnEndPayload,
+  TaskChangedPayload,
+  RoverEntryAppendedPayload,
+  RoverCompactionAppendedPayload,
+} from './types/events.js';
