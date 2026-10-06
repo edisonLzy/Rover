@@ -1,52 +1,53 @@
-# 014: 本地 Inbox 与 Agent Loop follow-up
+# 014: Runtime 支持 Steer、Follow-Up 与 Queue 状态同步契约
 
 **Status**: TODO  
-**Blocked By**: 005, 013  
-**Blocks**: None  
+**Blocked By**: 005  
+**Blocks**: 016, 017, 018  
 
 ## Context & Goal
 
-将原待处理 Prompt 队列升级为可从工具栏打开的本地 Inbox，提供已确认的 `immediate` 与 `suspended` 两种交互；仅补齐实现这些交互所必需的 Runtime follow-up 能力。
-
-这里的 Inbox item 是前端临时 Prompt，尚不是 TRD 第 8 节的持久化外部消息。本次修订替代 010 中「所有排队 Prompt 都需确认」的旧交互：只有 `suspended` 必须先确认。
+依据 [ADR-0018](../../adr/0018-multi-source-input-steer-and-follow-up-interaction.md)，在 `@rover/runtime` 侧对齐 `@earendil-works/pi-agent-core` 原生的 `steeringQueue` 与 `followUpQueue` 机制，为前端暴露类型安全的 `steer`、`followUp` 与 `clearAllQueues` 接口，并通过 WebSocket 广播消费出队事件，确保前端待办 Pill 与底层 Agent 队列绝对同构。
 
 ## Specification & Invariants
 
-1. **模式**：`immediate`（立即）在已有 Agent Loop 中作为 follow-up 提交；`suspended`（挂起）只保存在前端内存，用户确认前不进入 Runtime、Loop 或 history。输入区域提供最小的模式选择，具体呈现沿用原型视觉，不恢复 `+` 或 mention 选择按钮。
-2. **无活动 Loop**：用户提交 immediate 或确认 suspended 时，若没有活动 Loop，沿用已有新回合提交能力；是否加入当前 Loop 由 Runtime 判断，不能依靠过期的前端 busy 状态发起竞争回合。
-3. **接收与处理**：Runtime 成功接收提交后移除对应临时 item；该确认表示接收成功，不表示 LLM 已处理完。明确接口回执语义，避免把 `turn.end` 当作队列移除信号。
-4. **失败与重复**：提交失败保留原 `PromptDocumentV1` 和错误，允许重试；发送中禁止重复确认。离线或模型不可用时不丢输入，错误留在输入/Inbox 区域。本票不承诺网络响应丢失后的跨重启 exactly-once 投递，不新增通用投递系统。
-5. **Runtime 边界**：只增加必要的类型化提交能力；follow-up 使用实际 Pi Agent 的队列机制，不并行启动第二个 Loop。接收的输入按既有 history 契约记录；挂起未确认输入不写 history。普通 Prompt 不创建 Task。
-6. **列表与互斥**：点击 Inbox 按钮打开/关闭 Inbox；打开时关闭 Task。切回 Task 从堆叠态开始。Inbox/list.tsx 沿用 Task 列表的高度限制与滚动样式，内部不嵌套滚动区域；数量由本地待处理 item 提供。
-7. **职责归属**：Inbox 的临时 item 与发送生命周期由 inbox 区域负责；只有在输入入口、badge 与列表确有共享时建立宠物窗口范围的共享状态。私有列表项留在 `Inbox/list.tsx`；Inbox/index.tsx 组合入口与功能状态，PetToolbar 管理 activeFeature 互斥；PetWindow 不实现队列发送、删除和重试。
-8. **引用**：item 保存完整结构化 Prompt，不把 mention 降成纯文本。临时 Prompt 的 item ID 不能冒充持久化 Inbox 消息 ID；`#` 继续使用真实且受支持的消息来源，没有来源时按编辑器既有空候选行为处理。
+1. **底层引擎对齐**：
+   - 在 `RoverTurnEngine` 中暴露 `steer(turnId, promptDoc)`、`followUp(turnId, promptDoc)` 与 `clearAllQueues()` 方法；
+   - 映射到当前活动 `Agent` 实例的 `agent.steer(message)`、`agent.followUp(message)` 与 `agent.clearAllQueues()`；
+   - 若当前无活动 Agent（空闲态），`followUp` 与 `steer` 调用应给出明确错误或降级为普通 `startTurn`。
+2. **tRPC 路由契约**：
+   - 在 `packages/runtime/src/transport/router.ts` 中新增 mutation：
+     - `turns.steer`: 接收 `{ turnId?: string, promptDoc: PromptDocumentV1 }`；
+     - `turns.followUp`: 接收 `{ turnId?: string, promptDoc: PromptDocumentV1 }`；
+     - `turns.clearAllQueues`: 接收 `{ turnId?: string }`。
+3. **消费出队事件广播**：
+   - 当 `pi-agent-core` 消费 `followUpQueue` 或 `steeringQueue` 时，其内部派发的 `{ type: "message_start", message }` 和 `{ type: "message_end", message }` 事件必须通过既有的 `WebSocketManager` 进行类型化广播；
+   - 广播载荷需携带原始的 `UserMessage`（包含其 `timestamp`、`content` 与 `kind: "steering" | "follow-up"`），供前端作为精确出队（Eviction）的信号。
+4. **历史写入不变式**：
+   - `follow-up` 消息被消费启动新轮次后，按既有 ADR-0014 规范持久化到 `rover_entry`（作为新的用户消息输入）；
+   - 排队中尚未被消费的 `follow-up` 不写入 `rover_entry`；
+   - `steer` 消息在消费后记录入当前轮次的历史上下文。
 
 ## Affected Components & Files
 
-- `packages/app/src/features/pet/PetToolbar/Inbox/index.tsx`、`list.tsx` 及确实共享的本地状态实现。
-- `packages/app/src/features/pet/PetToolbar/index.tsx`：输入模式、数量 badge 与 activeFeature 互斥。
-- 012 沿用的 `packages/app/src/features/pet/PetToolbar/PendingQueue.tsx`：引用迁移后移除。
-- `packages/runtime/src/agent/engine.ts`：必要的 follow-up 用例。
-- `packages/runtime/src/transport/router.ts`：类型化提交入口，路由不承载 Loop 业务规则。
-- app Inbox 状态测试、Runtime 回合/follow-up 契约测试。
+- `packages/runtime/src/agent/engine.ts`：扩展 `RoverTurnEngine` 接口与 `Agent` 队列方法转发。
+- `packages/runtime/src/transport/router.ts`：新增 `turns.steer`、`turns.followUp`、`turns.clearAllQueues` mutation。
+- `packages/runtime/src/types/events.ts` 与 `expose.ts`：确保 `turn.message_start` / `turn.message_end` 契约完备导出。
+- `packages/runtime/src/__tests__/turns.test.ts`：新增针对 steer、followUp 与 clearAllQueues 的单元与集成测试。
 
 ## Acceptance Criteria
 
-- [ ] 活动 Loop 中 immediate 进入 follow-up，复用同一 Loop，不启动竞争回合或生成虚假 Task。
-- [ ] suspended 提交后只出现于本地 Inbox，确认前 Runtime 与 history 均无该输入。
-- [ ] 确认 suspended 后根据 Runtime 当前状态加入 Loop 或启动新回合。
-- [ ] Runtime 接收成功才移除临时 item；失败保留结构化内容，可重试，重复点击不重复发送。
-- [ ] 输入被本地 Inbox 接收后恢复快捷按钮；直接拒绝提交时保留编辑器草稿。
-- [ ] Inbox 与 Task 严格互斥；从展开 Task 切至 Inbox 再切回 Task，回到堆叠态。
-- [ ] Inbox 列表与数量同步，空列表与错误反馈沿用原型风格。
+- [ ] 活动回合中调用 `turns.followUp` 成功将消息注入 `pi-agent-core` 的 `followUpQueue`，不抛错且不提前终结当前回合。
+- [ ] 活动回合中调用 `turns.steer` 成功将消息注入 `steeringQueue`，在下一个检查点前优先被模型读取。
+- [ ] 调用 `turns.clearAllQueues` 成功清空所有排队消息。
+- [ ] 当底层出队消费某一 follow-up 消息时，WebSocket 派发包含该消息 `timestamp` 的 `message_start` 事件。
+- [ ] follow-up 消费执行完成后，按既有规范记录 `rover_entry`。
 
 ## Verification Plan
 
-- 使用可控制完成时机的发送替身，验证确认、回执、失败、重试和重复点击的真实状态边界。
-- Runtime 集成测试覆盖活动 Loop follow-up、无活动 Loop 提交、history 写入与模型错误，不仅 mock 路由返回值。
-- 手动走通输入 → Inbox → 确认 → LLM 输出，以及 Inbox/Task 来回切换。
-- 执行 app/runtime 类型检查与相应测试。
+- 编写模拟长轮次生成测试，在生成中途调用 `followUp`，验证当前回合正常完成，随后紧接着触发第二轮且派发出队事件。
+- 在工具执行中途调用 `steer`，验证 steering 消息在工具执行完毕后优先进入上下文。
+- 执行 `pnpm --filter @rover/runtime test` 确保全量通过。
 
 ## Out of Scope
 
-SQLite Inbox 表与迁移、外部告警投递、网关拉取/确认、持久化消息搜索、未读提醒、跨重启队列恢复。它们沿用 M3 的独立规划，本票不提前建立相应接口或空实现。
+前端气泡渲染、输入栏按键绑定、剪贴板嗅探、SQLite 外部 Inbox 表持久化。
