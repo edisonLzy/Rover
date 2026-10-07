@@ -27,20 +27,16 @@ export function getRuntimeStatus(): RuntimeStatus {
 }
 
 export * from './transport/index.js';
-export * from './expose.js';
-export * from './dispatch/screen.js';
-export * from './dispatch/carrier.js';
-export * from './dispatch/types.js';
-export * from './dispatch/claude.js';
-export * from './dispatch/codex.js';
-export * from './dispatch/opencode.js';
-export * from './dispatch/dispatcher.js';
-export * from './dispatch/terminal.js';
-export * from './observe/index.js';
-export * from './storage/index.js';
+export * from './trpc/index.js';
+export * from './infrastructure/dispatch/index.js';
+export * from './infrastructure/observe/index.js';
+export * from './infrastructure/database/index.js';
 export * from './types/prompt.js';
-export * from './agent/index.js';
-export * from './models/index.js';
+export * from './modules/agent/index.js';
+export * from './modules/models/index.js';
+export * from './modules/skills/index.js';
+export * from './modules/tasks/index.js';
+export * from './container.js';
 
 /**
  * Parses CLI flags in format --key=value

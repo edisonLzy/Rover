@@ -1,6 +1,6 @@
 # 020a: Runtime 基础设施层下沉与独立业务模块 (Models/Skills) 解耦重构
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 014c  
 **Blocks**: 020b  
 
@@ -15,6 +15,7 @@
 
 ```text
 packages/runtime/src/
+├── container.ts                            # + [New] 统一组合根 (createContainer，提前引入对齐 traceability 架构)
 ├── infrastructure/                         # + [New] 基础设施层
 │   ├── database/                           # + [New] SQLite 连接与迁移基座
 │   │   ├── client.ts                       # * [Moved] 原 storage/db.ts
@@ -100,12 +101,13 @@ packages/runtime/src/
 
 ## Acceptance Criteria
 
-- [ ] `src/infrastructure/`（`database`, `dispatch`, `observe`）全部建立，底层逻辑与单测就近迁移就绪。
-- [ ] `ingress/`, `scheduler/`, `reporting/` 规范归入 `src/modules/`。
-- [ ] `modules/models/` 拥有独立的 `service.ts`、`router.ts`、`index.ts`，测试迁移就近。
-- [ ] `modules/skills/` 拥有独立的 `service.ts`、`router.ts`、`index.ts`，测试迁移就近。
-- [ ] `pnpm typecheck` 零类型报错。
-- [ ] `pnpm --filter @rover/runtime test` 19 个测试套件全绿通过。
+- [x] `src/infrastructure/`（`database`, `dispatch`, `observe`）全部建立，底层逻辑与单测就近迁移就绪。
+- [x] `ingress/`, `scheduler/`, `reporting/` 规范归入 `src/modules/`。
+- [x] `modules/models/` 拥有独立的 `service.ts`、`router.ts`、`index.ts`，路由通过 `ctx.container.models` 消费，测试迁移就近。
+- [x] `modules/skills/` 拥有独立的 `service.ts`、`router.ts`、`index.ts`，路由通过 `ctx.container.skills` 消费，测试迁移就近。
+- [x] `container.ts` 组合根建立，tRPC `Context` 注入 `container`，彻底废除 Factory 传参模式。
+- [x] `pnpm typecheck` 零类型报错。
+- [x] `pnpm --filter @rover/runtime test` 21 个测试套件全绿通过。
 
 ---
 

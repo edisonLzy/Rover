@@ -29,7 +29,9 @@ This skill guides Rover on how to validate, clarify, and dispatch coding tasks t
 ## Step-by-Step Workflow
 
 ### Step 1: Checklist & Clarification
+
 Verify the following before calling the dispatch tool:
+
 - [ ] Is `cwd` an absolute directory path?
 - [ ] Is `agent` one of `"claude" | "opencode" | "codex"`?
 - [ ] Is `taskPrompt` clear and actionable?
@@ -38,6 +40,7 @@ Verify the following before calling the dispatch tool:
 Reply directly to the user with a concise, polite clarifying question. Do not invoke `dispatch_agent`.
 
 ### Step 2: Tool Invocation
+
 When all parameters are verified, invoke the `dispatch_agent` controlled tool:
 
 ```json
@@ -49,5 +52,6 @@ When all parameters are verified, invoke the `dispatch_agent` controlled tool:
 ```
 
 ### Step 3: Informing the User
+
 - For `claude` / `opencode`: Inform the user that the task has been dispatched and is currently running with the returned Task ID.
 - For `codex`: Inform the user that the dispatch attempt has been initiated and is awaiting session confirmation.

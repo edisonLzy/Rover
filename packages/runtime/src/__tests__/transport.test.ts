@@ -6,9 +6,9 @@ import WebSocket from 'ws';
 import { createRuntimeServer, RuntimeServer, type AppRouter } from '../transport/index.js';
 import { RUNTIME_VERSION } from '../index.js';
 import { fileURLToPath } from 'node:url';
-import { BuiltinSkillService } from '../agent/skills/skill-service.js';
-import { ModelRegistry } from '../models/registry.js';
-import { getDefaultAgentRuntime } from '../agent/index.js';
+import { BuiltinSkillService } from '../modules/skills/index.js';
+import { ModelRegistry } from '../modules/models/index.js';
+import { getDefaultAgentRuntime } from '../modules/agent/index.js';
 
 describe('Transport & Security Invariants (M0-2)', () => {
   let server: RuntimeServer | null = null;

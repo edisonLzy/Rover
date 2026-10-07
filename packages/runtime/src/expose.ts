@@ -28,7 +28,7 @@ export type {
   MaskedProviderConfig,
   MaskedRoverModelsConfig,
   ModelConnectionTestResult,
-} from './models/types.js';
+} from './modules/models/types.js';
 
 // Core Runtime Status & Config
 export type { RuntimeConfig, RuntimeStatus } from './index.js';

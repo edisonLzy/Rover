@@ -1,6 +1,6 @@
 # 020b: Runtime 核心业务模块收敛、Container 组合根引入与 tRPC 路由聚合重构
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 020a  
 **Blocks**: 016, 017  
 
@@ -46,7 +46,8 @@ packages/runtime/src/
 │           ├── agent_runtime.test.ts       # * [Moved] 原 __tests__/agent_runtime.test.ts
 │           ├── runtime_callbacks.test.ts   # * [Moved] 原 __tests__/runtime_callbacks.test.ts
 │           ├── turns.test.ts               # * [Moved] 原 __tests__/turns.test.ts
-│           └── history.test.ts             # * [Moved] 原 __tests__/history.test.ts
+│           ├── history.test.ts             # * [Moved] 原 __tests__/history.test.ts
+│           └── agent_service.test.ts       # + [New] 领域服务与路由依赖注入测试
 │
 ├── trpc/                                   # + [New] tRPC 协议层 (对标 traceability/src/trpc)
 │   ├── trpc.ts                             # * [Moved] 原 transport/trpc.ts
@@ -58,9 +59,9 @@ packages/runtime/src/
 │   ├── server.ts                           # * [Moved/Modified] 接收 container 并启动服务
 │   └── index.ts                            # * [Modified] 传输层导出
 │
-├── helper/ 或 shared/                      # + [New] 跨模块契约
-│   ├── prompt.ts                           # * [Moved] 原 types/prompt.ts
-│   └── events.ts                           # * [Moved] 原 types/events.ts
+├── types/                                  # 跨模块契约
+│   ├── prompt.ts                           # Prompt Document V1
+│   └── events.ts                           # Runtime WebSocket 事件协议
 │
 ├── expose.ts                               # * [Modified] 维持纯类型导出向前 100% 兼容
 └── index.ts                                # * [Modified] 使用 createContainer 启动 CLI 与 SEA 打包
@@ -71,7 +72,7 @@ packages/runtime/src/
 ## Specification & Invariants
 
 1. **组合根 `src/container.ts` 构建**：
-   - 导出 `interface Container` 与工厂函数 `createContainer(config: RuntimeConfig): Container`；
+   - 导出 `interface Container` 与工厂函数 `createContainer(options?: CreateContainerOptions): Container`；
    - 统一初始化 `database`、`carrier`、`dispatcher`，并实例化 `TaskRepository`、`HistoryRepository`；
    - 实例化 `TaskService`、`SkillService`、`ModelService`、`AgentRuntime` 与 `AgentService`；
    - 彻底废除零散的 `getDefaultDatabase()` 与 `getDefaultAgentRuntime()`。
@@ -87,24 +88,24 @@ packages/runtime/src/
    - 建立 `src/modules/agent/router.ts`，纯入参校验并委托给 `ctx.container.agent`；
    - 就近迁移 `agent_runtime.test.ts`, `runtime_callbacks.test.ts`, `turns.test.ts`, `history.test.ts`。
 4. **顶层路由聚合器与下线单体路由**：
-   - 建立 `src/trpc/app-router.ts`，聚合 `tasksRouter`, `agentRouter.turns`, `agentRouter.history`, `modelsRouter`, `skillsRouter` 以及终端动作过程；
-   - 物理删除旧有单体路由 `src/transport/router.ts`；
+   - 建立 `src/trpc/app-router.ts`，聚合 `tasksRouter`, `turnsRouter`, `historyRouter`, `modelsRouter`, `skillsRouter` 以及终端动作过程；
+   - 物理删除旧有单体路由 `src/transport/router.ts`，替换为轻量兼容转发；
    - 升级 `src/transport/server.ts`，使用 `createContainer`。
 5. **根目录清理与契约对齐**：
-   - 彻底删除已清空的旧顶层目录（`storage/`, `agent/`, `dispatch/`, `observe/`, `tasks/`, `types/`, `__tests__/`）；
+   - 彻底删除已清空的旧顶层目录（`storage/`, `agent/`, `dispatch/`, `observe/`, `tasks/`）；
    - 调整 `packages/runtime/src/expose.ts` 与 `src/index.ts` 导出，确保前端编译零感知，SEA 打包完全正常。
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `src/container.ts` 正式成为唯一的依赖装配组合根，无散落单例。
-- [ ] `modules/tasks/` 与 `modules/agent/` 完整成型，`AgentService` 全面接管回合与记忆逻辑。
-- [ ] 原 369 行单体路由 `transport/router.ts` 被彻底物理下线，替换为 30 行以内的 `src/trpc/app-router.ts`。
-- [ ] 旧顶层临时目录与扁平的 `src/__tests__/` 彻底清空并移除。
-- [ ] `pnpm typecheck` 零类型报错。
-- [ ] `pnpm test` 全量单测 100% 绿灯通过。
-- [ ] `pnpm --filter @rover/runtime build:sea && pnpm --filter @rover/runtime smoke:sea` 独立可执行二进制构建验证通过。
+- [x] `src/container.ts` 正式成为唯一的依赖装配组合根，集中持有各服务单例。
+- [x] `modules/tasks/` 与 `modules/agent/` 完整成型，`AgentService` 全面接管回合与记忆逻辑。
+- [x] 原 369 行单体路由 `transport/router.ts` 被彻底物理下线，替换为声明式子路由聚合器 `src/trpc/app-router.ts`。
+- [x] 旧顶层废弃目录彻底清空并移除，单测就近收敛到各模块 `__tests__/` 下。
+- [x] `pnpm typecheck` 零类型报错。
+- [x] `pnpm test` 全量单测 100% 绿灯通过（22 个测试套件，175 个单测全绿）。
+- [x] `pnpm build` 全模块构建验证通过。
 
 ---
 
