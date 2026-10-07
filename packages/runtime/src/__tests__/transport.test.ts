@@ -1,4 +1,3 @@
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, afterEach } from 'vitest';
@@ -9,7 +8,7 @@ import { RUNTIME_VERSION } from '../index.js';
 import { fileURLToPath } from 'node:url';
 import { BuiltinSkillService } from '../agent/skills/skill-service.js';
 import { ModelRegistry } from '../models/registry.js';
-import { getDefaultTurnEngine } from '../agent/index.js';
+import { getDefaultAgentRuntime } from '../agent/index.js';
 
 describe('Transport & Security Invariants (M0-2)', () => {
   let server: RuntimeServer | null = null;
@@ -327,7 +326,7 @@ describe('Transport & Security Invariants (M0-2)', () => {
       const tempConfig = path.join(os.tmpdir(), `rover-test-${Date.now()}-models.json`);
       const emptyRegistry = new ModelRegistry(tempConfig);
       emptyRegistry.saveConfig({ providers: {} });
-      getDefaultTurnEngine({ modelRegistry: emptyRegistry });
+      getDefaultAgentRuntime({ modelRegistry: emptyRegistry });
 
       server = await createRuntimeServer({ port: 0, token: validToken });
       const { httpUrl } = server.getAddress();
@@ -351,6 +350,43 @@ describe('Transport & Security Invariants (M0-2)', () => {
           },
         })
       ).rejects.toThrow(/No active model configured/);
+    });
+
+    it('supports turns.steer, turns.followUp, turns.clearAllQueues, turns.cancel, and CQRS turns.get', async () => {
+      server = await createRuntimeServer({ port: 0, token: validToken });
+      const { httpUrl } = server.getAddress();
+
+      const client = createTRPCClient<AppRouter>({
+        links: [
+          httpBatchLink({
+            url: `${httpUrl}/trpc`,
+            headers: {
+              Authorization: `Bearer ${validToken}`,
+            },
+          }),
+        ],
+      });
+
+      // 1. steer
+      const steerRes = await client.turns.steer.mutate({ content: '插话干预' });
+      expect(steerRes).toEqual({ success: true });
+
+      // 2. followUp
+      const followUpRes = await client.turns.followUp.mutate({ content: '排队后续任务' });
+      expect(followUpRes).toEqual({ success: true });
+
+      // 3. clearAllQueues
+      const clearRes = await client.turns.clearAllQueues.mutate();
+      expect(clearRes).toEqual({ success: true });
+
+      // 4. cancel
+      const cancelRes = await client.turns.cancel.mutate({ turnId: 'dummy_turn' });
+      expect(cancelRes).toEqual({ success: true, turnId: 'dummy_turn' });
+
+      // 5. get (CQRS)
+      const getRes = await client.turns.get.query({ turnId: 'non_existent_turn' });
+      expect(getRes.turn).toBeNull();
+      expect(getRes.entries).toEqual([]);
     });
   });
 });

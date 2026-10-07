@@ -13,7 +13,10 @@ import {
   SystemPromptService,
 } from './prompts.js';
 import { ModelRegistry, getModelRegistry } from '../models/index.js';
-import type { BuiltinSkillService } from './skills/skill-service.js';
+import { BuiltinSkillService } from './skills/skill-service.js';
+import type { WebSocketBroadcastCallbacks } from './callbacks/broadcast.js';
+import type { TurnPersistenceCallbacks } from './callbacks/persistence.js';
+import type { WebSocketManager } from '../transport/websocket.js';
 import type {
   AgentRuntimeEventCallbacks,
   AgentRuntimeOptions,
@@ -41,11 +44,15 @@ export class AgentRuntime {
   private tools: AgentTool[];
   private streamFn?: StreamFn;
   private options: AgentRuntimeOptions;
+  private broadcastCallbacks?: WebSocketBroadcastCallbacks;
+  private persistenceCallbacks?: TurnPersistenceCallbacks;
 
   constructor(options: AgentRuntimeOptions = {}) {
     this.options = options;
     this.modelRegistry = options.modelRegistry || getModelRegistry();
-    this.skillService = options.skillService;
+    this.skillService =
+      options.skillService ||
+      (options.skillsDir ? new BuiltinSkillService({ skillsDir: options.skillsDir }) : undefined);
     this.tools = options.tools ? [...options.tools] : [];
     this.streamFn = options.streamFn;
 
@@ -81,6 +88,34 @@ export class AgentRuntime {
     };
   }
 
+  public setBroadcastCallbacks(callbacks: WebSocketBroadcastCallbacks): void {
+    this.broadcastCallbacks = callbacks;
+    this.addEventCallbacks(callbacks);
+  }
+
+  public setPersistenceCallbacks(callbacks: TurnPersistenceCallbacks): void {
+    this.persistenceCallbacks = callbacks;
+    this.addEventCallbacks(callbacks);
+  }
+
+  public setWebSocketManager(wsManager?: WebSocketManager): void {
+    this.broadcastCallbacks?.setWebSocketManager(wsManager);
+  }
+
+  public getModelRegistry(): ModelRegistry {
+    return this.modelRegistry;
+  }
+
+  public getSkillService(): BuiltinSkillService | undefined {
+    return this.skillService;
+  }
+
+  public isTurnRunning(turnId?: string): boolean {
+    if (!this.currentTurnContext) return false;
+    if (turnId) return this.currentTurnContext.turnId === turnId;
+    return true;
+  }
+
   /**
    * 安全触发指定生命周期回调，容错隔离单个 Callback 抛错
    */
@@ -114,12 +149,6 @@ export class AgentRuntime {
     const startTime = Date.now();
 
     const targetModel = input.model || this.modelRegistry.resolveActiveModel();
-    if (!targetModel) {
-      throw new Error('No active model configured in models registry');
-    }
-
-    this.agent.state.model = targetModel;
-    this.agent.state.systemPrompt = this.systemPromptService.buildSystemPrompt('');
 
     const context: TurnContext = {
       turnId,
@@ -138,6 +167,17 @@ export class AgentRuntime {
     if (this.isCancelled || this.currentTurnContext !== context) {
       return turnId;
     }
+
+    if (!targetModel) {
+      const err = new Error('No active model configured in models registry');
+      this.turnError = err.message;
+      await this.triggerCallback('onError', context, err);
+      await this.handleAgentEnd(context);
+      throw err;
+    }
+
+    this.agent.state.model = targetModel;
+    this.agent.state.systemPrompt = this.systemPromptService.buildSystemPrompt('');
 
     // 2. 外部 Abort 信号绑定
     if (input.signal) {

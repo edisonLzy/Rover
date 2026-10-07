@@ -25,7 +25,7 @@ import {
   ProviderConfigSchema,
   ModelConfigSchema,
 } from '../models/index.js';
-import { getDefaultTurnEngine } from '../agent/index.js';
+import { getDefaultAgentRuntime } from '../agent/index.js';
 import { PromptDocumentV1Schema } from '../types/prompt.js';
 import {
   listEntries,
@@ -52,20 +52,22 @@ export const appRouter = router({
   })),
 
   skills: router({
-    list: protectedProcedure.query(() =>
-      getDefaultTurnEngine()
-        .getSkillService()
-        .getSkills()
-        .map(({ id, name, description }) => ({
-          id,
-          name,
-          description,
-          source: 'builtin' as const,
-          isEnabled: true,
-        }))
+    list: protectedProcedure.query(
+      () =>
+        getDefaultAgentRuntime()
+          .getSkillService()
+          ?.getSkills()
+          .map(({ id, name, description }) => ({
+            id,
+            name,
+            description,
+            source: 'builtin' as const,
+            isEnabled: true,
+          })) ?? []
     ),
     read: protectedProcedure.input(z.object({ name: z.string().min(1) })).query(({ input }) => {
-      const body = getDefaultTurnEngine().getSkillService().readSkillBody(input.name);
+      const skillService = getDefaultAgentRuntime().getSkillService();
+      const body = skillService ? skillService.readSkillBody(input.name) : null;
       if (body === null) {
         throw new TRPCError({ code: 'NOT_FOUND', message: `Skill not found: ${input.name}` });
       }
@@ -81,8 +83,8 @@ export const appRouter = router({
     }),
 
     getActive: protectedProcedure.query(() => {
-      const engine = getDefaultTurnEngine();
-      const activeModel = engine.getModelRegistry().resolveActiveModel();
+      const runtime = getDefaultAgentRuntime();
+      const activeModel = runtime.getModelRegistry().resolveActiveModel();
       return {
         hasActiveModel: !!activeModel,
         activeModel: activeModel
@@ -225,7 +227,7 @@ export const appRouter = router({
       return executeTerminalAction(input);
     }),
 
-  // Rover Turns & Pi Agent Loop router (Ticket 005)
+  // Rover Turns & AgentRuntime router (ADR-0018 & ADR-0019 & Ticket 014c)
   turns: router({
     start: protectedProcedure
       .input(
@@ -235,8 +237,8 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input }) => {
-        const engine = getDefaultTurnEngine();
-        const activeModel = engine.getModelRegistry().resolveActiveModel();
+        const runtime = getDefaultAgentRuntime();
+        const activeModel = runtime.getModelRegistry().resolveActiveModel();
         if (!activeModel) {
           throw new TRPCError({
             code: 'PRECONDITION_FAILED',
@@ -245,10 +247,15 @@ export const appRouter = router({
         }
         const turnId = input.turnId || crypto.randomUUID();
         // Fire-and-forget background execution, frontend subscribes via WebSocket
-        void engine.executeTurn({
-          turnId,
-          promptDoc: input.promptDoc,
-        });
+        void runtime
+          .prompt({
+            turnId,
+            promptDoc: input.promptDoc,
+            model: activeModel,
+          })
+          .catch((err) => {
+            console.error('[Transport] runtime.prompt error in turns.start:', err);
+          });
         return {
           turnId,
           status: 'running' as const,
@@ -258,14 +265,46 @@ export const appRouter = router({
     cancel: protectedProcedure
       .input(z.object({ turnId: z.string().min(1) }))
       .mutation(({ input }) => {
-        const engine = getDefaultTurnEngine();
-        const success = engine.cancelTurn(input.turnId);
-        return { success, turnId: input.turnId };
+        const runtime = getDefaultAgentRuntime();
+        runtime.abortPrompt();
+        return { success: true, turnId: input.turnId };
       }),
 
+    steer: protectedProcedure
+      .input(
+        z.object({
+          content: z.string().min(1),
+        })
+      )
+      .mutation(({ input }) => {
+        const runtime = getDefaultAgentRuntime();
+        runtime.steer({ content: input.content });
+        return { success: true };
+      }),
+
+    followUp: protectedProcedure
+      .input(
+        z.object({
+          content: z.string().min(1),
+        })
+      )
+      .mutation(({ input }) => {
+        const runtime = getDefaultAgentRuntime();
+        runtime.followUp({ content: input.content });
+        return { success: true };
+      }),
+
+    clearAllQueues: protectedProcedure.mutation(() => {
+      const runtime = getDefaultAgentRuntime();
+      runtime.clearAllQueues();
+      return { success: true };
+    }),
+
     get: protectedProcedure.input(z.object({ turnId: z.string().min(1) })).query(({ input }) => {
-      const engine = getDefaultTurnEngine();
-      return engine.getTurnDetails(input.turnId);
+      const db = getDefaultDatabase().raw;
+      const turn = getRoverTurn(db, input.turnId);
+      const entries = getTurnEntries(db, input.turnId);
+      return { turn, entries };
     }),
   }),
 

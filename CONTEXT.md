@@ -7,6 +7,15 @@ Rover Agent 接收用户输入，直接回答或按照 Skill 处理；需要本�
 **Rover 输入回合**:
 一次用户输入及 Rover 对它的即时回复、澄清问题、能力说明或派发结果。Rover 给出其中一种结果后，本轮处理结束；已派发 Task 的执行不延长这一回合。回合只是界面和执行周期的边界，不创建新的 Agent history。界面只呈现当前回合，不提供 Rover 会话列表。
 
+**AgentRuntime（Agent 运行时回路）**:
+负责维护底层 Agent 实例、调度 Prompt / Steer / Follow-Up 三模态输入队列、分发生命周期 Callbacks 的纯领域核心执行回路。它不持有 SQLite 数据库或网络广播连接，专注于交互推进与推理控制。
+_Ref_: ADR-0019
+_Avoid_: RoverTurnEngine、执行引擎
+
+**CQRS 查询（只读查询分离）**:
+Rover 架构中将改变 Agent 执行状态的命令与读取历史状态的只读查询在通道与生命周期上的彻底解耦。写操作（启动、插话、追问、取消）全量流经 `AgentRuntime`；读操作（回合记录、历史 Entry 检索）直接面向底层 Storage 数据库，严禁为只读操作唤醒或依赖执行运行时实例。
+_Ref_: ADR-0019
+
 **Rover Agent history**:
 Rover Agent 跨用户目标持续使用的全局上下文，不按项目划分。用户补充澄清信息或开始另一个目标时仍沿用这份上下文；回忆旧任务时，检索到的 Task 摘要可作为本轮工具结果进入 history。它不是 Task 与 Session 关联的事实来源。
 

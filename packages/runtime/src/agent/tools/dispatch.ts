@@ -14,20 +14,14 @@ import {
   launchDispatch,
   confirmNativeSession,
 } from '../../dispatch/dispatcher.js';
-import {
-  ScreenSessionCarrier,
-  type SessionCarrier,
-} from '../../dispatch/carrier.js';
+import { ScreenSessionCarrier, type SessionCarrier } from '../../dispatch/carrier.js';
 import type { WebSocketManager } from '../../transport/websocket.js';
 import type { TaskAgent } from '../../storage/types.js';
 
 export const DispatchAgentParams = Type.Object({
-  agent: Type.Union([
-    Type.Literal('claude'),
-    Type.Literal('opencode'),
-    Type.Literal('codex'),
-  ], {
-    description: "The CLI coding agent to dispatch ('claude' is recommended default, 'opencode' or 'codex')",
+  agent: Type.Union([Type.Literal('claude'), Type.Literal('opencode'), Type.Literal('codex')], {
+    description:
+      "The CLI coding agent to dispatch ('claude' is recommended default, 'opencode' or 'codex')",
   }),
   cwd: Type.String({
     description: 'Absolute path to the target working directory where the agent should execute',

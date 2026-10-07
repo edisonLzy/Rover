@@ -98,6 +98,7 @@ export interface PromptInput {
 export interface AgentRuntimeOptions {
   modelRegistry?: ModelRegistry;
   skillService?: BuiltinSkillService;
+  skillsDir?: string;
   systemPromptService?: SystemPromptService;
   systemPrompt?: string;
   tools?: AgentTool[];

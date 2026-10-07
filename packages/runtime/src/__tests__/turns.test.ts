@@ -11,7 +11,7 @@ import {
   getTurnEntries,
   type RoverDatabase,
 } from '../storage/index.js';
-import { RoverTurnEngine } from '../agent/engine.js';
+import { createAgentRuntime } from '../agent/factory.js';
 import { ModelRegistry } from '../models/registry.js';
 import type { PromptDocumentV1 } from '../types/prompt.js';
 import type { WebSocketManager } from '../transport/websocket.js';
@@ -37,14 +37,17 @@ function createMockAssistantMessage(partial: Partial<AssistantMessage>): Assista
   } as AssistantMessage;
 }
 
-describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', () => {
+describe('AgentRuntime 回合执行与流式响应 (Ticket 014c & ADR-0019)', () => {
   let db: RoverDatabase;
   let modelRegistry: ModelRegistry;
   let testModel: Model<any>;
   let tempConfigPath: string;
 
   beforeEach(() => {
-    tempConfigPath = path.join(os.tmpdir(), `rover-turns-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+    tempConfigPath = path.join(
+      os.tmpdir(),
+      `rover-turns-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`
+    );
     db = openDatabase({ path: ':memory:' });
     runMigrations(db.raw);
 
@@ -62,7 +65,6 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
     };
 
     modelRegistry = new ModelRegistry(tempConfigPath);
-    // Inject mock provider and model
     modelRegistry.saveConfig({
       active: { provider: 'test-provider', model: 'test-model' },
       providers: {
@@ -130,7 +132,7 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
         return stream;
       };
 
-      const engine = new RoverTurnEngine({
+      const runtime = createAgentRuntime({
         db,
         modelRegistry,
         streamFn: mockStreamFn as any,
@@ -142,65 +144,60 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
         parts: [{ type: 'text', text: '你好 Rover' }],
       };
 
-      const result = await engine.executeTurn({
+      const turnId = await runtime.prompt({
         promptDoc,
         model: testModel,
       });
 
-      // 验证最终状态
-      expect(result.status).toBe('completed');
-      expect(result.error).toBeNull();
+      await runtime.waitForIdle();
 
       // 验证 rover_turn 数据库记录
-      const turnRecord = getRoverTurn(db.raw, result.turnId);
+      const turnRecord = getRoverTurn(db.raw, turnId);
       expect(turnRecord).not.toBeNull();
       expect(turnRecord?.status).toBe('completed');
       expect(turnRecord?.completedAt).toBeGreaterThan(0);
 
       // 验证 rover_entry 中有完整的 user 消息和 assistant 消息
-      const entries = getTurnEntries(db.raw, result.turnId);
-      expect(entries).toHaveLength(2);
-      expect(entries[0].data.role).toBe('user');
-      expect(entries[0].data.content).toBe('你好 Rover');
-      expect(entries[1].data.role).toBe('assistant');
-      expect((entries[1].data.content as any)[0].text).toBe('你好！我是 Rover 助手。');
+      const entries = getTurnEntries(db.raw, turnId);
+      expect(entries.length).toBe(2);
 
-      // 验证 WebSocket 广播了连续的 turn.started, turn.delta, turn.end
-      const eventTypes = emittedEvents.map((e) => e.type);
-      expect(eventTypes).toContain('turn.started');
-      expect(eventTypes).toContain('turn.delta');
-      expect(eventTypes).toContain('turn.end');
+      const userEntry = entries[0];
+      expect(userEntry.type).toBe('message');
+      expect(userEntry.data.role).toBe('user');
+      expect(userEntry.data.content).toBe('你好 Rover');
 
-      const endEvent = emittedEvents.find((e) => e.type === 'turn.end');
-      expect(endEvent?.payload.status).toBe('completed');
+      const assistantEntry = entries[1];
+      expect(assistantEntry.type).toBe('message');
+      expect(assistantEntry.data.role).toBe('assistant');
+      expect((assistantEntry.data.content as any)[0].text).toBe('你好！我是 Rover 助手。');
+
+      // 验证 WebSocket 广播了完整的事件流
+      expect(emittedEvents.some((e) => e.type === 'turn.started')).toBe(true);
+      expect(emittedEvents.some((e) => e.type === 'turn.step_started')).toBe(true);
+      expect(emittedEvents.some((e) => e.type === 'turn.delta')).toBe(true);
+      expect(emittedEvents.some((e) => e.type === 'turn.end')).toBe(true);
     });
   });
 
-  describe('2. 受控工具调用与 WAL (先行日志) 顺序落盘', () => {
-    it('在工具执行前先持久化 assistant(toolCall)，工具返回后落盘 toolResult，严格遵守 WAL 原则', async () => {
+  describe('2. 工具调用与状态机执行周期中严格保证 WAL 先行落盘', () => {
+    it('大模型要求调用工具时，在工具实际执行前，助理的 toolCall 消息已被写入数据库 (WAL)', async () => {
       let toolExecuted = false;
       let assistantEntryPersistedBeforeTool = false;
-
-      const MockToolParams = Type.Object({
-        query: Type.String({ description: 'Search query' }),
-      });
 
       const mockTool: AgentTool = {
         name: 'mock_search',
         label: 'Mock Search',
         description: 'Mock search tool',
-        parameters: MockToolParams,
-        execute: async (toolCallId, params) => {
-          // 此时验证 assistant 消息是否已经先行落库 (WAL 原则)
-          const currentEntries = getTurnEntries(db.raw, 'turn_wal_test');
-          if (currentEntries.some((e) => e.data.role === 'assistant')) {
-            assistantEntryPersistedBeforeTool = true;
-          }
-
+        parameters: Type.Object({
+          query: Type.String(),
+        }),
+        execute: async (_toolCallId, params) => {
+          const entries = getTurnEntries(db.raw, 'turn_wal_test');
+          assistantEntryPersistedBeforeTool = entries.some((e) => e.data.role === 'assistant');
           toolExecuted = true;
           return {
             content: [{ type: 'text', text: `Result for query: ${(params as any).query}` }],
-            details: { toolCallId },
+            details: { toolCallId: _toolCallId },
           };
         },
       };
@@ -239,7 +236,7 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
         return stream;
       };
 
-      const engine = new RoverTurnEngine({
+      const runtime = createAgentRuntime({
         db,
         modelRegistry,
         streamFn: mockStreamFn as any,
@@ -251,12 +248,15 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
         parts: [{ type: 'text', text: '帮我搜索 test query' }],
       };
 
-      const result = await engine.executeTurn({
+      const turnId = await runtime.prompt({
         turnId: 'turn_wal_test',
         promptDoc,
+        model: testModel,
       });
 
-      expect(result.status).toBe('completed');
+      await runtime.waitForIdle();
+
+      expect(turnId).toBe('turn_wal_test');
       expect(toolExecuted).toBe(true);
       // 验证核心 WAL 约束：工具执行前已经落盘！
       expect(assistantEntryPersistedBeforeTool).toBe(true);
@@ -277,7 +277,7 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
   });
 
   describe('3. 主动取消控制 (Cancellation)', () => {
-    it('调用 cancelTurn 能够中断 Agent 运行并将 rover_turn 标记为 cancelled，已写入记录不被删除', async () => {
+    it('调用 abortPrompt 能够中断 Agent 运行并将 rover_turn 标记为 cancelled，已写入记录不被删除', async () => {
       let streamCancelled = false;
 
       const mockStreamFn = (_model: any, _context: any, options: any) => {
@@ -286,7 +286,7 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
           () => ({ role: 'assistant', content: [], model: 'test', stopReason: 'aborted' }) as any
         );
 
-        if (options.signal) {
+        if (options?.signal) {
           options.signal.addEventListener('abort', () => {
             streamCancelled = true;
             const abortedMsg = {
@@ -304,7 +304,7 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
         return stream;
       };
 
-      const engine = new RoverTurnEngine({
+      const runtime = createAgentRuntime({
         db,
         modelRegistry,
         streamFn: mockStreamFn as any,
@@ -316,20 +316,25 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
       };
 
       // 异步触发 turn
-      const turnPromise = engine.executeTurn({
+      const turnPromise = runtime.prompt({
         turnId: 'turn_cancel_test',
         promptDoc,
+        model: testModel,
       });
 
-      // 短暂延时后调用 cancel
+      // 短暂延时后调用 abortPrompt
       await new Promise((r) => setTimeout(r, 50));
-      expect(engine.isTurnRunning('turn_cancel_test')).toBe(true);
+      expect(runtime.isTurnRunning('turn_cancel_test')).toBe(true);
 
-      const cancelSuccess = engine.cancelTurn('turn_cancel_test');
-      expect(cancelSuccess).toBe(true);
+      runtime.abortPrompt();
 
-      const result = await turnPromise;
-      expect(result.status).toBe('cancelled');
+      try {
+        await turnPromise;
+      } catch {
+        // Abort might throw or resolve
+      }
+      await runtime.waitForIdle();
+
       expect(streamCancelled).toBe(true);
 
       // 验证 rover_turn 状态为 cancelled
@@ -344,13 +349,13 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
   });
 
   describe('4. 异常容错性 (No Crash)', () => {
-    it('当未配置激活模型或提供商不存在时，返回结构化错误码，状态置为 failed 且进程不崩溃', async () => {
+    it('当未配置激活模型或提供商不存在时，状态置为 failed 且数据库记录留痕', async () => {
       // 构造未配置模型的空注册中心
       const emptyConfigPath = path.join(os.tmpdir(), `rover-turns-empty-${Date.now()}.json`);
       const emptyRegistry = new ModelRegistry(emptyConfigPath);
       emptyRegistry.saveConfig({ providers: {} });
 
-      const engine = new RoverTurnEngine({
+      const runtime = createAgentRuntime({
         db,
         modelRegistry: emptyRegistry,
       });
@@ -360,13 +365,18 @@ describe('Pi Agent Loop 回合引擎与流式响应 (Ticket 005 & ADR-0014)', ()
         parts: [{ type: 'text', text: '没有模型测试' }],
       };
 
-      const result = await engine.executeTurn({
-        turnId: 'turn_fail_test',
-        promptDoc,
-      });
+      let thrownError: Error | null = null;
+      try {
+        await runtime.prompt({
+          turnId: 'turn_fail_test',
+          promptDoc,
+        });
+      } catch (err) {
+        thrownError = err as Error;
+      }
 
-      expect(result.status).toBe('failed');
-      expect(result.error).toContain('No active model configured');
+      expect(thrownError).not.toBeNull();
+      expect(thrownError?.message).toContain('No active model configured');
 
       const turn = getRoverTurn(db.raw, 'turn_fail_test');
       expect(turn?.status).toBe('failed');

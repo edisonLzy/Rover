@@ -1,6 +1,6 @@
 # 014c: Transport 路由切换、CQRS 查询剥离与老旧 Engine/Handler 下线清理
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 014b  
 **Blocks**: 016, 017  
 
@@ -36,17 +36,21 @@
 
 - `packages/runtime/src/transport/router.ts`
 - `packages/runtime/src/agent/index.ts`
+- `packages/runtime/src/agent/factory.ts`
 - `packages/runtime/src/expose.ts`
 - `packages/runtime/src/__tests__/turns.test.ts`
+- `packages/runtime/src/__tests__/engine_tools.test.ts`
+- `packages/runtime/src/__tests__/transport.test.ts`
 - 物理删除：`packages/runtime/src/agent/engine.ts`
 - 物理删除：`packages/runtime/src/agent/handler.ts`
+- 物理删除：`packages/runtime/src/__tests__/handler.test.ts`
 
 ## Acceptance Criteria
 
-- [ ] tRPC `turns.*` 路由全面跑通，前端能正常发起回合、插话（steer）、排队（followUp）以及取消。
-- [ ] `turns.get` 直接由 storage 提供数据，不再依赖运行时实例。
-- [ ] 物理删除旧有 `engine.ts` 与 `handler.ts` 后，项目编译零类型报错（`pnpm typecheck` 绿灯）。
-- [ ] 既有测试套件与新增单测全量通过（`pnpm test` 绿灯）。
+- [x] tRPC `turns.*` 路由全面跑通，前端能正常发起回合、插话（steer）、排队（followUp）以及取消。
+- [x] `turns.get` 直接由 storage 提供数据，不再依赖运行时实例。
+- [x] 物理删除旧有 `engine.ts` 与 `handler.ts` 后，项目编译零类型报错（`pnpm typecheck` 绿灯）。
+- [x] 既有测试套件与新增单测全量通过（`pnpm test` 绿灯）。
 
 ## Verification Plan
 
