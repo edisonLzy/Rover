@@ -28,6 +28,22 @@ Use Node `24.21.0` from `.node-version`, pnpm `10.11.0`, and a Rust toolchain fo
 
 Use strict TypeScript and ESM imports with `.js` suffixes for local modules. Oxfmt enforces two-space indentation, single quotes, semicolons, ES5 trailing commas, and a 100-column width. Oxlint checks correctness. Use PascalCase for React components and types, camelCase for functions and variables, and `use…` for hooks. Follow neighboring module naming. Persist and synchronize cross-WebView state; module memory is separate per window.
 
+## Module Architecture & File Discipline
+
+- **Avoid Barrel Export Files**: Never create internal barrel export files (`index.ts` files that merely re-export entire folders or child modules via `export *`). Import directly from the specific module source file using exact relative paths with `.js` extensions (e.g. `import { TurnContext } from './types.js'`). Barrel files cause circular dependencies, hinder tree-shaking, obscure dependencies, and degrade test isolation. Public API re-exports are strictly limited to designated package boundaries (e.g. `packages/runtime/src/expose.ts`).
+- **No Exploratory or Scratch Files**: Do not generate exploratory test scripts, scratchpads, or barrier files directly inside the repository tree. All behavioral exploration and verification must be done via memory-based Vitest unit tests in `src/__tests__/` or temporary test fixtures that are cleaned up immediately.
+
+## Ticket & Specification Guidelines
+
+All tasks in `docs/tickets/` follow Matt Pocock's Tracer-Bullet Ticket methodology. When authoring or revising tickets:
+
+- **Explicit Directory Tree & File Inventory**: Every ticket must include an explicit ASCII directory tree under an `Affected Components & Directory Structure` section.
+- **Strict File Status Annotations**: Clearly label all affected files:
+  - `+ [New]`: Planned new files with explicit file paths and single-responsibility descriptions.
+  - `* [Modified]`: Existing files to be changed, specifying the scope of modification.
+  - `- [Deleted/Moved]`: Files to be removed, deprecated, or relocated.
+- **Strict Scope Boundaries**: Agents must never invent arbitrary file layouts or scaffold unapproved files outside the agreed-upon ticket directory tree.
+
 ## Testing Guidelines
 
 Use Vitest files named `*.test.ts` or `*.test.tsx`. Run focused suites with `pnpm --filter @rover/runtime test` or `pnpm --filter @rover/app test`. Cover changed behavior, including failure paths and event/state transitions. No numeric coverage threshold is configured. Run relevant checks before submitting; sidecar changes also require smoke tests.

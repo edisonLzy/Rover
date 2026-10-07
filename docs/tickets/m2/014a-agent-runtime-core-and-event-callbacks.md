@@ -1,8 +1,8 @@
 # 014a: AgentRuntime 纯领域核心与 Event Callbacks 契约
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 005  
-**Blocks**: 014b  
+**Blocks**: 014b
 
 ## Context & Goal
 
@@ -11,12 +11,12 @@
 ## Specification & Invariants
 
 1. **生命周期回调接口 (`AgentRuntimeEventCallbacks`)**：
-   - 位于 `packages/runtime/src/agent/runtime/types.ts`；
+   - 位于 `packages/runtime/src/agent/types.ts`；
    - 包含可选方法：`onTurnStart`, `onTurnStepStart`, `onMessageDelta`, `onMessageEnd`, `onToolExecutionStart`, `onToolExecutionEnd`, `onTurnEnd`, `onError`；
    - 定义 `TurnContext` 规范（携带 `turnId`, `sessionId`, `userPrompt`, `model`, `startTime`）。
 
 2. **核心运行时 (`AgentRuntime`) 纯领域实现**：
-   - 位于 `packages/runtime/src/agent/runtime/agent-runtime.ts`；
+   - 位于 `packages/runtime/src/agent/runtime.ts`；
    - 支持动态管理 Callbacks：`addEventCallbacks(callbacks): () => void`；
    - 安全触发分发：`triggerCallback(method, ...args): Promise<void>`，对单个 Callback 内部抛错进行容错隔离，不阻断核心 Agent 执行；
    - 维护长寿命或受控生命周期的内部 `Agent` 实例；
@@ -37,22 +37,29 @@
 3. **零外部副作用原则**：
    - `AgentRuntime` 的构造函数与执行链路中严禁引入 `better-sqlite3`、`Database` 实例或 `WebSocketManager`。
 
-## Affected Components & Files
+## Affected Components & Directory Structure
 
-- `packages/runtime/src/agent/runtime/types.ts`：定义 Callbacks 与 Context 契约。
-- `packages/runtime/src/agent/runtime/agent-runtime.ts`：实现核心 Runtime 逻辑。
-- `packages/runtime/src/__tests__/agent_runtime.test.ts`：纯内存环境的单元测试。
+```text
+packages/runtime/
+├── src/
+│   ├── __tests__/
+│   │   └── + [New] agent_runtime.test.ts          # 纯内存环境下的 AgentRuntime 与 Callbacks 单元测试
+│   └── agent/
+│       ├── * [Modified] index.ts                 # 导出 AgentRuntime 与类型定义 (直接导出，无多层 barrel)
+│       ├── + [New] runtime.ts                    # AgentRuntime 纯领域核心实现
+│       └── + [New] types.ts                      # AgentRuntimeEventCallbacks 与 TurnContext 核心契约
+```
 
 ## Acceptance Criteria
 
-- [ ] 在无 SQLite 数据库和无 WebSocket 的纯内存环境下，能正常实例化 `AgentRuntime` 并注册 Mock Callbacks。
-- [ ] 外部调用 `prompt()` 时，能精准在前置时机收到 `onTurnStart` 回调，且携带完整的 `TurnContext`。
-- [ ] 驱动 Mock 模型时，按序收到 `onTurnStepStart`、`onMessageDelta`、`onMessageEnd`、`onTurnEnd`。
-- [ ] 单个 Callback 故意抛出异常时，其余 Callback 正常执行，`AgentRuntime` 不崩溃。
-- [ ] 支持 `steer` 与 `followUp` 队列调度，`clearAllQueues` 能清空未消费消息。
+- [x] 在无 SQLite 数据库和无 WebSocket 的纯内存环境下，能正常实例化 `AgentRuntime` 并注册 Mock Callbacks。
+- [x] 外部调用 `prompt()` 时，能精准在前置时机收到 `onTurnStart` 回调，且携带完整的 `TurnContext`。
+- [x] 驱动 Mock 模型时，按序收到 `onTurnStepStart`、`onMessageDelta`、`onMessageEnd`、`onTurnEnd`。
+- [x] 单个 Callback 故意抛出异常时，其余 Callback 正常执行，`AgentRuntime` 不崩溃。
+- [x] 支持 `steer` 与 `followUp` 队列调度，`clearAllQueues` 能清空未消费消息。
 
 ## Verification Plan
 
 ```bash
-pnpm --filter @rover/runtime test packages/runtime/src/__tests__/agent_runtime.test.ts
+pnpm --filter @rover/runtime test src/__tests__/agent_runtime.test.ts
 ```

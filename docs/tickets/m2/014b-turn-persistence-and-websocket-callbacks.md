@@ -2,7 +2,7 @@
 
 **Status**: TODO  
 **Blocked By**: 014a  
-**Blocks**: 014c  
+**Blocks**: 014c
 
 ## Context & Goal
 
@@ -11,7 +11,7 @@
 ## Specification & Invariants
 
 1. **`TurnPersistenceCallbacks`（存储层实现）**：
-   - 位于 `packages/runtime/src/agent/runtime/callbacks/persistence.ts`；
+   - 位于 `packages/runtime/src/agent/persistence_callbacks.ts`；
    - 依赖注入 `RoverDatabase`；
    - `onTurnStart(context)`：
      - 在数据库事务内原子创建 `rover_turn (status='running')` 并写入首条 user 类型的 `rover_entry`；
@@ -23,7 +23,7 @@
    - 上下文预算检查：在回合执行前集成既有的 `assessContextBudget`。
 
 2. **`WebSocketBroadcastCallbacks`（网络层实现）**：
-   - 位于 `packages/runtime/src/agent/runtime/callbacks/broadcast.ts`；
+   - 位于 `packages/runtime/src/agent/broadcast_callbacks.ts`；
    - 依赖注入既有的 `WebSocketManager`；
    - 保持与既有前端协议（ADR-0017）100% 兼容：
      - `onTurnStart` ➔ 广播 `turn.started`；
@@ -38,11 +38,17 @@
 3. **独立可测试性**：
    - 编写集成测试，挂载两个 Callbacks 到 `AgentRuntime`，验证从用户输入到落库及广播的全生命周期闭环。
 
-## Affected Components & Files
+## Affected Components & Directory Structure
 
-- `packages/runtime/src/agent/runtime/callbacks/persistence.ts`
-- `packages/runtime/src/agent/runtime/callbacks/broadcast.ts`
-- `packages/runtime/src/__tests__/runtime_callbacks.test.ts`
+```text
+packages/runtime/
+├── src/
+│   ├── __tests__/
+│   │   └── + [New] runtime_callbacks.test.ts      # 持久化与广播 Callbacks 的集成测试
+│   └── agent/
+│       ├── + [New] persistence_callbacks.ts       # Turn 消息先行持久化实现类
+│       └── + [New] broadcast_callbacks.ts         # WebSocket 广播实现类
+```
 
 ## Acceptance Criteria
 
