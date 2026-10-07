@@ -1,11 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { getDefaultContainer, type Container } from '../container.js';
+import type { Container } from '../container.js';
 
 export interface CreateContextOptions {
   req: IncomingMessage;
   res: ServerResponse;
   expectedToken: string;
-  container?: Container;
+  container: Container;
 }
 
 export interface Context {
@@ -58,6 +58,6 @@ export function createContext({
     res,
     token,
     isAuthenticated,
-    container: container ?? getDefaultContainer(),
+    container,
   };
 }

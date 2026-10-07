@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventStream, type AssistantMessage, type Model } from '@earendil-works/pi-ai';
 import { AgentRuntime } from '../runtime/index.js';
 import type {
@@ -338,5 +338,79 @@ describe('AgentRuntime 纯领域核心与 Event Callbacks 契约 (Ticket 014a & 
     await runtime.waitForIdle();
 
     expect(finalStatus).toBe('cancelled');
+  });
+  it('016 starts sequential turns cleanly after idle', async () => {
+    const releases: Array<() => void> = [];
+    const streamFn = vi.fn(() => {
+      const message = createMockAssistantMessage({ content: [{ type: 'text', text: 'done' }] });
+      const stream = new EventStream<any, AssistantMessage>(
+        (e) => e.type === 'done',
+        () => message
+      );
+      releases.push(() => {
+        stream.push({ type: 'done', reason: 'stop', message });
+        stream.end(message);
+      });
+      return stream;
+    });
+    const runtime = new AgentRuntime({ modelRegistry, streamFn: streamFn as any });
+    const starts: TurnContext[] = [];
+    runtime.addEventCallbacks({
+      onTurnStart: (ctx) => {
+        starts.push(ctx);
+      },
+    });
+    const promptDoc: PromptDocumentV1 = {
+      v: 1,
+      parts: [{ type: 'reference', kind: 'inbox', id: 'issue-1', label: '告警' }],
+    };
+    const firstRun = runtime.prompt({ turnId: 'current', promptDoc });
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    await expect(runtime.prompt({ turnId: 'overlap', promptDoc })).rejects.toThrow(
+      'already running'
+    );
+    expect(runtime.getCurrentTurnContext()?.turnId).toBe('current');
+    releases[0]();
+    await firstRun;
+    await runtime.waitForIdle();
+    expect(streamFn).toHaveBeenCalledTimes(1);
+
+    const secondRun = runtime.prompt({
+      turnId: 'next-turn-id',
+      promptDoc,
+    });
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    expect(starts[1]).toMatchObject({
+      turnId: 'next-turn-id',
+      userPrompt: promptDoc,
+    });
+    expect(streamFn).toHaveBeenCalledTimes(2);
+    releases[1]();
+    await secondRun;
+    await runtime.waitForIdle();
+  });
+
+  it('016 preserves native steering messages during execution', async () => {
+    const runtime = new AgentRuntime({
+      modelRegistry,
+      streamFn: (() => {
+        const message = createMockAssistantMessage({ content: [{ type: 'text', text: 'done' }] });
+        const stream = new EventStream<any, AssistantMessage>(
+          (event) => event.type === 'done',
+          () => message
+        );
+        queueMicrotask(() => {
+          stream.push({ type: 'done', reason: 'stop', message });
+          stream.end(message);
+        });
+        return stream;
+      }) as any,
+    });
+    const promptDoc: PromptDocumentV1 = { v: 1, parts: [{ type: 'text', text: 'current' }] };
+    expect(() => {
+      runtime.steer({ role: 'user', content: 'urgent correction' });
+    }).not.toThrow();
+    await runtime.prompt({ promptDoc });
+    await runtime.waitForIdle();
   });
 });

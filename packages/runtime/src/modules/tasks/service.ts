@@ -33,7 +33,7 @@ export class TaskService {
   constructor(private dependencies: TaskServiceDependencies) {}
 
   list(options: ListTasksOptions = {}): TaskSummary[] {
-    const db = this.dependencies.getDatabase();
+    const db = this.dependencies.db;
     return listTasks(db, options).map((task) => ({
       ...task,
       sessionRef: getSessionRef(db, task.id),
@@ -41,7 +41,7 @@ export class TaskService {
   }
 
   get(taskId: string): TaskDetails {
-    const db = this.dependencies.getDatabase();
+    const db = this.dependencies.db;
     const task = requireTask(db, taskId);
     return {
       task,
@@ -51,7 +51,7 @@ export class TaskService {
   }
 
   async openTerminal(taskId: string): Promise<TaskTerminalResult> {
-    const db = this.dependencies.getDatabase();
+    const db = this.dependencies.db;
     const task = requireTask(db, taskId);
     const sessionRef = getSessionRef(db, taskId);
     if (!sessionRef) {

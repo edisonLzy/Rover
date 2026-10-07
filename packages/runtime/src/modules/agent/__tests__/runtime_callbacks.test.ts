@@ -197,6 +197,52 @@ describe('Turn 消息先行持久化与 WebSocket 广播 Callbacks (Ticket 014b 
     expect(typeof startEvent?.payload.eventSeq).toBe('number');
   });
 
+  it('016 preserves structured references in a new turn', async () => {
+    const events: Array<{ type: string; payload: any }> = [];
+    const message = createMockAssistantMessage({ content: [{ type: 'text', text: 'done' }] });
+    const runtime = new AgentRuntime({
+      modelRegistry,
+      streamFn: (() => {
+        const stream = new EventStream<any, AssistantMessage>(
+          (event) => event.type === 'done',
+          () => message
+        );
+        queueMicrotask(() => {
+          stream.push({ type: 'done', reason: 'stop', message });
+          stream.end(message);
+        });
+        return stream;
+      }) as any,
+    });
+    runtime.addEventCallbacks(new TurnPersistenceCallbacks(db));
+    runtime.addEventCallbacks(
+      new WebSocketBroadcastCallbacks({
+        db: db.raw,
+        wsManager: { broadcast: (event: any) => events.push(event) } as unknown as WebSocketManager,
+      })
+    );
+    const promptDoc: PromptDocumentV1 = {
+      v: 1,
+      parts: [
+        { type: 'reference', kind: 'agent', id: 'codex', label: 'Codex' },
+        { type: 'text', text: '检查' },
+        { type: 'reference', kind: 'inbox', id: 'issue-1', label: '告警' },
+      ],
+    };
+    const turnId = await runtime.prompt({
+      promptDoc,
+    });
+    await runtime.waitForIdle();
+    expect(getRoverTurn(db.raw, turnId)?.promptDoc).toEqual(promptDoc);
+    expect(getRoverTurn(db.raw, turnId)?.status).toBe('completed');
+    const firstEntry = getTurnEntries(db.raw, turnId)[0];
+    expect(firstEntry.data.role).toBe('user');
+    expect(typeof firstEntry.data.timestamp).toBe('number');
+    expect(
+      events.some((event) => event.type === 'turn.started' && event.payload.turnId === turnId)
+    ).toBe(true);
+  });
+
   it('2. 验证模型调用异常时，数据库与广播均闭环标记为 failed', async () => {
     const emittedEvents: Array<{ type: string; payload: any }> = [];
     const mockWsManager = {

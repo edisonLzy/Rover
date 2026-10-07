@@ -55,6 +55,7 @@ beforeEach(() => {
     isBusy: false,
     submissionUnavailable: null,
     onSubmit: vi.fn().mockResolvedValue(undefined),
+    onFollowUp: vi.fn().mockResolvedValue(undefined),
   };
 });
 
@@ -260,27 +261,22 @@ describe('012 toolbar and real Tiptap interactions', () => {
     expect(props.onSubmit).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps queued prompts until their request is accepted and allows a retry', async () => {
-    await render({ isBusy: true });
+  it('sends busy prompts to Follow-Up and retains drafts on enqueue failure', async () => {
+    const request = deferred();
+    const onFollowUp = vi.fn(() => request.promise);
+    await render({ isBusy: true, onFollowUp });
     await edit();
     await type('下一条输入');
     await key('Enter');
     expect(props.onSubmit).not.toHaveBeenCalled();
-    expect(host.querySelector('[aria-label="待处理 Prompt"]')!.textContent).toContain('下一条输入');
-    const request = deferred();
-    const onSubmit = vi.fn(() => request.promise);
-    await render({ isBusy: false, onSubmit });
-    const continueButton = () =>
-      [...host.querySelectorAll<HTMLButtonElement>('button')].find(
-        (button) => button.textContent === '继续下一条'
-      )!;
-    await act(async () => continueButton().click());
-    expect(host.querySelector('[aria-label="待处理 Prompt"]')).not.toBeNull();
-    await act(async () => request.reject(new Error('发送失败')));
-    expect(host.querySelector('[aria-label="待处理 Prompt"]')!.textContent).toContain('下一条输入');
-    await render({ onSubmit: vi.fn().mockResolvedValue(undefined) });
-    await act(async () => continueButton().click());
+    expect(onFollowUp).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('[role="textbox"]')!.textContent).toContain('下一条输入');
     expect(host.querySelector('[aria-label="待处理 Prompt"]')).toBeNull();
+    await act(async () => request.reject(new Error('排队失败')));
+    expect(host.querySelector('[role="textbox"]')!.textContent).toContain('下一条输入');
+    await render({ onFollowUp: vi.fn().mockResolvedValue(undefined) });
+    await key('Enter');
+    expect(host.querySelector('[role="textbox"]')!.textContent).toBe('');
   });
 
   it('keeps the Task list mounted while entering and leaving input mode', async () => {

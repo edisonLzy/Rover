@@ -1,13 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { createContainer, getDefaultContainer, resetDefaultContainer } from '../container.js';
+import { describe, it, expect } from 'vitest';
+import { createContainer } from '../container.js';
+import { WebSocketManager } from '../transport/websocket.js';
 
 describe('Container Composition Root (ADR-0020)', () => {
-  beforeEach(() => {
-    resetDefaultContainer();
-  });
+  const wsManager = new WebSocketManager({ expectedToken: 'test-token' });
 
   it('creates an immutable container holding db, models, and skills services', () => {
-    const container = createContainer();
+    const container = createContainer({ wsManager });
 
     expect(container.db).toBeDefined();
     expect(container.models).toBeDefined();
@@ -17,14 +16,11 @@ describe('Container Composition Root (ADR-0020)', () => {
     expect(Object.isFrozen(container)).toBe(true);
   });
 
-  it('manages defaultContainer singleton lifecycle', () => {
-    const c1 = getDefaultContainer();
-    const c2 = getDefaultContainer();
+  it('creates fresh independent containers across calls', () => {
+    const c1 = createContainer({ wsManager });
+    const c2 = createContainer({ wsManager });
 
-    expect(c1).toBe(c2);
-
-    resetDefaultContainer();
-    const c3 = getDefaultContainer();
-    expect(c3).not.toBe(c1);
+    expect(c1).not.toBe(c2);
+    expect(c1.agent).not.toBe(c2.agent);
   });
 });

@@ -1,16 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { turnsRouter, historyRouter } from '../router.js';
-import { DefaultAgentService } from '../service.js';
-import type { AgentService } from '../types.js';
+import { AgentService } from '../service.js';
 import type { AgentRuntime } from '../runtime/index.js';
 
 describe('AgentService & Router DI Isolation Tests', () => {
   it('correctly maps turnsRouter procedures to ctx.container.agent', async () => {
-    const mockAgentService: AgentService = {
+    const mockAgentService = {
       startTurn: vi.fn().mockResolvedValue({ turnId: 'turn-123', status: 'running' }),
       cancelTurn: vi.fn().mockReturnValue({ success: true, turnId: 'turn-123' }),
       steer: vi.fn().mockReturnValue({ success: true }),
-      followUp: vi.fn().mockReturnValue({ success: true }),
       clearAllQueues: vi.fn().mockReturnValue({ success: true }),
       getTurn: vi.fn().mockReturnValue({ turn: null, entries: [] }),
       getFeed: vi.fn().mockReturnValue([]),
@@ -25,7 +23,7 @@ describe('AgentService & Router DI Isolation Tests', () => {
         .fn()
         .mockReturnValue({ compaction: null, messages: [], latestSeq: 0 }),
       listTurns: vi.fn().mockReturnValue([]),
-    };
+    } as unknown as AgentService;
 
     const caller = turnsRouter.createCaller({
       req: {} as any,
@@ -40,7 +38,10 @@ describe('AgentService & Router DI Isolation Tests', () => {
       turnId: 'turn-123',
     });
     expect(startRes).toEqual({ turnId: 'turn-123', status: 'running' });
-    expect(mockAgentService.startTurn).toHaveBeenCalled();
+    expect(mockAgentService.startTurn).toHaveBeenCalledWith({
+      promptDoc: { v: 1, parts: [{ type: 'text', text: 'Hello' }] },
+      turnId: 'turn-123',
+    });
 
     const cancelRes = await caller.cancel({ turnId: 'turn-123' });
     expect(cancelRes).toEqual({ success: true, turnId: 'turn-123' });
@@ -49,10 +50,6 @@ describe('AgentService & Router DI Isolation Tests', () => {
     const steerRes = await caller.steer({ content: 'Steer info' });
     expect(steerRes).toEqual({ success: true });
     expect(mockAgentService.steer).toHaveBeenCalledWith('Steer info');
-
-    const followUpRes = await caller.followUp({ content: 'Follow up info' });
-    expect(followUpRes).toEqual({ success: true });
-    expect(mockAgentService.followUp).toHaveBeenCalledWith('Follow up info');
 
     const clearRes = await caller.clearAllQueues();
     expect(clearRes).toEqual({ success: true });
@@ -64,11 +61,10 @@ describe('AgentService & Router DI Isolation Tests', () => {
   });
 
   it('correctly maps historyRouter procedures to ctx.container.agent', async () => {
-    const mockAgentService: AgentService = {
+    const mockAgentService = {
       startTurn: vi.fn(),
       cancelTurn: vi.fn(),
       steer: vi.fn(),
-      followUp: vi.fn(),
       clearAllQueues: vi.fn(),
       getTurn: vi.fn().mockReturnValue({ turn: null, entries: [] }),
       getFeed: vi.fn().mockReturnValue([{ id: 'entry-1', seq: 1 } as any]),
@@ -83,7 +79,7 @@ describe('AgentService & Router DI Isolation Tests', () => {
         .fn()
         .mockReturnValue({ compaction: null, messages: [], latestSeq: 1 }),
       listTurns: vi.fn().mockReturnValue([]),
-    };
+    } as unknown as AgentService;
 
     const caller = historyRouter.createCaller({
       req: {} as any,
@@ -114,17 +110,18 @@ describe('AgentService & Router DI Isolation Tests', () => {
     expect(mockAgentService.getTurn).toHaveBeenCalledWith('turn-1');
   });
 
-  it('DefaultAgentService throws when no active model is resolved on startTurn', async () => {
+  it('AgentService throws when no active model is resolved on startTurn', async () => {
     const mockRuntime: Partial<AgentRuntime> = {
+      isTurnRunning: () => false,
       getModelRegistry: () =>
         ({
           resolveActiveModel: () => undefined,
         }) as any,
     };
 
-    const service = new DefaultAgentService({
-      getRuntime: () => mockRuntime as AgentRuntime,
-      getDatabase: () => ({}) as any,
+    const service = new AgentService({
+      runtime: mockRuntime as AgentRuntime,
+      db: {} as any,
     });
 
     await expect(

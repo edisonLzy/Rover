@@ -145,7 +145,7 @@ export interface TaskService {
 }
 
 export interface TaskServiceDependencies {
-  getDatabase: () => Database.Database;
+  db: Database.Database;
   carrier: SessionCarrier;
   registry: AgentRegistry;
   executeTerminal: (action: TerminalAction) => Promise<TerminalExecutionResult>;

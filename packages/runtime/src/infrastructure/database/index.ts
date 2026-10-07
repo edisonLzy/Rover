@@ -1,11 +1,4 @@
-export {
-  openDatabase,
-  resolveDatabasePath,
-  getDefaultDatabase,
-  setDefaultDatabase,
-  resetDefaultDatabase,
-  DEFAULT_BUSY_TIMEOUT_MS,
-} from './client.js';
+export { openDatabase, resolveDatabasePath, DEFAULT_BUSY_TIMEOUT_MS } from './client.js';
 
 export {
   runMigrations,

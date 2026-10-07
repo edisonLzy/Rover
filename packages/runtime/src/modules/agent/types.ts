@@ -224,20 +224,7 @@ export interface TurnDetails {
   entries: RoverEntryRecord<AgentMessage>[];
 }
 
-export interface AgentService {
-  startTurn(input: StartTurnInput): Promise<StartTurnResult>;
-  cancelTurn(turnId: string): { success: boolean; turnId: string };
-  steer(content: string): { success: boolean };
-  followUp(content: string): { success: boolean };
-  clearAllQueues(): { success: boolean };
-  getTurn(turnId: string): TurnDetails;
-  getFeed(options?: ListEntriesOptions): RoverEntryRecord[];
-  getStats(): HistoryStats;
-  getEffectiveHistory(): EffectiveHistory;
-  listTurns(options?: ListRoverTurnsOptions): RoverTurnRecord[];
-}
-
 export interface AgentServiceDependencies {
-  getRuntime: () => import('./runtime/runtime.js').AgentRuntime;
-  getDatabase: () => import('better-sqlite3').Database;
+  runtime: import('./runtime/runtime.js').AgentRuntime;
+  db: import('better-sqlite3').Database;
 }

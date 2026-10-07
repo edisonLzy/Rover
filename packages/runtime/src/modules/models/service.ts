@@ -104,12 +104,3 @@ export class ModelService {
     };
   }
 }
-
-let defaultModelService: ModelService | null = null;
-
-export function getDefaultModelService(): ModelService {
-  if (!defaultModelService) {
-    defaultModelService = new ModelService();
-  }
-  return defaultModelService;
-}

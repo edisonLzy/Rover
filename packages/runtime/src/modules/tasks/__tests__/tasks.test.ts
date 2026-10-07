@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { openDatabase, setDefaultDatabase } from '../../../infrastructure/database/client.js';
+import { openDatabase } from '../../../infrastructure/database/client.js';
 import { runMigrations } from '../../../infrastructure/database/migrator.js';
 import { insertDispatchAttempt, commitTaskWithSession, updateTaskStatus } from '../repository.js';
 import type { RoverDatabase } from '../../../infrastructure/database/types.js';
@@ -35,7 +35,7 @@ beforeEach(() => {
     killSession: vi.fn().mockResolvedValue(true),
   };
   service = createTaskService({
-    getDatabase: () => database.raw,
+    db: database.raw,
     carrier,
     registry: new AgentRegistry(),
     executeTerminal,
@@ -52,7 +52,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  setDefaultDatabase(null);
   database.close();
 });
 
@@ -128,7 +127,6 @@ describe('Task service and route contract', () => {
   });
 
   it('retains the nested appRouter tasks.list and tasks.get endpoints', async () => {
-    setDefaultDatabase(database);
     const caller = appRouter.createCaller(authenticated);
     expect(await caller.tasks.list({ limit: 1 })).toHaveLength(1);
     expect(await caller.tasks.get({ taskId: 'task-one' })).toEqual(service.get('task-one'));

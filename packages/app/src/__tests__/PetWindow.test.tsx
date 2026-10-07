@@ -3,7 +3,8 @@ import { renderToString } from 'react-dom/server';
 import { TaskCard, type TaskItem } from '../features/pet/PetToolbar/Task/TaskCard.js';
 import { Pet } from '../features/pet/Pet/index.js';
 import { PetBubble } from '../features/pet/PetBubble/index.js';
-import { PendingQueue, type PendingPromptItem } from '../features/pet/PetToolbar/PendingQueue.js';
+import { BadgeShelf } from '../features/pet/PetBubble/BadgeShelf.js';
+import type { FollowUpItem } from '../features/pet/useFollowUps.js';
 
 const task: TaskItem = {
   id: 'task_123',
@@ -14,18 +15,17 @@ const task: TaskItem = {
   createdAt: 1000,
   updatedAt: 1200,
 };
-const queue: PendingPromptItem[] = [
+const queue: FollowUpItem[] = [
   {
     id: 'q1',
-    doc: {
+    promptDoc: {
       v: 1,
       parts: [
         { type: 'reference', kind: 'agent', id: 'codex', label: 'Codex' },
         { type: 'text', text: '补充测试用例' },
       ],
     },
-    textSnippet: '@Codex 补充测试用例',
-    createdAt: 1000,
+    timestamp: 1000,
   },
 ];
 
@@ -90,29 +90,21 @@ describe('Pet window prototype interaction states', () => {
     expect(html).toContain('去确认');
   });
 
-  it('shows queued references with continue and defer choices', () => {
+  it('shows structured references on the shelf with sorting and deletion', () => {
     const html = renderToString(
-      <PendingQueue
-        queue={queue}
+      <BadgeShelf
+        items={queue}
         onRemove={vi.fn()}
-        onConfirmNext={vi.fn()}
-        onDefer={vi.fn()}
-        canProceed
+        onReorder={vi.fn()}
+        onAdvance={vi.fn()}
+        canAdvance
+        highlightedId="q1"
       />
     );
-    expect(html).toContain('@Codex 补充测试用例');
-    expect(html).toContain('继续下一条');
-    expect(html).toContain('暂不处理');
-    expect(html).toContain('移除待处理 Prompt 1');
-  });
-
-  it('keeps deferred prompts visible and only offers continuation after the active turn', () => {
-    const props = { queue, onRemove: vi.fn(), onConfirmNext: vi.fn(), onDefer: vi.fn() };
-    expect(renderToString(<PendingQueue {...props} canProceed isDeferred />)).toContain(
-      '已暂停继续处理'
-    );
-    expect(renderToString(<PendingQueue {...props} canProceed={false} />)).not.toContain(
-      '继续下一条'
-    );
+    expect(html).toContain('@Codex补充测试用例');
+    expect(html).toContain('h-[22px]');
+    expect(html).toContain('删除待办');
+    expect(html).toContain('拖动排序');
+    expect(html).not.toContain('继续下一条');
   });
 });

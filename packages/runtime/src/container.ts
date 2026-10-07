@@ -1,20 +1,15 @@
-import { getDefaultDatabase, type RoverDatabase } from './infrastructure/database/index.js';
+import {
+  openDatabase,
+  runMigrations,
+  type RoverDatabase,
+} from './infrastructure/database/index.js';
 import { ModelService, getModelRegistry } from './modules/models/index.js';
 import { SkillService } from './modules/skills/index.js';
 import { TaskService } from './modules/tasks/index.js';
-import {
-  DefaultAgentService,
-  getDefaultAgentRuntime,
-  type AgentService,
-  type AgentRuntime,
-} from './modules/agent/index.js';
-import { defaultSessionCarrier, type SessionCarrier } from './infrastructure/dispatch/carrier.js';
-import { defaultAgentRegistry, type AgentRegistry } from './infrastructure/dispatch/dispatcher.js';
-import {
-  executeTerminalAction,
-  type TerminalAction,
-  type TerminalExecutionResult,
-} from './infrastructure/dispatch/terminal.js';
+import { AgentService, createAgentRuntime } from './modules/agent/index.js';
+import { defaultSessionCarrier } from './infrastructure/dispatch/carrier.js';
+import { defaultAgentRegistry } from './infrastructure/dispatch/dispatcher.js';
+import { executeTerminalAction } from './infrastructure/dispatch/terminal.js';
 import type { WebSocketManager } from './transport/websocket.js';
 
 /**
@@ -31,34 +26,34 @@ export interface Container {
 }
 
 export interface CreateContainerOptions {
-  db?: RoverDatabase;
+  wsManager: WebSocketManager;
   customConfigPath?: string;
   skillsDir?: string;
-  carrier?: SessionCarrier;
-  registry?: AgentRegistry;
-  executeTerminal?: (action: TerminalAction) => Promise<TerminalExecutionResult>;
-  wsManager?: WebSocketManager;
-  agentRuntime?: AgentRuntime;
 }
 
-export function createContainer(options: CreateContainerOptions = {}): Container {
-  const db = options.db ?? getDefaultDatabase();
+export function createContainer(options: CreateContainerOptions): Container {
+  const db = openDatabase();
+  runMigrations(db.raw);
+
   const models = new ModelService(getModelRegistry(options.customConfigPath));
   const skills = new SkillService({ skillsDir: options.skillsDir });
   const tasks = new TaskService({
-    getDatabase: () => db.raw,
-    carrier: options.carrier ?? defaultSessionCarrier,
-    registry: options.registry ?? defaultAgentRegistry,
-    executeTerminal: options.executeTerminal ?? executeTerminalAction,
+    db: db.raw,
+    carrier: defaultSessionCarrier,
+    registry: defaultAgentRegistry,
+    executeTerminal: executeTerminalAction,
   });
 
-  const runtimeProvider = options.agentRuntime
-    ? () => options.agentRuntime!
-    : () => getDefaultAgentRuntime();
+  const agentRuntime = createAgentRuntime({
+    db,
+    skillsDir: options.skillsDir,
+    customConfigPath: options.customConfigPath,
+    wsManager: options.wsManager,
+  });
 
-  const agent = new DefaultAgentService({
-    getRuntime: runtimeProvider,
-    getDatabase: () => db.raw,
+  const agent = new AgentService({
+    runtime: agentRuntime,
+    db: db.raw,
   });
 
   return Object.freeze({
@@ -68,17 +63,4 @@ export function createContainer(options: CreateContainerOptions = {}): Container
     tasks,
     agent,
   });
-}
-
-let defaultContainer: Container | null = null;
-
-export function getDefaultContainer(options?: CreateContainerOptions): Container {
-  if (!defaultContainer || options) {
-    defaultContainer = createContainer(options);
-  }
-  return defaultContainer;
-}
-
-export function resetDefaultContainer(): void {
-  defaultContainer = null;
 }

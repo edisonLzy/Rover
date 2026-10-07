@@ -1,4 +1,4 @@
-export { ModelService, getDefaultModelService } from './service.js';
+export { ModelService } from './service.js';
 
 export { modelsRouter } from './router.js';
 

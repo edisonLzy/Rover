@@ -44,16 +44,6 @@ export const turnsRouter = router({
       return ctx.container.agent.steer(input.content);
     }),
 
-  followUp: protectedProcedure
-    .input(
-      z.object({
-        content: z.string().min(1),
-      })
-    )
-    .mutation(({ ctx, input }) => {
-      return ctx.container.agent.followUp(input.content);
-    }),
-
   clearAllQueues: protectedProcedure.mutation(({ ctx }) => {
     return ctx.container.agent.clearAllQueues();
   }),

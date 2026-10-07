@@ -76,9 +76,9 @@ Rover 作为常驻桌面宠物形态的 AI 助手，在从「单轮用户问答�
 └────────────────────────────────────────────────────────┘
 ```
 
-* **单行横向排布**：单条胶囊高度仅 **22px**，宽度根据文字自适应截断，保证 0 垂直高度拉垮；
+* **单行横向排布**：单条胶囊高度仅 **22px**，每条占横向视口的一半，摘要截断，待办增加不改变徽章架高度；
 * **拖拽排序与删除**：左侧带有抓手图标 `⠿` 支持横向拖拽调换执行顺序；右侧带 `×` 支持随手撤回；
-* **上限与折叠（Cap & Overflow）**：单行最多呈现 **2 ~ 3 个胶囊**，超出时末尾展示 `+N` 折叠指示器，点击或 Hover 展开微型下拉；
+* **上限与横向滚动**：最多同时显示 **两个完整胶囊**，其余待办在同一行横向滚动查看。支持触控板横滑、鼠标滚轮及聚焦后的左右方向键；不展示剩余数量，不展开下方列表；
 * **气泡自动淡出生命周期守卫**：
   * 修正既有 10 秒自动关闭计时器：增加 `followUpQueue.length === 0 && !isThinking` 前置守卫；
   * 当队列中有任务时，气泡坚决不自动淡出；
@@ -98,22 +98,24 @@ Rover 作为常驻桌面宠物形态的 AI 助手，在从「单轮用户问答�
 
 ### 5. 与 `@earendil-works/pi-agent-core` 的原生契约对齐
 
-Rover Runtime 底层基于 `@earendil-works/pi-agent-core`，直接对齐其原生暴露的队列机制：
+Rover Runtime 底层基于 `@earendil-works/pi-agent-core`。016 实现核对发现，原生 Follow-Up 在 `agent_end` 前消费，因此它与跨 Rover 回合的 1.5 秒接力需要不同的调度边界：
 
 1. **API 映射**：
    * `Steer` ➔ `agent.steer(message)`（写入 `steeringQueue`，在每次 Tool 执行间隙及模型请求前优先 Poll）；
-   * `Follow-Up` ➔ `agent.followUp(message)`（写入 `followUpQueue`，在当前轮次所有 Tool 结束且无 Steering 时出队）；
+   * 结构化 `Follow-Up` ➔ Runtime 内存待接力队列（保留 ID、timestamp 和 PromptDocumentV1）；当前 Rover 回合结束后，前端等待 1.5 秒或接受点击，再调用 `turns.startFollowUp` 建立新回合并走正常 `agent.prompt` 与 WAL 路径；
+   * 原有纯文本 `followUp({content})` 继续映射 `agent.followUp(message)`，兼容原生轮次内追问；
 2. **消费出队事件同步**：
    * `pi-agent-core` 在出队消费时派发 `{ type: "message_start", message }`；
-   * 前端 WebSocket 客户端监听到该 `UserMessage` 时，根据 `timestamp`（或 ID）精准将气泡下方的对应 Pill 剔除；
+   * 前端 WebSocket 客户端监听到该 `UserMessage` 时，通过 `turn.message_start` 的 `followUpId` 精准将气泡下方的对应 Pill 剔除，timestamp 保留为消息到达时间；HTTP 接受不等同于实际消费；
 3. **前端重排与删除同步**：
    * 用户在前端拖拽重排或点击 `×` 删除时，前端更新状态后，通过 RPC 调用：
      ```ts
-     await runtime.clearAllQueues();
+     await runtime.clearAllQueues({ followUpsOnly: true });
      for (const msg of remainingPendingList) {
        await runtime.followUp(msg);
      }
      ```
+   * 队列同步串行执行；失败时显示错误并暂停接力。
 
 ---
 
@@ -121,5 +123,5 @@ Rover Runtime 底层基于 `@earendil-works/pi-agent-core`，直接对齐其原�
 
 - **认知负荷归零**：消灭了 3 列表并存的混乱，所有待办在视线焦点（气泡）就地呈现；
 - **贴边物理安全**：组件严格收敛在原本的垂直轴线上，彻底根除屏幕边缘裁切风险；
-- **底层架构严丝合缝**：前后端语义与 `pi-agent-core` 原生机制完全同构，无需 Hack 任何状态机；
+- **底层架构严丝合缝**：前后端语义与 `pi-agent-core` 原生机制完全同构，保持原生回路完整，由 Runtime 显式拥有待接力队列；
 - **肌肉记忆保全**：严格遵守 `Shift+Enter` 换行习惯，用 `Cmd+Enter` 和 `Enter` 分流干预与排队。

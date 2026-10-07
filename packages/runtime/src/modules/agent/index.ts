@@ -1,4 +1,4 @@
-export { DefaultAgentService } from './service.js';
+export { AgentService } from './service.js';
 export { turnsRouter, historyRouter } from './router.js';
 export {
   createRoverTurn,
@@ -17,8 +17,6 @@ export {
 export {
   AgentRuntime,
   createAgentRuntime,
-  getDefaultAgentRuntime,
-  resetDefaultAgentRuntime,
   SystemPromptService,
   assessContextBudget,
   selectCompactionBoundary,
@@ -61,6 +59,5 @@ export type {
   StartTurnInput,
   StartTurnResult,
   TurnDetails,
-  AgentService,
   AgentServiceDependencies,
 } from './types.js';

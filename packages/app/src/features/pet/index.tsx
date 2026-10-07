@@ -12,6 +12,7 @@ import { trpc } from '../../utils/trpc.js';
 import { Pet } from './Pet/index.js';
 import { PetBubble } from './PetBubble/index.js';
 import { PetToolbar } from './PetToolbar/index.js';
+import { useFollowUps } from './useFollowUps.js';
 import type { PromptDocumentV1 } from './PetToolbar/PromptInput/types.js';
 
 export function PetWindow() {
@@ -37,15 +38,19 @@ export function PetWindow() {
         className="pet-shell relative ml-[100px] w-[420px] shrink-0"
         style={{ zoom: scale }}
       >
-        <div className="pet-area relative flex h-[106px] items-center justify-center">
-          <Pet onHoverChange={setPetHovered} />
-          <PetBubble />
+        <div className="pet-area relative grid min-h-[106px] grid-cols-[155px_110px_155px] items-center">
+          <div className="col-start-2 row-start-1 flex justify-center">
+            <Pet onHoverChange={setPetHovered} />
+          </div>
+          <PetBubble scale={scale} followUps={runtime.followUps} isBusy={runtime.isBusy} />
         </div>
         <PetToolbar
           petHovered={petHovered}
           isBusy={runtime.isBusy}
           submissionUnavailable={runtime.submissionUnavailable}
           onSubmit={runtime.submitPrompt}
+          onFollowUp={runtime.followUps.enqueue}
+          hasFollowUps={runtime.followUps.items.length > 0}
         />
       </div>
     </div>
@@ -204,6 +209,15 @@ function usePetRuntime() {
     : !model.data?.hasActiveModel
       ? '请到 Dashboard 配置激活模型'
       : null;
+  const followUps = useFollowUps({
+    isBusy: !!activeTurnId || startTurn.isPending,
+    isOnline: isOnline && !!model.data?.hasActiveModel,
+    onActiveTurn: (turnId) => {
+      if (turnId && finishedTurnIdsRef.current.has(turnId)) return;
+      activeTurnRef.current = turnId;
+      setActiveTurnId(turnId);
+    },
+  });
   const submitPrompt = async (doc: PromptDocumentV1) => {
     if (submissionUnavailable) throw new Error(submissionUnavailable);
     await startTurn.mutateAsync({ promptDoc: doc });
@@ -211,6 +225,7 @@ function usePetRuntime() {
 
   return {
     submitPrompt,
+    followUps,
     submissionUnavailable,
     isBusy: !!activeTurnId || startTurn.isPending,
   };

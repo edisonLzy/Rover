@@ -3,7 +3,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { DatabaseOptions, RoverDatabase } from './types.js';
-import { runMigrations } from './migrator.js';
 
 export const DEFAULT_BUSY_TIMEOUT_MS = 5000;
 
@@ -64,25 +63,4 @@ export function openDatabase(options: DatabaseOptions = {}): RoverDatabase {
     close,
     transaction,
   };
-}
-
-let defaultDbInstance: RoverDatabase | null = null;
-
-export function getDefaultDatabase(options: DatabaseOptions = {}): RoverDatabase {
-  if (!defaultDbInstance) {
-    defaultDbInstance = openDatabase(options);
-    runMigrations(defaultDbInstance.raw);
-  }
-  return defaultDbInstance;
-}
-
-export function setDefaultDatabase(db: RoverDatabase | null): void {
-  defaultDbInstance = db;
-}
-
-export function resetDefaultDatabase(): void {
-  if (defaultDbInstance) {
-    defaultDbInstance.close();
-    defaultDbInstance = null;
-  }
 }

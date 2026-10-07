@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, X } from 'lucide-react';
+import { BadgeShelf } from './BadgeShelf.js';
+import type { useFollowUps } from '../useFollowUps.js';
 import { useRuntime } from '../../../context/RuntimeContext.js';
 
 export interface PetBubbleProps {
   text?: string | null;
+  isBusy?: boolean;
+  scale?: number;
+  followUps?: ReturnType<typeof useFollowUps>;
   isThinking?: boolean;
   isError?: boolean;
   statusLabel?: string;
@@ -88,6 +93,7 @@ function AutonomousPetBubble(props: Omit<PetBubbleProps, 'text'>) {
 
   return (
     <PetBubbleView
+      {...props}
       text={text}
       isThinking={isThinking}
       isError={isError}
@@ -101,6 +107,9 @@ function AutonomousPetBubble(props: Omit<PetBubbleProps, 'text'>) {
 
 function PetBubbleView({
   text,
+  isBusy = false,
+  scale = 1,
+  followUps,
   isThinking = false,
   isError = false,
   statusLabel,
@@ -109,32 +118,28 @@ function PetBubbleView({
   sessionLabel = '打开原会话',
 }: PetBubbleProps) {
   const closeRef = useRef(onClose);
-  const isHovered = useRef(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const queueLength = followUps?.items.length ?? 0;
   closeRef.current = onClose;
 
   useEffect(() => {
-    if (!text || isThinking) return;
-    let timer: ReturnType<typeof setTimeout>;
-    const dismiss = () => {
-      if (isHovered.current) timer = setTimeout(dismiss, 1000);
-      else closeRef.current?.();
-    };
-    timer = setTimeout(dismiss, 10000);
+    if (!text || isThinking || isBusy || queueLength || isHovered || followUps?.error) return;
+    const timer = setTimeout(() => closeRef.current?.(), 10000);
     return () => clearTimeout(timer);
-  }, [text, isThinking]);
+  }, [text, isThinking, isBusy, queueLength, isHovered, followUps?.error]);
 
-  if (!text) return null;
+  if (!text && !queueLength && !followUps?.error) return null;
 
   return (
     <div
-      className={`pet-speech absolute top-1/2 right-[calc(50%+55px)] z-8 w-[255px] -translate-y-1/2 rounded-[20px] border border-white bg-[#fffffff7] px-[13px] pt-[11px] pb-3 text-left text-[#334259] shadow-[0_12px_32px_#1d34503d] after:absolute after:top-[calc(50%-7px)] after:right-[-7px] after:size-[13px] after:rotate-45 after:border-t after:border-r after:border-white after:bg-[#fffffff7] after:content-[''] ${isError ? 'speech-failed' : isThinking ? 'speech-thinking' : 'speech-answer'}`}
+      className={`pet-speech relative col-start-1 row-start-1 z-8 w-[255px] justify-self-end rounded-[20px] border border-white bg-[#fffffff7] px-[13px] pt-[11px] pb-3 text-left text-[#334259] shadow-[0_12px_32px_#1d34503d] after:absolute after:top-[calc(50%-7px)] after:right-[-7px] after:size-[13px] after:rotate-45 after:border-t after:border-r after:border-white after:bg-[#fffffff7] after:content-[''] ${isError ? 'speech-failed' : isThinking ? 'speech-thinking' : 'speech-answer'}`}
       role="status"
       aria-live={isError ? 'assertive' : 'polite'}
       onMouseEnter={() => {
-        isHovered.current = true;
+        setIsHovered(true);
       }}
       onMouseLeave={() => {
-        isHovered.current = false;
+        setIsHovered(false);
       }}
     >
       <div className="speech-head mb-[5px] flex items-center justify-between gap-2">
@@ -161,8 +166,25 @@ function PetBubbleView({
         )}
       </div>
       <p className="m-0 max-h-[130px] overflow-y-auto select-text text-xs leading-[1.45] whitespace-pre-wrap text-[#3c4d65] [overflow-wrap:anywhere]">
-        {text}
+        {text || (isBusy ? '思考中…' : '待办等待接力')}
       </p>
+      {followUps && (
+        <BadgeShelf
+          scale={scale}
+          items={followUps.items}
+          highlightedId={followUps.highlightedId}
+          disabled={followUps.syncing || !!followUps.startingId}
+          canAdvance={followUps.canAdvance}
+          onRemove={followUps.remove}
+          onReorder={followUps.reorder}
+          onAdvance={followUps.advance}
+        />
+      )}
+      {followUps?.error && (
+        <div role="alert" className="mt-2 text-[10px] text-[#a45535]">
+          {followUps.error}
+        </div>
+      )}
       {onOpenSession && (
         <button
           type="button"

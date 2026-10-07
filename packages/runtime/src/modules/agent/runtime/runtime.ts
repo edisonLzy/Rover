@@ -14,9 +14,6 @@ import {
 } from './prompts.js';
 import { ModelRegistry, getModelRegistry } from '../../models/index.js';
 import { BuiltinSkillService } from '../../skills/index.js';
-import type { WebSocketBroadcastCallbacks } from './callbacks/broadcast.js';
-import type { TurnPersistenceCallbacks } from './callbacks/persistence.js';
-import type { WebSocketManager } from '../../../transport/websocket.js';
 import type {
   AgentRuntimeEventCallbacks,
   AgentRuntimeOptions,
@@ -44,8 +41,6 @@ export class AgentRuntime {
   private tools: AgentTool[];
   private streamFn?: StreamFn;
   private options: AgentRuntimeOptions;
-  private broadcastCallbacks?: WebSocketBroadcastCallbacks;
-  private persistenceCallbacks?: TurnPersistenceCallbacks;
 
   constructor(options: AgentRuntimeOptions = {}) {
     this.options = options;
@@ -88,20 +83,6 @@ export class AgentRuntime {
     };
   }
 
-  public setBroadcastCallbacks(callbacks: WebSocketBroadcastCallbacks): void {
-    this.broadcastCallbacks = callbacks;
-    this.addEventCallbacks(callbacks);
-  }
-
-  public setPersistenceCallbacks(callbacks: TurnPersistenceCallbacks): void {
-    this.persistenceCallbacks = callbacks;
-    this.addEventCallbacks(callbacks);
-  }
-
-  public setWebSocketManager(wsManager?: WebSocketManager): void {
-    this.broadcastCallbacks?.setWebSocketManager(wsManager);
-  }
-
   public getModelRegistry(): ModelRegistry {
     return this.modelRegistry;
   }
@@ -111,9 +92,8 @@ export class AgentRuntime {
   }
 
   public isTurnRunning(turnId?: string): boolean {
-    if (!this.currentTurnContext) return false;
-    if (turnId) return this.currentTurnContext.turnId === turnId;
-    return true;
+    if (turnId) return this.currentTurnContext?.turnId === turnId;
+    return !!this.currentTurnContext || this.agent.state.isStreaming;
   }
 
   /**
@@ -144,6 +124,9 @@ export class AgentRuntime {
    * 确保 SQLite WAL 先行落盘，杜绝异常穿透导致漏记。
    */
   public async prompt(input: PromptInput): Promise<string> {
+    if (this.currentTurnContext || this.agent.state.isStreaming) {
+      throw new Error('A Rover turn is already running');
+    }
     const validDoc = PromptDocumentV1Schema.parse(input.promptDoc);
     const turnId = input.turnId || crypto.randomUUID();
     const startTime = Date.now();
@@ -454,34 +437,6 @@ export class AgentRuntime {
     });
 
     this.turnError = null;
-
-    // 对齐 divisor-agent：若仍有排队 follow-up 消息，调度自动推进
-    if (this.agent.hasQueuedMessages()) {
-      this.scheduleQueuedContinue();
-    }
-  }
-
-  private scheduleQueuedContinue(): void {
-    setTimeout(() => {
-      if (this.agent.state.isStreaming || !this.agent.hasQueuedMessages()) {
-        return;
-      }
-
-      const turnId = crypto.randomUUID();
-      const startTime = Date.now();
-      const followUpContext: TurnContext = {
-        turnId,
-        startTime,
-        model: this.agent.state.model,
-      };
-
-      this.currentTurnContext = followUpContext;
-      void this.triggerCallback('onTurnStart', followUpContext);
-
-      this.agent.continue().catch((err) => {
-        console.error('[AgentRuntime] Failed to continue queued agent messages:', err);
-      });
-    }, 0);
   }
 
   private extractAccumulatedContent(message: AgentMessage, isThinking: boolean): string {

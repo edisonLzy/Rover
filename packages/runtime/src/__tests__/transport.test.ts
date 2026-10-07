@@ -3,12 +3,17 @@ import path from 'node:path';
 import { describe, expect, it, afterEach } from 'vitest';
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import WebSocket from 'ws';
-import { createRuntimeServer, RuntimeServer, type AppRouter } from '../transport/index.js';
+import {
+  createRuntimeServer,
+  RuntimeServer,
+  WebSocketManager,
+  type AppRouter,
+} from '../transport/index.js';
 import { RUNTIME_VERSION } from '../index.js';
 import { fileURLToPath } from 'node:url';
 import { BuiltinSkillService } from '../modules/skills/index.js';
 import { ModelRegistry } from '../modules/models/index.js';
-import { getDefaultAgentRuntime } from '../modules/agent/index.js';
+import { createContainer } from '../container.js';
 
 describe('Transport & Security Invariants (M0-2)', () => {
   let server: RuntimeServer | null = null;
@@ -326,9 +331,10 @@ describe('Transport & Security Invariants (M0-2)', () => {
       const tempConfig = path.join(os.tmpdir(), `rover-test-${Date.now()}-models.json`);
       const emptyRegistry = new ModelRegistry(tempConfig);
       emptyRegistry.saveConfig({ providers: {} });
-      getDefaultAgentRuntime({ modelRegistry: emptyRegistry });
 
-      server = await createRuntimeServer({ port: 0, token: validToken });
+      const wsManager = new WebSocketManager({ expectedToken: validToken });
+      const container = createContainer({ wsManager, customConfigPath: tempConfig });
+      server = await createRuntimeServer({ port: 0, token: validToken, container });
       const { httpUrl } = server.getAddress();
 
       const client = createTRPCClient<AppRouter>({
@@ -352,7 +358,7 @@ describe('Transport & Security Invariants (M0-2)', () => {
       ).rejects.toThrow(/No active model configured/);
     });
 
-    it('supports turns.steer, turns.followUp, turns.clearAllQueues, turns.cancel, and CQRS turns.get', async () => {
+    it('supports turns.steer, turns.clearAllQueues, turns.cancel, and CQRS turns.get', async () => {
       server = await createRuntimeServer({ port: 0, token: validToken });
       const { httpUrl } = server.getAddress();
 
@@ -371,11 +377,7 @@ describe('Transport & Security Invariants (M0-2)', () => {
       const steerRes = await client.turns.steer.mutate({ content: '插话干预' });
       expect(steerRes).toEqual({ success: true });
 
-      // 2. followUp
-      const followUpRes = await client.turns.followUp.mutate({ content: '排队后续任务' });
-      expect(followUpRes).toEqual({ success: true });
-
-      // 3. clearAllQueues
+      // 2. clearAllQueues
       const clearRes = await client.turns.clearAllQueues.mutate();
       expect(clearRes).toEqual({ success: true });
 

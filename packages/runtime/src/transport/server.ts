@@ -4,9 +4,8 @@ import { nodeHTTPRequestHandler } from '@trpc/server/adapters/node-http';
 import { createContext, extractAuthToken } from './context.js';
 import { appRouter } from './router.js';
 import { WebSocketManager, type RuntimeEvent } from './websocket.js';
-import { getDefaultAgentRuntime } from '../modules/agent/index.js';
 import { RUNTIME_VERSION } from '../index.js';
-import { getDefaultContainer, type Container } from '../container.js';
+import { createContainer, type Container } from '../container.js';
 
 export interface RuntimeServerOptions {
   port?: number;
@@ -72,16 +71,14 @@ export class RuntimeServer {
       );
     }
 
+    this.wsManager = new WebSocketManager({ expectedToken: this.token });
     this.container =
       options.container ??
-      getDefaultContainer({
+      createContainer({
         skillsDir: options.skillsDir,
+        wsManager: this.wsManager,
       });
 
-    this.wsManager = new WebSocketManager({ expectedToken: this.token });
-    getDefaultAgentRuntime(
-      options.skillsDir === undefined ? undefined : { skillsDir: options.skillsDir }
-    ).setWebSocketManager(this.wsManager);
     this.server = http.createServer(this.handleHttpRequest.bind(this));
 
     this.server.on('upgrade', (req, socket, head) => {

@@ -1,10 +1,5 @@
 export { AgentRuntime } from './runtime.js';
-export {
-  createAgentRuntime,
-  getDefaultAgentRuntime,
-  resetDefaultAgentRuntime,
-  type AgentRuntimeFactoryOptions,
-} from './factory.js';
+export { createAgentRuntime, type AgentRuntimeFactoryOptions } from './factory.js';
 export {
   parsePromptDocumentContent,
   buildRoverSystemPrompt,

@@ -10,7 +10,6 @@ import {
   listRoverTurns,
 } from './repository.js';
 import type {
-  AgentService,
   AgentServiceDependencies,
   EffectiveHistory,
   HistoryStats,
@@ -23,24 +22,32 @@ import type {
   TurnDetails,
 } from './types.js';
 
-export class DefaultAgentService implements AgentService {
-  private getRuntime: () => AgentRuntime;
-  private getDatabase: () => Database.Database;
+export class AgentService {
+  public runtime: AgentRuntime;
+  private db: Database.Database;
 
   constructor(deps: AgentServiceDependencies) {
-    this.getRuntime = deps.getRuntime;
-    this.getDatabase = deps.getDatabase;
+    this.runtime = deps.runtime;
+    this.db = deps.db;
+  }
+
+  getRuntime(): AgentRuntime {
+    return this.runtime;
+  }
+
+  getDatabase(): Database.Database {
+    return this.db;
   }
 
   async startTurn(input: StartTurnInput): Promise<StartTurnResult> {
-    const runtime = this.getRuntime();
-    const activeModel = runtime.getModelRegistry().resolveActiveModel();
+    if (this.runtime.isTurnRunning()) throw new Error('A Rover turn is already running');
+    const activeModel = this.runtime.getModelRegistry().resolveActiveModel();
     if (!activeModel) {
       throw new Error('No active model configured in ~/.rover/models.json');
     }
     const turnId = input.turnId || crypto.randomUUID();
     // Fire-and-forget background execution, frontend subscribes via WebSocket
-    void runtime
+    void this.runtime
       .prompt({
         turnId,
         promptDoc: input.promptDoc,
@@ -57,53 +64,39 @@ export class DefaultAgentService implements AgentService {
   }
 
   cancelTurn(turnId: string): { success: boolean; turnId: string } {
-    const runtime = this.getRuntime();
-    runtime.abortPrompt();
+    this.runtime.abortPrompt();
     return { success: true, turnId };
   }
 
   steer(content: string): { success: boolean } {
-    const runtime = this.getRuntime();
-    runtime.steer({ content });
-    return { success: true };
-  }
-
-  followUp(content: string): { success: boolean } {
-    const runtime = this.getRuntime();
-    runtime.followUp({ content });
+    this.runtime.steer({ content });
     return { success: true };
   }
 
   clearAllQueues(): { success: boolean } {
-    const runtime = this.getRuntime();
-    runtime.clearAllQueues();
+    this.runtime.clearAllQueues();
     return { success: true };
   }
 
   getTurn(turnId: string): TurnDetails {
-    const db = this.getDatabase();
-    const turn = getRoverTurn(db, turnId);
-    const entries = getTurnEntries(db, turnId);
+    const turn = getRoverTurn(this.db, turnId);
+    const entries = getTurnEntries(this.db, turnId);
     return { turn, entries };
   }
 
   getFeed(options?: ListEntriesOptions): RoverEntryRecord[] {
-    const db = this.getDatabase();
-    return listEntries(db, options ?? {});
+    return listEntries(this.db, options ?? {});
   }
 
   getStats(): HistoryStats {
-    const db = this.getDatabase();
-    return getHistoryStats(db);
+    return getHistoryStats(this.db);
   }
 
   getEffectiveHistory(): EffectiveHistory {
-    const db = this.getDatabase();
-    return getEffectiveHistory(db);
+    return getEffectiveHistory(this.db);
   }
 
   listTurns(options?: ListRoverTurnsOptions): RoverTurnRecord[] {
-    const db = this.getDatabase();
-    return listRoverTurns(db, options ?? {});
+    return listRoverTurns(this.db, options ?? {});
   }
 }

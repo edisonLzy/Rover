@@ -10,8 +10,12 @@ const runtime = vi.hoisted(() => ({
   accepted: undefined as undefined | ((data: { turnId: string }) => void),
   request: vi.fn(),
   invalidate: vi.fn(),
+  queue: [] as Array<{ id: string; timestamp: number; promptDoc: any }>,
+  clear: vi.fn(),
   connection: { ws_url: 'ws://test', token: 'test' },
   utils: undefined as unknown,
+  wsStatus: 'connected',
+  activeId: null as string | null,
   native: false,
   size: 75,
   setSize: vi.fn().mockResolvedValue(undefined),
@@ -19,8 +23,8 @@ const runtime = vi.hoisted(() => ({
 }));
 
 const mockWsClient = {
-  getStatus: () => 'connected',
-  getState: () => 'connected',
+  getStatus: () => runtime.wsStatus,
+  getState: () => runtime.wsStatus,
   subscribeState: (listener: () => void) => {
     runtime.stateListeners.push(listener);
     return () => {
@@ -71,9 +75,10 @@ vi.mock('../utils/trpc.js', () => ({
       openTerminal: { useMutation: () => ({ mutateAsync: vi.fn() }) },
     },
     turns: {
+      clearAllQueues: { useMutation: () => ({ mutateAsync: runtime.clear }) },
       start: {
-        useMutation: (options: { onSuccess: typeof runtime.accepted }) => {
-          runtime.accepted = options.onSuccess;
+        useMutation: (options?: { onSuccess: typeof runtime.accepted }) => {
+          if (options?.onSuccess) runtime.accepted = options.onSuccess;
           return { isPending: false, mutateAsync: runtime.request };
         },
       },
@@ -85,6 +90,8 @@ let host: HTMLDivElement;
 let root: Root;
 let accept!: (result: { turnId: string }) => void;
 beforeEach(async () => {
+  runtime.wsStatus = 'connected';
+  runtime.activeId = null;
   runtime.native = false;
   runtime.size = 75;
   runtime.setSize.mockClear();
@@ -96,7 +103,18 @@ beforeEach(async () => {
   runtime.handlersList.length = 0;
   runtime.stateListeners.length = 0;
   runtime.invalidate.mockReset();
-  runtime.utils = { tasks: { list: { invalidate: runtime.invalidate } } };
+  runtime.queue = [];
+  let nextId = 0;
+  vi.spyOn(crypto, 'randomUUID').mockImplementation(
+    () => `q${nextId++}` as ReturnType<typeof crypto.randomUUID>
+  );
+  runtime.clear.mockReset().mockImplementation(async () => {
+    runtime.queue = [];
+    return { success: true };
+  });
+  runtime.utils = {
+    tasks: { list: { invalidate: runtime.invalidate } },
+  };
   runtime.request.mockReset().mockImplementation(() =>
     new Promise<{ turnId: string }>((resolve) => {
       accept = resolve;
@@ -115,8 +133,9 @@ afterEach(async () => {
   host.remove();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
-async function submit() {
+async function submit(text = '运行请求') {
   await act(async () =>
     host
       .querySelector('[aria-label="Rover 宠物"]')!
@@ -130,7 +149,7 @@ async function submit() {
   });
   await act(async () => {
     const textbox = host.querySelector('[role="textbox"]')!;
-    textbox.querySelector('p')!.textContent = '运行请求';
+    textbox.querySelector('p')!.textContent = text;
     textbox.dispatchEvent(new InputEvent('input', { bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve, 20));
   });
@@ -141,6 +160,8 @@ async function submit() {
   );
 }
 async function event(type: string, payload: Record<string, unknown>) {
+  if (type === 'turn.started') runtime.activeId = payload.turnId as string;
+  if (type === 'turn.end' && runtime.activeId === payload.turnId) runtime.activeId = null;
   await act(async () => {
     for (const handlers of runtime.handlersList) {
       if (handlers[type]) {
@@ -290,5 +311,99 @@ describe('015 PetBubble output isolation & turn lifecycle', () => {
     // Current turn delta arrives
     await event('turn.delta', { turnId: 'turn-2', accumulated: '第二轮回复', isThinking: false });
     expect(host.querySelector('.pet-speech')!.textContent).toContain('第二轮回复');
+  });
+});
+
+async function addQueuedInputs() {
+  await event('turn.started', { turnId: 'current' });
+  for (let index = 0; index < 3; index++) await submit(`待办 ${index}`);
+}
+
+describe('016 queue synchronization and handoff', () => {
+  it('enqueues a busy draft into the bubble and keeps the toolbar free of vertical pending lists', async () => {
+    await event('turn.started', { turnId: 'current' });
+    await submit();
+    expect(runtime.request).not.toHaveBeenCalled();
+    expect(host.querySelector('[aria-label="接续队列"]')!.textContent).toContain('运行请求');
+    expect(host.querySelector('[aria-label="待处理 Prompt"]')).toBeNull();
+  });
+  it('deletes badge locally and updates badge shelf immediately', async () => {
+    await addQueuedInputs();
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('[aria-label="删除待办：待办 1"]')!.click()
+    );
+    expect(host.querySelector('[aria-label="接续队列"]')!.textContent).not.toContain('待办 1');
+    expect(host.querySelector('[data-follow-up-id="q0"]')).not.toBeNull();
+    expect(host.querySelector('[data-follow-up-id="q2"]')).not.toBeNull();
+  });
+  it('shows a handoff failure when starting follow-up fails', async () => {
+    await addQueuedInputs();
+    runtime.request.mockRejectedValueOnce(new Error('网络异常'));
+    vi.useFakeTimers();
+    await event('turn.end', { turnId: 'current', status: 'completed' });
+    await act(async () => vi.advanceTimersByTimeAsync(1500));
+    expect(runtime.request).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain('网络异常');
+  });
+  it('waits 1.5 seconds after turn.end and evicts only the consumed ID after actual turn start', async () => {
+    await addQueuedInputs();
+    vi.useFakeTimers();
+    await event('turn.end', { turnId: 'current', status: 'completed' });
+    expect(host.querySelector('[data-follow-up-id="q0"]')!.className).toContain('bg-[#e3edff]');
+    await act(async () => vi.advanceTimersByTimeAsync(1499));
+    expect(runtime.request).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+    expect(runtime.request).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('[data-follow-up-id="q0"]')).not.toBeNull();
+    await act(async () => accept({ turnId: 'follow-up-turn' }));
+    expect(host.querySelector('[data-follow-up-id="q0"]')).toBeNull();
+    expect(host.querySelector('[data-follow-up-id="q1"]')).not.toBeNull();
+    await act(async () => vi.advanceTimersByTimeAsync(5000));
+    expect(runtime.request).toHaveBeenCalledTimes(1);
+  });
+  it('allows a click to skip the wait without evicting before turn start', async () => {
+    await addQueuedInputs();
+    vi.useFakeTimers();
+    await event('turn.end', { turnId: 'current', status: 'completed' });
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('[aria-label="立即执行：待办 0"]')!.click()
+    );
+    expect(runtime.request).toHaveBeenCalledTimes(1);
+    expect(host.querySelector('[data-follow-up-id="q0"]')).not.toBeNull();
+    await act(async () => accept({ turnId: 'follow-up-turn' }));
+    expect(host.querySelector('[data-follow-up-id="q0"]')).toBeNull();
+    await act(async () => vi.advanceTimersByTimeAsync(2000));
+    expect(runtime.request).toHaveBeenCalledTimes(1);
+  });
+  it('reorders badges with the real keyboard drag sensor and updates DOM order', async () => {
+    await addQueuedInputs();
+    vi.useFakeTimers();
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement
+    ) {
+      const id = this.closest('[data-follow-up-id]')?.getAttribute('data-follow-up-id');
+      return new DOMRect(id === 'q1' ? 110 : 0, 0, 100, 22);
+    });
+    const grip = host.querySelector<HTMLButtonElement>('[aria-label="拖动排序：待办 0"]')!;
+    await act(async () => {
+      grip.focus();
+      grip.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ', bubbles: true }));
+    });
+    await act(async () => vi.advanceTimersByTimeAsync(30));
+    await act(async () =>
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { code: 'ArrowRight', key: 'ArrowRight', bubbles: true })
+      )
+    );
+    await act(async () => vi.advanceTimersByTimeAsync(30));
+    await act(async () =>
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { code: 'Space', key: ' ', bubbles: true })
+      )
+    );
+    const badgeIds = [...host.querySelectorAll('[data-follow-up-id]')].map((el) =>
+      el.getAttribute('data-follow-up-id')
+    );
+    expect(badgeIds).toEqual(['q1', 'q0', 'q2']);
   });
 });

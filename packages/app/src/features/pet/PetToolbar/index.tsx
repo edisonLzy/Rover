@@ -4,11 +4,12 @@ import { PromptInput } from './PromptInput/index.js';
 import type { PromptDocumentV1, SuggestionItemData } from './PromptInput/types.js';
 import { Task } from './Task/index.js';
 import { Inbox } from './Inbox/index.js';
-import { PendingQueue, type PendingPromptItem } from './PendingQueue.js';
 
 interface PetToolbarProps {
   petHovered: boolean;
   isBusy: boolean;
+  hasFollowUps?: boolean;
+  onFollowUp: (doc: PromptDocumentV1) => Promise<void>;
   submissionUnavailable: string | null;
   onSubmit: (doc: PromptDocumentV1) => Promise<void>;
 }
@@ -30,11 +31,12 @@ const SKILLS: SuggestionItemData[] = [
 export function PetToolbar({
   petHovered,
   isBusy,
+  hasFollowUps = false,
+  onFollowUp,
   submissionUnavailable,
   onSubmit,
 }: PetToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const queueSendingRef = useRef(false);
   const [editing, setEditing] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -42,9 +44,6 @@ export function PetToolbar({
   const [visible, setVisible] = useState(false);
   const [activeFeature, setActiveFeature] = useState<'none' | 'task' | 'inbox'>('none');
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [pendingQueue, setPendingQueue] = useState<PendingPromptItem[]>([]);
-  const [queueDeferred, setQueueDeferred] = useState(false);
-  const [queueSending, setQueueSending] = useState(false);
 
   useEffect(() => {
     if (petHovered || hovered || focused || hasDraft || submitError) {
@@ -52,11 +51,11 @@ export function PetToolbar({
       return;
     }
     const timer = setTimeout(() => {
-      setVisible(activeFeature !== 'none' || pendingQueue.length > 0);
+      setVisible(activeFeature !== 'none');
       setEditing(false);
     }, 200);
     return () => clearTimeout(timer);
-  }, [petHovered, hovered, focused, hasDraft, submitError, activeFeature, pendingQueue.length]);
+  }, [petHovered, hovered, focused, hasDraft, submitError, activeFeature]);
 
   const handleSubmit = async (doc: PromptDocumentV1) => {
     setSubmitError(null);
@@ -64,49 +63,12 @@ export function PetToolbar({
       setSubmitError(submissionUnavailable);
       return false;
     }
-    if (isBusy || queueSendingRef.current || pendingQueue.length) {
-      const prefixes = { agent: '@', skill: '/', inbox: '#' };
-      const preview = doc.parts
-        .map((part) =>
-          part.type === 'text'
-            ? part.text
-            : part.label.startsWith(prefixes[part.kind])
-              ? part.label
-              : `${prefixes[part.kind]}${part.label}`
-        )
-        .join('')
-        .trim();
-      setPendingQueue((items) => [
-        ...items,
-        { id: crypto.randomUUID(), doc, textSnippet: preview, createdAt: Date.now() },
-      ]);
-      setQueueDeferred(false);
-      return true;
-    }
     try {
-      await onSubmit(doc);
+      await (isBusy || hasFollowUps ? onFollowUp(doc) : onSubmit(doc));
       return true;
     } catch (failure: unknown) {
       setSubmitError(failure instanceof Error ? failure.message : '发送失败，请稍后重试');
       return false;
-    }
-  };
-
-  const handleProceedNext = async () => {
-    if (queueSendingRef.current || isBusy || submissionUnavailable || !pendingQueue.length) return;
-    const item = pendingQueue[0];
-    queueSendingRef.current = true;
-    setQueueSending(true);
-    setSubmitError(null);
-    try {
-      await onSubmit(item.doc);
-      setPendingQueue((items) => items.filter((entry) => entry.id !== item.id));
-      setQueueDeferred(false);
-    } catch (failure: unknown) {
-      setSubmitError(failure instanceof Error ? failure.message : '发送失败，请稍后重试');
-    } finally {
-      queueSendingRef.current = false;
-      setQueueSending(false);
     }
   };
 
@@ -169,22 +131,6 @@ export function PetToolbar({
         >
           {submitError}
         </p>
-      )}
-      {!!pendingQueue.length && (
-        <div className="col-span-5">
-          <PendingQueue
-            disabled={queueSending}
-            queue={pendingQueue}
-            onRemove={(id) => {
-              if (!queueSendingRef.current)
-                setPendingQueue((items) => items.filter((item) => item.id !== id));
-            }}
-            onConfirmNext={handleProceedNext}
-            onDefer={() => setQueueDeferred(true)}
-            isDeferred={queueDeferred}
-            canProceed={!isBusy && !queueSending && !submissionUnavailable}
-          />
-        </div>
       )}
     </div>
   );
