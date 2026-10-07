@@ -59,17 +59,29 @@ flowchart TD
   T010 --> T012
   T013["013: Toolbar Task 堆叠/展开与列表滚动"]
   T012 --> T013
-  T014["014: Runtime 支持 Steer、Follow-Up 与 Queue 同步"]
-  T005 --> T014
+  T013["013: Toolbar Task 堆叠/展开与列表滚动"]
+  T012 --> T013
+
+  T014a["014a: AgentRuntime 纯领域核心与 Event Callbacks 契约"]
+  T005 --> T014a
+  T014b["014b: Turn 消息先行持久化与 WebSocket 广播 Callbacks"]
+  T014a --> T014b
+  T014c["014c: Transport 路由切换、CQRS 查询剥离与老旧 Engine/Handler 下线清理"]
+  T014b --> T014c
+
+  T014d["014d: Human-in-the-Loop (HITL) 权限审批与用户提问状态机集成"]
+  T014c --> T014d
+
   T015["015: LLM 气泡职责收敛"]
   T012 --> T015
+
   T016["016: PetBubble Follow-Up 徽章架与生命周期守卫"]
   T012 --> T016
-  T014 --> T016
+  T014c --> T016
   T015 --> T016
   T017["017: PromptInput 双模态快捷键与剪贴板瞬态感知"]
   T012 --> T017
-  T014 --> T017
+  T014c --> T017
   T018["018: Inbox 抽屉卡片与一键交办流转闭环"]
   T013 --> T018
   T016 --> T018
@@ -93,10 +105,13 @@ flowchart TD
 | [011](./011-dashboard-window-ui.md)                            | Dashboard 管理面板完整功能视图            | 003, 007, 008, 009  | TODO | `packages/app` (DashboardWindow, skills, models, activity, attention)                      |
 | [012](./012-pet-toolbar-and-prompt-interaction.md) | 宠物待命、工具栏与输入交互重构 | 002, 010 | IN_PROGRESS | `packages/app` (Pet, PetToolbar, PromptInput, PetWindow) |
 | [013](./013-pet-task-panel-and-scroll.md) | Task 堆叠、展开与列表滚动 | 012 | TODO | `packages/app` (PetToolbar/Task) |
-| [014](./014-local-inbox-and-agent-follow-up.md) | Runtime 支持 Steer、Follow-Up 与 Queue 同步 | 005 | TODO | `packages/runtime` (Pi Agent queues, tRPC, WS events) |
+| [014a](./014a-agent-runtime-core-and-event-callbacks.md) | AgentRuntime 纯领域核心与 Event Callbacks 契约 | 005 | TODO | `packages/runtime` (AgentRuntime, Callbacks, 内存队列) |
+| [014b](./014b-turn-persistence-and-websocket-callbacks.md) | Turn 消息先行持久化与 WebSocket 广播 Callbacks | 014a | TODO | `packages/runtime` (TurnPersistenceCallbacks, WS 广播) |
+| [014c](./014c-runtime-migration-cqrs-and-engine-cleanup.md) | Transport 路由切换、CQRS 查询剥离与老旧 Engine/Handler 下线清理 | 014b | TODO | `packages/runtime` (tRPC router, 物理删除 engine/handler) |
+| [014d](./014d-human-in-the-loop-permission-and-question.md) | Human-in-the-Loop (HITL) 权限审批与用户提问状态机集成 | 014c | TODO | `packages/runtime` (AbstractHITL, PermissionService) |
 | [015](./015-pet-bubble-output-isolation.md) | PetBubble 的 LLM 输出职责收敛 | 012 | DONE | `packages/app` (PetBubble, 类型化事件订阅) |
-| [016](./016-pet-bubble-follow-up-badge-shelf.md) | PetBubble Follow-Up 徽章架与生命周期守卫 | 012, 014, 015 | TODO | `packages/app` (BadgeShelf, dnd-kit, auto-dismiss guard) |
-| [017](./017-prompt-input-dual-mode-and-clipboard-sense.md) | PromptInput 双模态快捷键与剪贴板瞬态感知 | 012, 014 | TODO | `packages/app` (usePromptEditor, keydown, Ghost Pill) |
+| [016](./016-pet-bubble-follow-up-badge-shelf.md) | PetBubble Follow-Up 徽章架与生命周期守卫 | 012, 015, 014c | TODO | `packages/app` (BadgeShelf, dnd-kit, auto-dismiss guard) |
+| [017](./017-prompt-input-dual-mode-and-clipboard-sense.md) | PromptInput 双模态快捷键与剪贴板瞬态感知 | 012, 014c | TODO | `packages/app` (usePromptEditor, keydown, Ghost Pill) |
 | [018](./018-inbox-drawer-and-handoff-delegation.md) | Inbox 抽屉卡片与一键交办流转闭环 | 013, 016, 017 | TODO | `packages/app` (PetToolbar/Inbox, Drawer, Handoff) |
 
 ## 宠物重构执行边界
