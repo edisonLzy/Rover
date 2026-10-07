@@ -108,7 +108,7 @@ flowchart TD
 | [009](./009-skill-management-and-safe-installation.md)         | 内置 Skill 发现与加载机制                 | 001, 006            | DONE | `packages/app/resources/skills` (内容与附件), `packages/runtime` (loader, SKILL.md parser) |
 | [010](./010-pet-window-ui-and-task-interaction.md)             | 宠物窗口交互展开态、任务卡片与终端接管    | 002, 005, 006, 007  | DONE | `packages/app` (PetWindow, cards, queue), `src-tauri` (open_task)                          |
 | [011](./011-dashboard-window-ui.md)                            | Dashboard 管理面板完整功能视图            | 003, 007, 008, 009  | TODO | `packages/app` (DashboardWindow, skills, models, activity, attention)                      |
-| [012](./012-pet-toolbar-and-prompt-interaction.md) | 宠物待命、工具栏与输入交互重构 | 002, 010 | IN_PROGRESS | `packages/app` (Pet, PetToolbar, PromptInput, PetWindow) |
+| [012](./012-pet-toolbar-and-prompt-interaction.md) | 宠物待命、工具栏与输入交互重构 | 002, 010 | DONE | `packages/app` (Pet, PetToolbar, PromptInput, PetWindow) |
 | [013](./013-pet-task-panel-and-scroll.md) | Task 堆叠、展开与列表滚动 | 012 | TODO | `packages/app` (PetToolbar/Task) |
 | [014a](./014a-agent-runtime-core-and-event-callbacks.md) | AgentRuntime 纯领域核心与 Event Callbacks 契约 | 005 | DONE | `packages/runtime` (AgentRuntime, Callbacks, 内存队列) |
 | [014b](./014b-turn-persistence-and-websocket-callbacks.md) | Turn 消息先行持久化与 WebSocket 广播 Callbacks | 014a | DONE | `packages/runtime` (TurnPersistenceCallbacks, WS 广播) |

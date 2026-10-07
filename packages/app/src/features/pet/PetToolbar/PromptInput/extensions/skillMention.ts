@@ -40,11 +40,12 @@ export function createSkillMentionExtension(options: CreateSkillMentionOptions) 
             let currentCommand: ((item: SuggestionItemData) => void) | null = null;
 
             const updatePosition = (clientRect?: DOMRect | null) => {
-              if (!popup || !clientRect) return;
+              if (!popup || !clientRect || popup.closest('.pet-composer')) return;
               popup.style.position = 'fixed';
               popup.style.left = `${clientRect.left}px`;
               popup.style.top = `${clientRect.bottom + 8}px`;
               popup.style.zIndex = '9999';
+              popup.style.width = `${Math.min(340, window.innerWidth - 16)}px`;
             };
 
             return {
@@ -54,7 +55,14 @@ export function createSkillMentionExtension(options: CreateSkillMentionOptions) 
                 currentCommand = props.command;
 
                 popup = document.createElement('div');
-                document.body.appendChild(popup);
+                const composer = props.editor.view.dom.closest('.pet-composer');
+                if (composer) {
+                  popup.className =
+                    'pet-suggestion-popup absolute inset-x-0 top-[calc(100%+8px)] z-50';
+                  composer.appendChild(popup);
+                } else {
+                  document.body.appendChild(popup);
+                }
 
                 component = new ReactRenderer(SuggestionsPanel, {
                   props: {

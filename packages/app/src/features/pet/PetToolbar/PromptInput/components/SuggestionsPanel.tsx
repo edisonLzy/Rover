@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import { Bot, Wrench, Bell } from 'lucide-react';
-import { usePetPreferences } from '../../../../../shared/preferences/pet.js';
 import type { SuggestionItemData } from '../types.js';
 
 interface SuggestionItemProps {
@@ -27,7 +26,6 @@ export function SuggestionsPanel({
   title,
   emptyText = '无匹配项',
 }: SuggestionsPanelProps) {
-  const { size: petSize } = usePetPreferences();
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -42,10 +40,7 @@ export function SuggestionsPanel({
 
   if (items.length === 0) {
     return (
-      <div
-        style={{ zoom: petSize / 100 }}
-        className="pet-suggestions z-50 min-w-[200px] max-w-[320px] rounded-[18px] border border-[#dce8fa] bg-[#fffffff7] p-2.5 text-xs text-[#657993] shadow-xl backdrop-blur-md"
-      >
+      <div className="pet-suggestions z-50 w-full min-w-0 rounded-[18px] border border-[#dce8fa] bg-[#fffffff7] p-2.5 text-xs text-[#657993] shadow-xl backdrop-blur-md">
         {emptyText}
       </div>
     );
@@ -54,8 +49,7 @@ export function SuggestionsPanel({
   return (
     <div
       ref={scrollContainerRef}
-      style={{ zoom: petSize / 100 }}
-      className="pet-suggestions z-50 min-w-[240px] max-w-[340px] max-h-[220px] overflow-y-auto rounded-[18px] border border-[#dce8fa] bg-[#fffffff7] p-1 shadow-2xl backdrop-blur-md flex flex-col gap-0.5 animate-in fade-in-0 zoom-in-95 duration-100"
+      className="pet-suggestions z-50 w-full min-w-0 max-h-[220px] overflow-y-auto rounded-[18px] border border-[#dce8fa] bg-[#fffffff7] p-1 shadow-2xl backdrop-blur-md flex flex-col gap-0.5"
     >
       {title && (
         <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#657993] border-b border-[#dce8fa] mb-0.5">

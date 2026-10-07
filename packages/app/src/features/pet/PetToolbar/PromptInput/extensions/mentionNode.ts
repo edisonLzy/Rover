@@ -48,6 +48,12 @@ export const ReferenceNodeExtension = Mention.extend({
   name: REFERENCE_NODE_NAME,
   selectable: false,
 
+  // The explicit Agent/Skill/Inbox extensions own suggestions. Mention's default
+  // @ plugin would otherwise consume Escape before the visible Agent menu.
+  addProseMirrorPlugins() {
+    return [];
+  },
+
   addAttributes() {
     return {
       id: {

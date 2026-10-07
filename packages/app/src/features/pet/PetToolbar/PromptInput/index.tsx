@@ -36,7 +36,7 @@ export function PromptInput({
   return (
     <div
       onClick={handleContainerClick}
-      className={`pet-composer flex min-h-[60px] cursor-text items-center gap-2 rounded-[30px] bg-white pl-5 pr-[10px] py-[7px] shadow-[0_5px_17px_#1e314115] focus-within:shadow-[0_0_0_3px_#d9e6ff,0_5px_17px_#1e314115] ${className}`}
+      className={`pet-composer relative flex min-h-[60px] cursor-text items-center gap-2 rounded-[30px] bg-white pl-5 pr-[10px] py-[7px] shadow-[0_5px_17px_#1e314115] focus-within:shadow-[0_0_0_3px_#d9e6ff,0_5px_17px_#1e314115] ${className}`}
       data-testid="prompt-input-container"
     >
       <div className="pet-editor-content min-w-0 flex-1">

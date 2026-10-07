@@ -12,6 +12,10 @@ const runtime = vi.hoisted(() => ({
   invalidate: vi.fn(),
   connection: { ws_url: 'ws://test', token: 'test' },
   utils: undefined as unknown,
+  native: false,
+  size: 75,
+  setSize: vi.fn().mockResolvedValue(undefined),
+  setPosition: vi.fn().mockResolvedValue(undefined),
 }));
 
 const mockWsClient = {
@@ -41,8 +45,22 @@ vi.mock('../context/RuntimeContext.js', () => ({
     wsClient: mockWsClient,
   }),
 }));
-vi.mock('../shared/preferences/pet.js', () => ({ usePetPreferences: () => ({ size: 75 }) }));
-vi.mock('../utils/window.js', () => ({ isTauriEnvironment: () => false }));
+vi.mock('../shared/preferences/pet.js', () => ({
+  usePetPreferences: () => ({ size: runtime.size }),
+}));
+vi.mock('../utils/window.js', () => ({ isTauriEnvironment: () => runtime.native }));
+vi.mock('@tauri-apps/api/window', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tauri-apps/api/window')>()),
+  getCurrentWindow: () => ({
+    outerPosition: async () => ({ x: 1800, y: 1000 }),
+    setSize: runtime.setSize,
+    setPosition: runtime.setPosition,
+  }),
+  currentMonitor: async () => ({
+    scaleFactor: 2,
+    workArea: { position: { x: 0, y: 0 }, size: { width: 2000, height: 1200 } },
+  }),
+}));
 vi.mock('../utils/trpc.js', () => ({
   trpc: {
     useUtils: () => runtime.utils,
@@ -67,6 +85,10 @@ let host: HTMLDivElement;
 let root: Root;
 let accept!: (result: { turnId: string }) => void;
 beforeEach(async () => {
+  runtime.native = false;
+  runtime.size = 75;
+  runtime.setSize.mockClear();
+  runtime.setPosition.mockClear();
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   Element.prototype.scrollIntoView = vi.fn();
   Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
@@ -91,6 +113,8 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 async function submit() {
   await act(async () =>
@@ -128,6 +152,79 @@ async function event(type: string, payload: Record<string, unknown>) {
     }
   });
 }
+
+describe('012 native popup layout', () => {
+  it.each([60, 75, 100, 120])(
+    'fits %s%% suggestions and clamps to the monitor work area',
+    async (size) => {
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          observe() {}
+          disconnect() {}
+        }
+      );
+      vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+        this: HTMLElement
+      ) {
+        if (this.classList.contains('pet-shell')) return 175;
+        if (this.classList.contains('pet-suggestions')) return 126;
+        return 0;
+      });
+      vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (
+        this: HTMLElement
+      ) {
+        if (this.classList.contains('pet-composer')) return 115;
+        if (this.classList.contains('pet-suggestion-popup')) return 68;
+        return 0;
+      });
+      vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(function (
+        this: HTMLElement
+      ) {
+        if (this.classList.contains('pet-composer')) return host.querySelector('.pet-shell');
+        if (this.classList.contains('pet-suggestion-popup'))
+          return host.querySelector('.pet-composer');
+        if (this.classList.contains('pet-suggestions')) return this.parentElement;
+        return null;
+      });
+      // WebKit's zoomed viewport coordinates must not be applied a second time.
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+        new DOMRect(900, 900, 1600, 1900)
+      );
+      runtime.native = true;
+      runtime.size = size;
+      await act(async () => root.render(<PetWindow />));
+      const scale = size / 100;
+      await vi.waitFor(() =>
+        expect(runtime.setSize).toHaveBeenCalledWith(
+          expect.objectContaining({ width: Math.ceil(556 * scale), height: Math.ceil(253 * scale) })
+        )
+      );
+      const popup = document.createElement('div');
+      popup.className = 'pet-suggestion-popup';
+      const panel = document.createElement('div');
+      panel.className = 'pet-suggestions';
+      popup.append(panel);
+      host.querySelector('.pet-composer')!.append(popup);
+      const height = Math.ceil(379 * scale);
+      await vi.waitFor(() =>
+        expect(runtime.setSize).toHaveBeenLastCalledWith(
+          expect.objectContaining({ width: Math.ceil(556 * scale), height })
+        )
+      );
+      expect(runtime.setPosition).toHaveBeenLastCalledWith(
+        expect.objectContaining({ x: 2000 - Math.ceil(556 * scale) * 2, y: 1200 - height * 2 })
+      );
+      expect(popup.style.left).toBe('');
+      popup.remove();
+      await vi.waitFor(() =>
+        expect(runtime.setSize).toHaveBeenLastCalledWith(
+          expect.objectContaining({ height: Math.ceil(253 * scale) })
+        )
+      );
+    }
+  );
+});
 
 describe('012 preserves Runtime streaming during composer migration', () => {
   it('does not overwrite streamed output with a late HTTP receipt', async () => {

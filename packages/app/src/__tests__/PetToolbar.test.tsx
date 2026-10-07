@@ -114,6 +114,21 @@ function deferred() {
 }
 
 describe('012 toolbar and real Tiptap interactions', () => {
+  it.each(['@', '/', '#'])('anchors %s suggestions inside the scaled composer', async (trigger) => {
+    await render();
+    await edit();
+    await type(trigger);
+    const composer = host.querySelector('.pet-composer')!;
+    const panel = composer.querySelector<HTMLElement>('.pet-suggestions');
+    expect(panel).not.toBeNull();
+    expect(panel!.style.zoom).toBe('');
+    expect(composer.querySelector('.pet-suggestion-popup')).not.toBeNull();
+    expect(document.body.querySelector('.pet-suggestions')).toBe(panel);
+    await key('Escape');
+    expect(document.querySelector('.pet-suggestions')).toBeNull();
+    expect(host.querySelector('[role="textbox"]')!.textContent).toBe(trigger);
+  });
+
   it('focuses the editor and hides an empty toolbar after hover and focus leave', async () => {
     await render();
     const textbox = await edit();

@@ -34,7 +34,7 @@ export function PetWindow() {
     >
       <div
         ref={shellRef}
-        className="pet-shell ml-[100px] w-[420px] shrink-0"
+        className="pet-shell relative ml-[100px] w-[420px] shrink-0"
         style={{ zoom: scale }}
       >
         <div className="pet-area relative flex h-[106px] items-center justify-center">
@@ -77,13 +77,16 @@ function usePetWindowLayout(shellRef: RefObject<HTMLDivElement | null>, scale: n
               `${Math.max(60, Math.min(610, availableHeight / scale - 275))}px`
             );
           }
-          let height = Math.ceil(shell.getBoundingClientRect().height + 78 * scale);
+          // CSS offsets are unscaled in every WebView; apply the pet zoom exactly once.
+          let height = Math.ceil((shell.offsetHeight + 78) * scale);
           document.querySelectorAll<HTMLElement>('.pet-suggestions').forEach((popup) => {
-            const bounds = popup.getBoundingClientRect();
-            height = Math.max(height, Math.ceil(bounds.bottom + 12 * scale));
-            const container = popup.parentElement;
-            if (container)
-              container.style.left = `${Math.max(8, Math.min(bounds.left, Math.ceil(556 * scale) - bounds.width - 8))}px`;
+            let top = popup.offsetTop;
+            let parent = popup.offsetParent as HTMLElement | null;
+            while (parent && parent !== shell) {
+              top += parent.offsetTop;
+              parent = parent.offsetParent as HTMLElement | null;
+            }
+            height = Math.max(height, Math.ceil((58 + top + popup.offsetHeight + 12) * scale));
           });
           if (monitor)
             height = Math.min(
