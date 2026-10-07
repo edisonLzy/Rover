@@ -6,10 +6,10 @@ import {
   updateRoverTurnStatus,
   type RoverDatabase,
   type AgentMessage as StorageAgentMessage,
-} from '../storage/index.js';
-import { parsePromptDocumentContent } from './prompts.js';
-import { assessContextBudget } from './compaction.js';
-import type { AgentRuntimeEventCallbacks, TurnContext, TurnEndResult } from './types.js';
+} from '../../storage/index.js';
+import { parsePromptDocumentContent } from '../prompts.js';
+import { assessContextBudget } from '../compaction.js';
+import type { AgentRuntimeEventCallbacks, TurnContext, TurnEndResult } from '../types.js';
 
 /**
  * TurnPersistenceCallbacks

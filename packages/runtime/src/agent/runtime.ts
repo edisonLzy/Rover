@@ -92,7 +92,7 @@ export class AgentRuntime {
       const handler = cb[method];
       if (typeof handler === 'function') {
         try {
-          await (handler as any)(...args);
+          await (handler as any).apply(cb, args);
         } catch (err) {
           console.error(`[AgentRuntime] Error in callback '${String(method)}':`, err);
         }
@@ -135,6 +135,10 @@ export class AgentRuntime {
     // 1. 【核心时机】前置主动触发 onTurnStart (WAL 先行落盘与 UI 活跃状态同步)
     await this.triggerCallback('onTurnStart', context);
 
+    if (this.isCancelled || this.currentTurnContext !== context) {
+      return turnId;
+    }
+
     // 2. 外部 Abort 信号绑定
     if (input.signal) {
       input.signal.addEventListener(
@@ -156,6 +160,9 @@ export class AgentRuntime {
 
     try {
       await this.agent.prompt(userMessage);
+      if (this.turnError || this.agent.state.errorMessage) {
+        throw new Error(this.turnError || this.agent.state.errorMessage!);
+      }
     } catch (err) {
       if (this.isCancelled) {
         return turnId;
@@ -223,8 +230,9 @@ export class AgentRuntime {
   public abortPrompt(): void {
     this.isCancelled = true;
     const context = this.currentTurnContext;
-    this.agent.abort();
-    if (context) {
+    if (this.agent.state.isStreaming || (this.agent as any).activeRun) {
+      this.agent.abort();
+    } else if (context) {
       void this.handleAgentEnd(context);
     }
   }
@@ -370,6 +378,14 @@ export class AgentRuntime {
           break;
         }
 
+        case 'turn_end': {
+          if (event.message.role === 'assistant' && event.message.errorMessage) {
+            this.turnError = event.message.errorMessage;
+            await this.triggerCallback('onError', context, new Error(event.message.errorMessage));
+          }
+          break;
+        }
+
         case 'agent_end': {
           await this.handleAgentEnd(context);
           break;
@@ -385,7 +401,8 @@ export class AgentRuntime {
     }
 
     const latencyMs = context.startTime > 0 ? Date.now() - context.startTime : 0;
-    const status = this.isCancelled ? 'cancelled' : this.turnError ? 'failed' : 'completed';
+    const finalError = this.turnError || this.agent.state.errorMessage || null;
+    const status = this.isCancelled ? 'cancelled' : finalError ? 'failed' : 'completed';
 
     this.currentTurnContext = null;
 
@@ -393,10 +410,9 @@ export class AgentRuntime {
     await this.triggerCallback('onTurnEnd', context, {
       status,
       latencyMs,
-      error: this.turnError,
+      error: finalError,
     });
 
-    this.isCancelled = false;
     this.turnError = null;
 
     // 对齐 divisor-agent：若仍有排队 follow-up 消息，调度自动推进

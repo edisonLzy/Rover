@@ -1,6 +1,6 @@
 # 014b: Turn 消息先行持久化与 WebSocket 广播 Callbacks
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 014a  
 **Blocks**: 014c
 
@@ -11,7 +11,7 @@
 ## Specification & Invariants
 
 1. **`TurnPersistenceCallbacks`（存储层实现）**：
-   - 位于 `packages/runtime/src/agent/persistence_callbacks.ts`；
+   - 位于 `packages/runtime/src/agent/callbacks/persistence.ts`；
    - 依赖注入 `RoverDatabase`；
    - `onTurnStart(context)`：
      - 在数据库事务内原子创建 `rover_turn (status='running')` 并写入首条 user 类型的 `rover_entry`；
@@ -23,14 +23,13 @@
    - 上下文预算检查：在回合执行前集成既有的 `assessContextBudget`。
 
 2. **`WebSocketBroadcastCallbacks`（网络层实现）**：
-   - 位于 `packages/runtime/src/agent/broadcast_callbacks.ts`；
+   - 位于 `packages/runtime/src/agent/callbacks/broadcast.ts`；
    - 依赖注入既有的 `WebSocketManager`；
    - 保持与既有前端协议（ADR-0017）100% 兼容：
      - `onTurnStart` ➔ 广播 `turn.started`；
      - `onTurnStepStart` ➔ 广播 `turn.step_started`；
      - `onMessageDelta` ➔ 广播 `turn.delta`（包含 `textDelta` 或 `thinkingDelta`、`accumulated`、`isThinking`）；
      - `onToolExecutionStart` ➔ 广播 `turn.tool_call`；
-     - `onToolExecutionEnd` ➔ 广播 `turn.tool_result`；
      - `onToolExecutionEnd` ➔ 广播 `turn.tool_result`；
      - `onTurnEnd` ➔ 广播 `turn.end`（包含 `latencyMs`、`status`、`error`）；
      - 同步记入 `runtime_event` 表以保留事件序号 `eventSeq`。
@@ -46,16 +45,18 @@ packages/runtime/
 │   ├── __tests__/
 │   │   └── + [New] runtime_callbacks.test.ts      # 持久化与广播 Callbacks 的集成测试
 │   └── agent/
-│       ├── + [New] persistence_callbacks.ts       # Turn 消息先行持久化实现类
-│       └── + [New] broadcast_callbacks.ts         # WebSocket 广播实现类
+│       ├── * [Modified] runtime.ts                # 完善异常捕获、提前中断识别与 Callbacks 分发
+│       └── callbacks/
+│           ├── + [New] persistence.ts             # Turn 消息先行持久化实现类
+│           └── + [New] broadcast.ts               # WebSocket 广播实现类
 ```
 
 ## Acceptance Criteria
 
-- [ ] `TurnPersistenceCallbacks` 在 `onTurnStart` 时正确创建 `rover_turn` 和 user entry，在 `onMessageEnd` 时追加 assistant/toolResult entry，在 `onTurnEnd` 时更新状态。
-- [ ] 若在模型调用中途模拟抛错，数据库中的 `rover_turn` 正确置为 `failed` 且记录了 `error`。
-- [ ] `WebSocketBroadcastCallbacks` 能够将事件按正确格式推送到已连接的 WebSocket 客户端。
-- [ ] 新的回调体系下，数据落库的格式与旧 `RoverTurnEngine` 完全兼容。
+- [x] `TurnPersistenceCallbacks` 在 `onTurnStart` 时正确创建 `rover_turn` 和 user entry，在 `onMessageEnd` 时追加 assistant/toolResult entry，在 `onTurnEnd` 时更新状态。
+- [x] 若在模型调用中途模拟抛错，数据库中的 `rover_turn` 正确置为 `failed` 且记录了 `error`。
+- [x] `WebSocketBroadcastCallbacks` 能够将事件按正确格式推送到已连接的 WebSocket 客户端。
+- [x] 新的回调体系下，数据落库的格式与旧 `RoverTurnEngine` 完全兼容。
 
 ## Verification Plan
 

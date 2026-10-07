@@ -106,7 +106,7 @@ flowchart TD
 | [012](./012-pet-toolbar-and-prompt-interaction.md) | 宠物待命、工具栏与输入交互重构 | 002, 010 | IN_PROGRESS | `packages/app` (Pet, PetToolbar, PromptInput, PetWindow) |
 | [013](./013-pet-task-panel-and-scroll.md) | Task 堆叠、展开与列表滚动 | 012 | TODO | `packages/app` (PetToolbar/Task) |
 | [014a](./014a-agent-runtime-core-and-event-callbacks.md) | AgentRuntime 纯领域核心与 Event Callbacks 契约 | 005 | DONE | `packages/runtime` (AgentRuntime, Callbacks, 内存队列) |
-| [014b](./014b-turn-persistence-and-websocket-callbacks.md) | Turn 消息先行持久化与 WebSocket 广播 Callbacks | 014a | TODO | `packages/runtime` (TurnPersistenceCallbacks, WS 广播) |
+| [014b](./014b-turn-persistence-and-websocket-callbacks.md) | Turn 消息先行持久化与 WebSocket 广播 Callbacks | 014a | DONE | `packages/runtime` (TurnPersistenceCallbacks, WS 广播) |
 | [014c](./014c-runtime-migration-cqrs-and-engine-cleanup.md) | Transport 路由切换、CQRS 查询剥离与老旧 Engine/Handler 下线清理 | 014b | TODO | `packages/runtime` (tRPC router, 物理删除 engine/handler) |
 | [014d](./014d-human-in-the-loop-permission-and-question.md) | Human-in-the-Loop (HITL) 权限审批与用户提问状态机集成 | 014c | TODO | `packages/runtime` (AbstractHITL, PermissionService) |
 | [015](./015-pet-bubble-output-isolation.md) | PetBubble 的 LLM 输出职责收敛 | 012 | DONE | `packages/app` (PetBubble, 类型化事件订阅) |
