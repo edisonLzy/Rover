@@ -180,7 +180,7 @@ describe('SkillService and read_skill tool', () => {
       const service = new SkillService({ skillsDir: appSkillsDir });
       const caller = skillsRouter.createCaller({
         isAuthenticated: false,
-        container: { skills: service },
+        container: { skillService: service },
       } as any);
 
       await expect(caller.list()).rejects.toThrow(/Unauthorized/);
@@ -190,7 +190,7 @@ describe('SkillService and read_skill tool', () => {
       const service = new SkillService({ skillsDir: appSkillsDir });
       const caller = skillsRouter.createCaller({
         isAuthenticated: true,
-        container: { skills: service },
+        container: { skillService: service },
       } as any);
 
       const result = await caller.list();
@@ -205,7 +205,7 @@ describe('SkillService and read_skill tool', () => {
       const service = new SkillService({ skillsDir: appSkillsDir });
       const caller = skillsRouter.createCaller({
         isAuthenticated: true,
-        container: { skills: service },
+        container: { skillService: service },
       } as any);
 
       const result = await caller.read({ name: 'dispatch-agent' });
@@ -217,7 +217,7 @@ describe('SkillService and read_skill tool', () => {
       const service = new SkillService({ skillsDir: appSkillsDir });
       const caller = skillsRouter.createCaller({
         isAuthenticated: true,
-        container: { skills: service },
+        container: { skillService: service },
       } as any);
 
       await expect(caller.read({ name: 'non-existent' })).rejects.toThrow(/Skill not found/);

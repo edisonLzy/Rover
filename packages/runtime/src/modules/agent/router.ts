@@ -13,7 +13,7 @@ export const turnsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        return await ctx.container.agent.startTurn({
+        return await ctx.container.agentService.startTurn({
           promptDoc: input.promptDoc,
           turnId: input.turnId,
         });
@@ -31,7 +31,7 @@ export const turnsRouter = router({
   cancel: protectedProcedure
     .input(z.object({ turnId: z.string().min(1) }))
     .mutation(({ ctx, input }) => {
-      return ctx.container.agent.cancelTurn(input.turnId);
+      return ctx.container.agentService.cancelTurn(input.turnId);
     }),
 
   steer: protectedProcedure
@@ -41,15 +41,15 @@ export const turnsRouter = router({
       })
     )
     .mutation(({ ctx, input }) => {
-      return ctx.container.agent.steer(input.content);
+      return ctx.container.agentService.steer(input.content);
     }),
 
   clearAllQueues: protectedProcedure.mutation(({ ctx }) => {
-    return ctx.container.agent.clearAllQueues();
+    return ctx.container.agentService.clearAllQueues();
   }),
 
   get: protectedProcedure.input(z.object({ turnId: z.string().min(1) })).query(({ ctx, input }) => {
-    return ctx.container.agent.getTurn(input.turnId);
+    return ctx.container.agentService.getTurn(input.turnId);
   }),
 });
 
@@ -67,15 +67,15 @@ export const historyRouter = router({
         .optional()
     )
     .query(({ ctx, input }) => {
-      return ctx.container.agent.getFeed(input);
+      return ctx.container.agentService.getFeed(input);
     }),
 
   getStats: protectedProcedure.query(({ ctx }) => {
-    return ctx.container.agent.getStats();
+    return ctx.container.agentService.getStats();
   }),
 
   getEffective: protectedProcedure.query(({ ctx }) => {
-    return ctx.container.agent.getEffectiveHistory();
+    return ctx.container.agentService.getEffectiveHistory();
   }),
 
   listTurns: protectedProcedure
@@ -88,12 +88,12 @@ export const historyRouter = router({
         .optional()
     )
     .query(({ ctx, input }) => {
-      return ctx.container.agent.listTurns(input);
+      return ctx.container.agentService.listTurns(input);
     }),
 
   getTurn: protectedProcedure
     .input(z.object({ turnId: z.string().min(1) }))
     .query(({ ctx, input }) => {
-      return ctx.container.agent.getTurn(input.turnId);
+      return ctx.container.agentService.getTurn(input.turnId);
     }),
 });

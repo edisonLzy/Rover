@@ -225,6 +225,11 @@ export interface TurnDetails {
 }
 
 export interface AgentServiceDependencies {
-  runtime: import('./runtime/runtime.js').AgentRuntime;
-  db: import('better-sqlite3').Database;
+  db:
+    | import('better-sqlite3').Database
+    | import('../../infrastructure/database/index.js').RoverDatabase;
+  modelService: import('../models/index.js').ModelService;
+  skillService?: import('../skills/index.js').SkillService;
+  wsManager?: import('../../transport/websocket.js').WebSocketManager;
+  runtime?: import('./runtime/runtime.js').AgentRuntime;
 }

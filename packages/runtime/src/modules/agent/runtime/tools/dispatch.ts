@@ -6,16 +6,13 @@ import {
   insertDispatchAttempt,
   updateDispatchAttemptStatus as dbUpdateDispatchAttemptStatus,
   commitTaskWithSession,
-  type TaskAgent,
-} from '../../../tasks/index.js';
+} from '../../../tasks/repository.js';
+import type { TaskAgent } from '../../../tasks/index.js';
 import {
-  AgentRegistry,
-  defaultAgentRegistry,
   createDispatchAttempt as coreCreateDispatchAttempt,
   launchDispatch,
   confirmNativeSession,
-  ScreenSessionCarrier,
-  type SessionCarrier,
+  sessionCarrier,
 } from '../../../../infrastructure/dispatch/index.js';
 import type { WebSocketManager } from '../../../../transport/websocket.js';
 
@@ -36,8 +33,6 @@ export type DispatchAgentParamsType = Static<typeof DispatchAgentParams>;
 
 export interface DispatchAgentToolOptions {
   db: RoverDatabase;
-  carrier?: SessionCarrier;
-  agentRegistry?: AgentRegistry;
   wsManager?: WebSocketManager;
   getCurrentTurnId?: () => string | undefined;
 }
@@ -45,13 +40,7 @@ export interface DispatchAgentToolOptions {
 export function createDispatchAgentTool(
   options: DispatchAgentToolOptions
 ): AgentTool<typeof DispatchAgentParams> {
-  const {
-    db,
-    carrier = new ScreenSessionCarrier(),
-    agentRegistry = defaultAgentRegistry,
-    wsManager,
-    getCurrentTurnId,
-  } = options;
+  const { db, wsManager, getCurrentTurnId } = options;
 
   return {
     name: 'dispatch_agent',
@@ -78,14 +67,11 @@ export function createDispatchAgentTool(
       const turnId = getCurrentTurnId?.() || 'turn_direct';
 
       // 2. Initialize DispatchAttempt model
-      const coreAttempt = coreCreateDispatchAttempt(
-        {
-          agentType: agent as TaskAgent,
-          cwd,
-          prompt: taskPrompt,
-        },
-        agentRegistry
-      );
+      const coreAttempt = coreCreateDispatchAttempt({
+        agentType: agent as TaskAgent,
+        cwd,
+        prompt: taskPrompt,
+      });
 
       // 3. Write dispatch_attempt to database with status 'starting'
       // Red line: NO task is created at this point!
@@ -103,16 +89,11 @@ export function createDispatchAgentTool(
       // 4. Launch Carrier process
       let carrierSession;
       try {
-        const launched = await launchDispatch(
-          coreAttempt,
-          {
-            agentType: agent as TaskAgent,
-            cwd,
-            prompt: taskPrompt,
-          },
-          carrier,
-          agentRegistry
-        );
+        const launched = await launchDispatch(coreAttempt, {
+          agentType: agent as TaskAgent,
+          cwd,
+          prompt: taskPrompt,
+        });
         carrierSession = launched.carrierSession;
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -146,7 +127,7 @@ export function createDispatchAgentTool(
           nativeSessionId,
           configDir: cwd,
           carrierName: carrierSession.sessionName,
-          carrierKind: carrier.carrierType,
+          carrierKind: sessionCarrier.carrierType,
           wsManager,
         });
 

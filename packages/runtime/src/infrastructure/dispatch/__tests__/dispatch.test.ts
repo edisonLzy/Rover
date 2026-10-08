@@ -9,9 +9,7 @@ import {
   launchDispatch,
   confirmNativeSession,
   failDispatch,
-  type SessionCarrier,
-  type CarrierSessionInfo,
-  type StartCarrierSessionOptions,
+  sessionCarrier,
 } from '../index.js';
 
 describe('Agent Dispatch & Session Binding (M1-2)', () => {
@@ -178,22 +176,6 @@ describe('Agent Dispatch & Session Binding (M1-2)', () => {
   });
 
   describe('Lifecycle & Domain Invariants', () => {
-    const createMockCarrier = (): SessionCarrier => ({
-      carrierType: 'screen',
-      startSession: vi.fn(
-        async (options: StartCarrierSessionOptions): Promise<CarrierSessionInfo> => ({
-          attemptId: options.attemptId,
-          sessionName: `rover_${options.attemptId}`,
-          pid: 12345,
-          status: 'detached',
-          carrierType: 'screen',
-        })
-      ),
-      getSessionInfo: vi.fn(),
-      listSessions: vi.fn(),
-      killSession: vi.fn(),
-    });
-
     it('creates attempt with preallocated UUID and capability tokens for Claude', () => {
       const attempt = createDispatchAttempt({
         agentType: 'claude',
@@ -220,34 +202,35 @@ describe('Agent Dispatch & Session Binding (M1-2)', () => {
     });
 
     it('launches attempt through carrier and transitions state to launched', async () => {
-      const mockCarrier = createMockCarrier();
       const attempt = createDispatchAttempt({
         agentType: 'claude',
         cwd: '/tmp/repo',
       });
 
-      const { carrierSession } = await launchDispatch(
-        attempt,
-        { agentType: 'claude', cwd: '/tmp/repo' },
-        mockCarrier
-      );
+      const startSpy = vi.spyOn(sessionCarrier, 'startSession').mockResolvedValueOnce({
+        attemptId: attempt.attemptId,
+        sessionName: `rover_${attempt.attemptId}`,
+        pid: 12345,
+        status: 'detached',
+        carrierType: 'screen',
+      });
+
+      const { carrierSession } = await launchDispatch(attempt, {
+        agentType: 'claude',
+        cwd: '/tmp/repo',
+      });
 
       expect(attempt.status).toBe('launched');
       expect(attempt.carrierSessionName).toBe(`rover_${attempt.attemptId}`);
       expect(carrierSession.pid).toBe(12345);
-      expect(mockCarrier.startSession).toHaveBeenCalledTimes(1);
+      expect(startSpy).toHaveBeenCalledTimes(1);
+      startSpy.mockRestore();
     });
 
     it('fails attempt if carrier encounters error', async () => {
-      const failingCarrier: SessionCarrier = {
-        carrierType: 'screen',
-        startSession: vi.fn(async () => {
-          throw new Error('Screen process spawn failure');
-        }),
-        getSessionInfo: vi.fn(),
-        listSessions: vi.fn(),
-        killSession: vi.fn(),
-      };
+      const startSpy = vi
+        .spyOn(sessionCarrier, 'startSession')
+        .mockRejectedValueOnce(new Error('Screen process spawn failure'));
 
       const attempt = createDispatchAttempt({
         agentType: 'codex',
@@ -255,11 +238,12 @@ describe('Agent Dispatch & Session Binding (M1-2)', () => {
       });
 
       await expect(
-        launchDispatch(attempt, { agentType: 'codex', cwd: '/tmp/repo' }, failingCarrier)
+        launchDispatch(attempt, { agentType: 'codex', cwd: '/tmp/repo' })
       ).rejects.toThrow('Screen process spawn failure');
 
       expect(attempt.status).toBe('failed');
       expect(attempt.errorMessage).toBe('Screen process spawn failure');
+      startSpy.mockRestore();
     });
 
     it('enforces native session confirmation invariants for preallocated sessions', () => {

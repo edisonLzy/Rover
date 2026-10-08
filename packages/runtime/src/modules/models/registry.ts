@@ -97,13 +97,3 @@ export class ModelRegistry {
     }
   }
 }
-
-// Global default singleton
-let defaultRegistry: ModelRegistry | null = null;
-
-export function getModelRegistry(customConfigPath?: string): ModelRegistry {
-  if (!defaultRegistry || customConfigPath) {
-    defaultRegistry = new ModelRegistry(customConfigPath);
-  }
-  return defaultRegistry;
-}

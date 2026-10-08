@@ -1,6 +1,6 @@
-import type Database from 'better-sqlite3';
 import {
   resolveTerminalAction,
+  executeTerminalAction,
   formatActionShellCommand,
 } from '../../infrastructure/dispatch/index.js';
 import {
@@ -42,7 +42,7 @@ export class TaskService {
 
   get(taskId: string): TaskDetails {
     const db = this.dependencies.db;
-    const task = requireTask(db, taskId);
+    const task = this.requireTask(taskId);
     return {
       task,
       sessionRef: getSessionRef(db, taskId),
@@ -52,7 +52,7 @@ export class TaskService {
 
   async openTerminal(taskId: string): Promise<TaskTerminalResult> {
     const db = this.dependencies.db;
-    const task = requireTask(db, taskId);
+    const task = this.requireTask(taskId);
     const sessionRef = getSessionRef(db, taskId);
     if (!sessionRef) {
       throw new TaskServiceError(
@@ -65,10 +65,8 @@ export class TaskService {
       agentType: task.agent,
       nativeSessionId: sessionRef.nativeSessionId,
       cwd: sessionRef.configDir,
-      carrier: this.dependencies.carrier,
-      registry: this.dependencies.registry,
     });
-    const execution = await this.dependencies.executeTerminal(action);
+    const execution = await executeTerminalAction(action);
     return {
       success: execution.success,
       actionType: action.type,
@@ -81,16 +79,12 @@ export class TaskService {
           : undefined,
     };
   }
-}
 
-export function createTaskService(dependencies: TaskServiceDependencies): TaskService {
-  return new TaskService(dependencies);
-}
-
-function requireTask(db: Database.Database, taskId: string): TaskRecord {
-  const task = getTask(db, taskId);
-  if (!task) {
-    throw new TaskServiceError('TASK_NOT_FOUND', `Task not found: ${taskId}`);
+  private requireTask(taskId: string): TaskRecord {
+    const task = getTask(this.dependencies.db, taskId);
+    if (!task) {
+      throw new TaskServiceError('TASK_NOT_FOUND', `Task not found: ${taskId}`);
+    }
+    return task;
   }
-  return task;
 }

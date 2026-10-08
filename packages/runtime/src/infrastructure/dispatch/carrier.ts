@@ -158,4 +158,4 @@ export function getSessionCarrier(platform: NodeJS.Platform = process.platform):
   return new ScreenSessionCarrier();
 }
 
-export const defaultSessionCarrier: SessionCarrier = getSessionCarrier();
+export const sessionCarrier: SessionCarrier = getSessionCarrier();

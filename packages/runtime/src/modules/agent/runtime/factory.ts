@@ -3,7 +3,7 @@ import { AgentRuntime } from './runtime.js';
 import { TurnPersistenceCallbacks } from './callbacks/persistence.js';
 import { WebSocketBroadcastCallbacks } from './callbacks/broadcast.js';
 import { openDatabase, type RoverDatabase } from '../../../infrastructure/database/index.js';
-import { ModelRegistry, getModelRegistry } from '../../models/index.js';
+import { ModelRegistry } from '../../models/index.js';
 import { BuiltinSkillService } from '../../skills/index.js';
 import { createReadSkillTool } from './tools/skill.js';
 import { createDispatchAgentTool } from './tools/dispatch.js';
@@ -23,7 +23,7 @@ export interface AgentRuntimeFactoryOptions {
 
 export function createAgentRuntime(options: AgentRuntimeFactoryOptions = {}): AgentRuntime {
   const dbInstance = options.db || openDatabase();
-  const modelRegistry = options.modelRegistry || getModelRegistry(options.customConfigPath);
+  const modelRegistry = options.modelRegistry || new ModelRegistry(options.customConfigPath);
   const skillService =
     options.skillService || new BuiltinSkillService({ skillsDir: options.skillsDir });
 

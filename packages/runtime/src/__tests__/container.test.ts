@@ -9,10 +9,10 @@ describe('Container Composition Root (ADR-0020)', () => {
     const container = createContainer({ wsManager });
 
     expect(container.db).toBeDefined();
-    expect(container.models).toBeDefined();
-    expect(container.skills).toBeDefined();
-    expect(container.tasks).toBeDefined();
-    expect(container.agent).toBeDefined();
+    expect(container.modelService).toBeDefined();
+    expect(container.skillService).toBeDefined();
+    expect(container.taskService).toBeDefined();
+    expect(container.agentService).toBeDefined();
     expect(Object.isFrozen(container)).toBe(true);
   });
 
@@ -21,6 +21,6 @@ describe('Container Composition Root (ADR-0020)', () => {
     const c2 = createContainer({ wsManager });
 
     expect(c1).not.toBe(c2);
-    expect(c1.agent).not.toBe(c2.agent);
+    expect(c1.agentService).not.toBe(c2.agentService);
   });
 });

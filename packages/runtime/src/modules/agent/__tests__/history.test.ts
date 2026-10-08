@@ -16,8 +16,8 @@ import {
   listEntries,
   getHistoryStats,
   listRoverTurns,
-  type AgentMessage,
-} from '../index.js';
+} from '../repository.js';
+import type { AgentMessage } from '../types.js';
 import {
   assessContextBudget,
   selectCompactionBoundary,

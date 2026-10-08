@@ -15,16 +15,16 @@ export const tasksRouter = router({
         })
         .optional()
     )
-    .query(({ ctx, input }) => mapTaskErrors(() => ctx.container.tasks.list(input ?? {}))),
+    .query(({ ctx, input }) => mapTaskErrors(() => ctx.container.taskService.list(input ?? {}))),
 
   get: protectedProcedure
     .input(z.object({ taskId: z.string().min(1) }))
-    .query(({ ctx, input }) => mapTaskErrors(() => ctx.container.tasks.get(input.taskId))),
+    .query(({ ctx, input }) => mapTaskErrors(() => ctx.container.taskService.get(input.taskId))),
 
   openTerminal: protectedProcedure
     .input(z.object({ taskId: z.string().min(1) }))
     .mutation(({ ctx, input }) =>
-      mapTaskErrors(() => ctx.container.tasks.openTerminal(input.taskId))
+      mapTaskErrors(() => ctx.container.taskService.openTerminal(input.taskId))
     ),
 });
 

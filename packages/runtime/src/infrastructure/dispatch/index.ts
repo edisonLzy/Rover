@@ -29,7 +29,7 @@ export {
 
 export {
   getSessionCarrier,
-  defaultSessionCarrier,
+  sessionCarrier,
   ScreenSessionCarrier,
   WindowsSessionCarrier,
   type SessionCarrier,
@@ -41,7 +41,7 @@ export {
 
 export {
   AgentRegistry,
-  defaultAgentRegistry,
+  agentRegistry,
   createDispatchAttempt,
   launchDispatch,
   confirmNativeSession,

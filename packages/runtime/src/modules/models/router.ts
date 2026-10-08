@@ -5,11 +5,11 @@ import type { ProviderConfig, ModelConfig } from './types.js';
 
 export const modelsRouter = router({
   getConfig: protectedProcedure.query(({ ctx }) => {
-    return ctx.container.models.getMaskedConfig();
+    return ctx.container.modelService.getMaskedConfig();
   }),
 
   getActive: protectedProcedure.query(({ ctx }) => {
-    return ctx.container.models.getActiveModel();
+    return ctx.container.modelService.getActiveModel();
   }),
 
   setActive: protectedProcedure
@@ -20,7 +20,7 @@ export const modelsRouter = router({
       })
     )
     .mutation(({ ctx, input }) => {
-      return ctx.container.models.setActive(input);
+      return ctx.container.modelService.setActive(input);
     }),
 
   saveProvider: protectedProcedure
@@ -31,13 +31,13 @@ export const modelsRouter = router({
       })
     )
     .mutation(({ ctx, input }) => {
-      return ctx.container.models.saveProvider(input.id, input.provider as ProviderConfig);
+      return ctx.container.modelService.saveProvider(input.id, input.provider as ProviderConfig);
     }),
 
   deleteProvider: protectedProcedure
     .input(z.object({ id: z.string().min(1) }))
     .mutation(({ ctx, input }) => {
-      return ctx.container.models.deleteProvider(input.id);
+      return ctx.container.modelService.deleteProvider(input.id);
     }),
 
   addModel: protectedProcedure
@@ -48,7 +48,7 @@ export const modelsRouter = router({
       })
     )
     .mutation(({ ctx, input }) => {
-      return ctx.container.models.addModel(input.providerId, input.model as ModelConfig);
+      return ctx.container.modelService.addModel(input.providerId, input.model as ModelConfig);
     }),
 
   deleteModel: protectedProcedure
@@ -59,7 +59,7 @@ export const modelsRouter = router({
       })
     )
     .mutation(({ ctx, input }) => {
-      return ctx.container.models.deleteModel(input.providerId, input.modelId);
+      return ctx.container.modelService.deleteModel(input.providerId, input.modelId);
     }),
 
   testConnection: protectedProcedure
@@ -70,11 +70,11 @@ export const modelsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.container.models.testConnection(input);
+      return ctx.container.modelService.testConnection(input);
     }),
 
   checkPiAvailability: protectedProcedure.query(({ ctx }) => {
-    return ctx.container.models.checkPiAvailability();
+    return ctx.container.modelService.checkPiAvailability();
   }),
 
   importFromPi: protectedProcedure
@@ -86,6 +86,6 @@ export const modelsRouter = router({
         .optional()
     )
     .mutation(({ ctx, input }) => {
-      return ctx.container.models.importFromPi(input);
+      return ctx.container.modelService.importFromPi(input);
     }),
 });

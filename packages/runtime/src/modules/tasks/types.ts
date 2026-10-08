@@ -1,11 +1,5 @@
 import type Database from 'better-sqlite3';
-import type { SessionCarrier } from '../../infrastructure/dispatch/carrier.js';
-import type { AgentRegistry } from '../../infrastructure/dispatch/dispatcher.js';
-import type {
-  TerminalAction,
-  TerminalActionType,
-  TerminalExecutionResult,
-} from '../../infrastructure/dispatch/terminal.js';
+import type { TerminalActionType } from '../../infrastructure/dispatch/terminal.js';
 import type { WebSocketManager } from '../../transport/websocket.js';
 
 export type TaskAgent = 'claude' | 'codex' | 'opencode';
@@ -146,7 +140,4 @@ export interface TaskService {
 
 export interface TaskServiceDependencies {
   db: Database.Database;
-  carrier: SessionCarrier;
-  registry: AgentRegistry;
-  executeTerminal: (action: TerminalAction) => Promise<TerminalExecutionResult>;
 }

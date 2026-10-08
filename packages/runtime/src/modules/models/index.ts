@@ -1,28 +1,11 @@
-export { ModelService } from './service.js';
+/**
+ * Models Module Facade (ADR-0020 & AGENTS.md)
+ * 严格对外导出该模块公开的 Service、Router、Registry 和契约类型。
+ */
 
+export { ModelService, type ModelServiceOptions } from './service.js';
 export { modelsRouter } from './router.js';
-
-export { ModelRegistry, getModelRegistry } from './registry.js';
-
-export {
-  loadModelsConfig,
-  saveModelsConfig,
-  maskModelsConfig,
-  setActiveModel,
-  saveProvider,
-  deleteProvider,
-  addModelToProvider,
-  deleteModelFromProvider,
-  getModelsConfigPath,
-  getDefaultModelsConfig,
-  ProviderConfigSchema,
-  ModelConfigSchema,
-  RoverModelsConfigSchema,
-} from './schema.js';
-
-export { testModelConnection } from './tester.js';
-
-export { isPiConfigAvailable, getPiModelsConfigPath, importFromPi } from './importer.js';
+export { ModelRegistry } from './registry.js';
 
 export type {
   RoverModelsConfig,

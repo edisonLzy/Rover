@@ -1,63 +1,26 @@
+/**
+ * Agent Module Facade (ADR-0020 & AGENTS.md)
+ * 严格对外导出该模块公开的 Service、Runtime、Router 和契约类型。
+ */
+
 export { AgentService } from './service.js';
+export { AgentRuntime, createAgentRuntime } from './runtime/index.js';
 export { turnsRouter, historyRouter } from './router.js';
-export {
-  createRoverTurn,
-  updateRoverTurnStatus,
-  getRoverTurn,
-  listRoverTurns,
-  getTurnEntries,
-  getEntryById,
-  appendMessageEntry,
-  appendCompactionEntry,
-  getLatestCompaction,
-  getEffectiveHistory,
-  listEntries,
-  getHistoryStats,
-} from './repository.js';
-export {
-  AgentRuntime,
-  createAgentRuntime,
-  SystemPromptService,
-  assessContextBudget,
-  selectCompactionBoundary,
-  Compactor,
-  defaultCompactor,
-  WebSocketBroadcastCallbacks,
-  TurnPersistenceCallbacks,
-  createReadSkillTool,
-  createDispatchAgentTool,
-} from './runtime/index.js';
+
 export type {
   RoverTurnStatus,
   RoverTurnRecord,
-  AgentRole,
-  ToolCallBlock,
-  ToolResultBlock,
-  TextBlock,
-  ThinkingBlock,
-  ContentBlock,
-  AgentMessage,
-  CompactionPayload,
-  RoverEntryType,
   RoverEntryRecord,
+  RoverEntryType,
+  AgentRole,
+  AgentMessage,
   EffectiveHistory,
-  CreateTurnInput,
-  UpdateTurnStatusInput,
-  AppendMessageEntryInput,
-  AppendCompactionEntryInput,
-  ListEntriesOptions,
   HistoryStats,
-  ListRoverTurnsOptions,
-  TurnContext,
-  MessageDeltaEvent,
-  ToolCallEvent,
-  ToolResultEvent,
-  TurnEndResult,
-  AgentRuntimeEventCallbacks,
-  PromptInput,
-  AgentRuntimeOptions,
-  StartTurnInput,
   StartTurnResult,
   TurnDetails,
+  TurnEndResult,
+  TurnContext,
+  AgentRuntimeOptions,
   AgentServiceDependencies,
+  PromptInput,
 } from './types.js';

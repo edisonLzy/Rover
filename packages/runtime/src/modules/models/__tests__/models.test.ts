@@ -469,7 +469,7 @@ describe('Model Configuration & Pi AI Contract (Ticket 003 & ADR-0015)', () => {
       const service = new ModelService(registry);
       const caller = modelsRouter.createCaller({
         isAuthenticated: true,
-        container: { models: service },
+        container: { modelService: service },
       } as any);
 
       const config = await caller.getConfig();

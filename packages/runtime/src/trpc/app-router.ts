@@ -8,8 +8,6 @@ import {
   resolveTerminalAction,
   executeTerminalAction,
 } from '../infrastructure/dispatch/terminal.js';
-import { defaultSessionCarrier } from '../infrastructure/dispatch/carrier.js';
-import { defaultAgentRegistry } from '../infrastructure/dispatch/dispatcher.js';
 import type { TaskAgent } from '../modules/tasks/types.js';
 
 export const RUNTIME_VERSION = '0.1.0';
@@ -48,8 +46,6 @@ export const appRouter = router({
         agentType: input.agentType as TaskAgent,
         nativeSessionId: input.nativeSessionId,
         cwd: input.cwd,
-        carrier: defaultSessionCarrier,
-        registry: defaultAgentRegistry,
       });
     }),
 

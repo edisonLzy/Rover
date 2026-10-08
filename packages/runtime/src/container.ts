@@ -3,13 +3,10 @@ import {
   runMigrations,
   type RoverDatabase,
 } from './infrastructure/database/index.js';
-import { ModelService, getModelRegistry } from './modules/models/index.js';
+import { ModelService } from './modules/models/index.js';
 import { SkillService } from './modules/skills/index.js';
 import { TaskService } from './modules/tasks/index.js';
-import { AgentService, createAgentRuntime } from './modules/agent/index.js';
-import { defaultSessionCarrier } from './infrastructure/dispatch/carrier.js';
-import { defaultAgentRegistry } from './infrastructure/dispatch/dispatcher.js';
-import { executeTerminalAction } from './infrastructure/dispatch/terminal.js';
+import { AgentService } from './modules/agent/index.js';
 import type { WebSocketManager } from './transport/websocket.js';
 
 /**
@@ -19,10 +16,10 @@ import type { WebSocketManager } from './transport/websocket.js';
  */
 export interface Container {
   db: RoverDatabase;
-  models: ModelService;
-  skills: SkillService;
-  tasks: TaskService;
-  agent: AgentService;
+  modelService: ModelService;
+  skillService: SkillService;
+  taskService: TaskService;
+  agentService: AgentService;
 }
 
 export interface CreateContainerOptions {
@@ -35,32 +32,24 @@ export function createContainer(options: CreateContainerOptions): Container {
   const db = openDatabase();
   runMigrations(db.raw);
 
-  const models = new ModelService(getModelRegistry(options.customConfigPath));
-  const skills = new SkillService({ skillsDir: options.skillsDir });
-  const tasks = new TaskService({
+  const modelService = new ModelService({ customConfigPath: options.customConfigPath });
+  const skillService = new SkillService({ skillsDir: options.skillsDir });
+  const taskService = new TaskService({
     db: db.raw,
-    carrier: defaultSessionCarrier,
-    registry: defaultAgentRegistry,
-    executeTerminal: executeTerminalAction,
   });
 
-  const agentRuntime = createAgentRuntime({
+  const agentService = new AgentService({
     db,
-    skillsDir: options.skillsDir,
-    customConfigPath: options.customConfigPath,
+    modelService,
+    skillService,
     wsManager: options.wsManager,
-  });
-
-  const agent = new AgentService({
-    runtime: agentRuntime,
-    db: db.raw,
   });
 
   return Object.freeze({
     db,
-    models,
-    skills,
-    tasks,
-    agent,
+    modelService,
+    skillService,
+    taskService,
+    agentService,
   });
 }

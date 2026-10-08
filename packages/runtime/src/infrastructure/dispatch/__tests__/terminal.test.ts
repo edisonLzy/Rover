@@ -1,29 +1,30 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   resolveTerminalAction,
   resolveDefaultTerminalApp,
   generateTerminalAppleScript,
   formatActionShellCommand,
   executeTerminalAction,
-  type SessionCarrier,
+  sessionCarrier,
   type CarrierSessionInfo,
   type TerminalAction,
 } from '../index.js';
 
 describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
-  const mockCarrierWithSession = (session: CarrierSessionInfo | null): SessionCarrier => ({
-    carrierType: 'screen',
-    startSession: vi.fn(),
-    getSessionInfo: vi.fn().mockResolvedValue(session),
-    getSession: vi.fn().mockResolvedValue(session),
-    listSessions: vi.fn().mockResolvedValue(session ? [session] : []),
-    killSession: vi.fn().mockResolvedValue(true),
-    stopSession: vi.fn().mockResolvedValue(true),
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
+
+  const mockCarrierSession = (session: CarrierSessionInfo | null) => {
+    vi.spyOn(sessionCarrier, 'getSessionInfo').mockResolvedValue(session);
+    if ('getSession' in sessionCarrier) {
+      vi.spyOn(sessionCarrier as any, 'getSession').mockResolvedValue(session);
+    }
+  };
 
   describe('resolveTerminalAction', () => {
     it('resolves to attach action when screen session is active (detached)', async () => {
-      const carrier = mockCarrierWithSession({
+      mockCarrierSession({
         attemptId: 'att_live_01',
         sessionName: 'rover_att_live_01',
         status: 'detached',
@@ -36,7 +37,6 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
         agentType: 'claude',
         nativeSessionId: '990ee48b-3e2b-426b-bfdc-b620ee6d41dc',
         cwd: '/Users/test/project',
-        carrier,
       });
 
       expect(action.type).toBe('attach');
@@ -46,14 +46,13 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
     });
 
     it('resolves to claude resume action when screen session has exited', async () => {
-      const carrier = mockCarrierWithSession(null);
+      mockCarrierSession(null);
 
       const action = await resolveTerminalAction({
         attemptId: 'att_done_01',
         agentType: 'claude',
         nativeSessionId: '990ee48b-3e2b-426b-bfdc-b620ee6d41dc',
         cwd: '/Users/test/project',
-        carrier,
       });
 
       expect(action.type).toBe('resume');
@@ -66,14 +65,13 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
     });
 
     it('resolves to codex resume action when screen session has exited', async () => {
-      const carrier = mockCarrierWithSession(null);
+      mockCarrierSession(null);
 
       const action = await resolveTerminalAction({
         attemptId: 'att_done_02',
         agentType: 'codex',
         nativeSessionId: 'sess_codex_7788',
         cwd: '/Users/test/codex-proj',
-        carrier,
       });
 
       expect(action.type).toBe('resume');
@@ -86,13 +84,12 @@ describe('Terminal.app Automation & Takeover/Resume (M1-4)', () => {
     });
 
     it('throws error if session has exited but nativeSessionId is missing', async () => {
-      const carrier = mockCarrierWithSession(null);
+      mockCarrierSession(null);
 
       await expect(
         resolveTerminalAction({
           attemptId: 'att_missing_id',
           agentType: 'codex',
-          carrier,
         })
       ).rejects.toThrow('native session ID is missing');
     });

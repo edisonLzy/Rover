@@ -9,7 +9,7 @@ import {
 } from './schema.js';
 import { testModelConnection } from './tester.js';
 import { isPiConfigAvailable, getPiModelsConfigPath, importFromPi } from './importer.js';
-import { ModelRegistry, getModelRegistry } from './registry.js';
+import { ModelRegistry } from './registry.js';
 import type {
   RoverModelsConfig,
   MaskedRoverModelsConfig,
@@ -18,11 +18,20 @@ import type {
   ModelConnectionTestResult,
 } from './types.js';
 
+export interface ModelServiceOptions {
+  customConfigPath?: string;
+  registry?: ModelRegistry;
+}
+
 export class ModelService {
   private registry: ModelRegistry;
 
-  constructor(registry: ModelRegistry = getModelRegistry()) {
-    this.registry = registry;
+  constructor(options?: ModelServiceOptions | ModelRegistry) {
+    if (options instanceof ModelRegistry) {
+      this.registry = options;
+    } else {
+      this.registry = options?.registry ?? new ModelRegistry(options?.customConfigPath);
+    }
   }
 
   getRegistry(): ModelRegistry {

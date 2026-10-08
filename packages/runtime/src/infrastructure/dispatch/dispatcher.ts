@@ -21,7 +21,7 @@ import type {
 import { ClaudeAdapter } from './adapters/claude.js';
 import { CodexAdapter } from './adapters/codex.js';
 import { OpenCodeAdapter } from './adapters/opencode.js';
-import type { CarrierSessionInfo, SessionCarrier } from './carrier.js';
+import { sessionCarrier, type CarrierSessionInfo } from './carrier.js';
 
 export class AgentRegistry {
   private readonly adapters = new Map<AgentType, AgentAdapter>();
@@ -53,16 +53,13 @@ export class AgentRegistry {
   }
 }
 
-export const defaultAgentRegistry = new AgentRegistry();
+export const agentRegistry = new AgentRegistry();
 
 /**
  * Creates a new DispatchAttempt enforcing capability token generation and session ID strategy.
  */
-export function createDispatchAttempt(
-  options: DispatchOptions,
-  registry: AgentRegistry = defaultAgentRegistry
-): DispatchAttempt {
-  const adapter = registry.get(options.agentType);
+export function createDispatchAttempt(options: DispatchOptions): DispatchAttempt {
+  const adapter = agentRegistry.get(options.agentType);
   const strategy = adapter.defaultSessionIdStrategy;
 
   const attemptId = `att_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
@@ -92,15 +89,13 @@ export function createDispatchAttempt(
  */
 export async function launchDispatch(
   attempt: DispatchAttempt,
-  options: DispatchOptions,
-  carrier: SessionCarrier,
-  registry: AgentRegistry = defaultAgentRegistry
+  options: DispatchOptions
 ): Promise<{ attempt: DispatchAttempt; carrierSession: CarrierSessionInfo }> {
   if (attempt.status !== 'pending') {
     throw new Error(`Cannot launch attempt in '${attempt.status}' state`);
   }
 
-  const adapter = registry.get(attempt.agentType);
+  const adapter = agentRegistry.get(attempt.agentType);
 
   const context: AgentAdapterContext = {
     attemptId: attempt.attemptId,
@@ -112,7 +107,7 @@ export async function launchDispatch(
   try {
     const launchSpec = await adapter.buildLaunchSpec(options, context);
 
-    const carrierSession = await carrier.startSession({
+    const carrierSession = await sessionCarrier.startSession({
       attemptId: attempt.attemptId,
       command: launchSpec.command,
       args: launchSpec.args,

@@ -9,41 +9,9 @@ import {
   listTasks,
   getSessionRef,
   listTaskEvents,
-} from '../../../modules/tasks/index.js';
-import { createDispatchAgentTool } from '../../../modules/agent/index.js';
-import type { SessionCarrier, StartCarrierSessionOptions, CarrierSessionInfo } from '../carrier.js';
-
-class MockSessionCarrier implements SessionCarrier {
-  readonly carrierType = 'screen' as const;
-  public shouldFail = false;
-  public startedSessions: StartCarrierSessionOptions[] = [];
-
-  async startSession(options: StartCarrierSessionOptions): Promise<CarrierSessionInfo> {
-    if (this.shouldFail) {
-      throw new Error('Screen process terminated unexpectedly with code 1');
-    }
-    this.startedSessions.push(options);
-    return {
-      attemptId: options.attemptId,
-      sessionName: `screen_mock_${options.attemptId}`,
-      pid: 12345,
-      status: 'detached',
-      carrierType: 'screen',
-    };
-  }
-
-  async getSessionInfo(_attemptId: string): Promise<CarrierSessionInfo | null> {
-    return null;
-  }
-
-  async listSessions(): Promise<CarrierSessionInfo[]> {
-    return [];
-  }
-
-  async killSession(_attemptId: string): Promise<boolean> {
-    return true;
-  }
-}
+} from '../../../modules/tasks/repository.js';
+import { createDispatchAgentTool } from '../../../modules/agent/runtime/tools/dispatch.js';
+import { sessionCarrier } from '../carrier.js';
 
 describe('Ticket 006: Task Transaction Creation & Controlled Dispatch Flow', () => {
   it('strictly guarantees no empty Task is created before session confirmation', () => {
@@ -139,11 +107,17 @@ describe('Ticket 006: Task Transaction Creation & Controlled Dispatch Flow', () 
   it('dispatch_agent tool with Claude executes full dispatch and creates atomic task', async () => {
     const db = openDatabase({ path: ':memory:' });
     runMigrations(db.raw);
-    const mockCarrier = new MockSessionCarrier();
+
+    const startSpy = vi.spyOn(sessionCarrier, 'startSession').mockImplementation(async (opts) => ({
+      attemptId: opts.attemptId,
+      sessionName: `screen_mock_${opts.attemptId}`,
+      pid: 12345,
+      status: 'detached',
+      carrierType: 'screen',
+    }));
 
     const tool = createDispatchAgentTool({
       db,
-      carrier: mockCarrier,
       getCurrentTurnId: () => 'turn_current_test',
     });
 
@@ -169,16 +143,24 @@ describe('Ticket 006: Task Transaction Creation & Controlled Dispatch Flow', () 
     const sessionRef = getSessionRef(db.raw, result.details.taskId);
     expect(sessionRef).not.toBeNull();
     expect(sessionRef?.nativeSessionId).toBe(result.details.nativeSessionId);
+
+    startSpy.mockRestore();
   });
 
   it('dispatch_agent tool with Codex (deferred) launches carrier but defers task creation', async () => {
     const db = openDatabase({ path: ':memory:' });
     runMigrations(db.raw);
-    const mockCarrier = new MockSessionCarrier();
+
+    const startSpy = vi.spyOn(sessionCarrier, 'startSession').mockImplementation(async (opts) => ({
+      attemptId: opts.attemptId,
+      sessionName: `screen_mock_${opts.attemptId}`,
+      pid: 12345,
+      status: 'detached',
+      carrierType: 'screen',
+    }));
 
     const tool = createDispatchAgentTool({
       db,
-      carrier: mockCarrier,
       getCurrentTurnId: () => 'turn_codex_test',
     });
 
@@ -203,17 +185,20 @@ describe('Ticket 006: Task Transaction Creation & Controlled Dispatch Flow', () 
     const attempt = getDispatchAttempt(db.raw, result.details.attemptId);
     expect(attempt).not.toBeNull();
     expect(attempt?.status).toBe('starting');
+
+    startSpy.mockRestore();
   });
 
   it('dispatch_agent tool aborts cleanly and leaves zero tasks when carrier launch fails', async () => {
     const db = openDatabase({ path: ':memory:' });
     runMigrations(db.raw);
-    const failingCarrier = new MockSessionCarrier();
-    failingCarrier.shouldFail = true;
+
+    const startSpy = vi
+      .spyOn(sessionCarrier, 'startSession')
+      .mockRejectedValueOnce(new Error('Screen process terminated unexpectedly with code 1'));
 
     const tool = createDispatchAgentTool({
       db,
-      carrier: failingCarrier,
     });
 
     const result = await tool.execute('call_dispatch_3', {
@@ -235,16 +220,18 @@ describe('Ticket 006: Task Transaction Creation & Controlled Dispatch Flow', () 
     const attempt = getDispatchAttempt(db.raw, result.details.attemptId);
     expect(attempt?.status).toBe('failed');
     expect(attempt?.error).toContain('Screen process terminated unexpectedly');
+
+    startSpy.mockRestore();
   });
 
   it('dispatch_agent tool rejects non-absolute cwd without database write', async () => {
     const db = openDatabase({ path: ':memory:' });
     runMigrations(db.raw);
-    const mockCarrier = new MockSessionCarrier();
+
+    const startSpy = vi.spyOn(sessionCarrier, 'startSession');
 
     const tool = createDispatchAgentTool({
       db,
-      carrier: mockCarrier,
     });
 
     const result = await tool.execute('call_dispatch_4', {
@@ -255,6 +242,8 @@ describe('Ticket 006: Task Transaction Creation & Controlled Dispatch Flow', () 
 
     expect(result.details.error).toBe('invalid_cwd');
     expect(listTasks(db.raw)).toHaveLength(0);
-    expect(mockCarrier.startedSessions).toHaveLength(0);
+    expect(startSpy).not.toHaveBeenCalled();
+
+    startSpy.mockRestore();
   });
 });

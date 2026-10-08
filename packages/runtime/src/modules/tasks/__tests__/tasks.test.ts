@@ -4,22 +4,26 @@ import { openDatabase } from '../../../infrastructure/database/client.js';
 import { runMigrations } from '../../../infrastructure/database/migrator.js';
 import { insertDispatchAttempt, commitTaskWithSession, updateTaskStatus } from '../repository.js';
 import type { RoverDatabase } from '../../../infrastructure/database/types.js';
-import type { SessionCarrier } from '../../../infrastructure/dispatch/carrier.js';
-import { AgentRegistry } from '../../../infrastructure/dispatch/dispatcher.js';
-import type { TerminalAction } from '../../../infrastructure/dispatch/terminal.js';
-import { createTaskService, type TaskService } from '../service.js';
+import { sessionCarrier, executeTerminalAction } from '../../../infrastructure/dispatch/index.js';
+import { TaskService } from '../service.js';
 import { tasksRouter } from '../router.js';
 import { appRouter } from '../../../transport/router.js';
 import type { Context } from '../../../transport/context.js';
 
+vi.mock('../../../infrastructure/dispatch/index.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../infrastructure/dispatch/index.js')>();
+  return {
+    ...actual,
+    executeTerminalAction: vi.fn(async (action) => ({
+      success: true,
+      action,
+      script: 'mock terminal script',
+    })),
+  };
+});
+
 let database: RoverDatabase;
-let carrier: SessionCarrier;
 let service: TaskService;
-const executeTerminal = vi.fn(async (action: TerminalAction) => ({
-  success: true,
-  action,
-  script: 'mock terminal script',
-}));
 let authenticated: Context;
 const nativeSessionId = '990ee48b-3e2b-426b-bfdc-b620ee6d41dc';
 
@@ -27,25 +31,22 @@ beforeEach(() => {
   vi.clearAllMocks();
   database = openDatabase({ path: ':memory:' });
   runMigrations(database.raw);
-  carrier = {
-    carrierType: 'screen',
-    startSession: vi.fn(),
-    getSessionInfo: vi.fn().mockResolvedValue(null),
-    listSessions: vi.fn().mockResolvedValue([]),
-    killSession: vi.fn().mockResolvedValue(true),
-  };
-  service = createTaskService({
+  vi.spyOn(sessionCarrier, 'getSessionInfo').mockResolvedValue(null);
+  vi.spyOn(sessionCarrier, 'getSession').mockResolvedValue(null);
+  vi.mocked(executeTerminalAction).mockImplementation(async (action) => ({
+    success: true,
+    action,
+    script: 'mock terminal script',
+  }));
+  service = new TaskService({
     db: database.raw,
-    carrier,
-    registry: new AgentRegistry(),
-    executeTerminal,
   });
   authenticated = {
     req: {} as IncomingMessage,
     res: {} as ServerResponse,
     token: 'test-token',
     isAuthenticated: true,
-    container: { tasks: service } as any,
+    container: { taskService: service } as any,
   };
   registerTask('task-one', nativeSessionId);
   registerTask('task-two', '991ee48b-3e2b-426b-bfdc-b620ee6d41dc');
@@ -77,7 +78,7 @@ describe('Task service and route contract', () => {
   });
 
   it('attaches using the dispatch attempt ID rather than the task ID', async () => {
-    vi.mocked(carrier.getSessionInfo).mockResolvedValue({
+    vi.spyOn(sessionCarrier, 'getSession').mockResolvedValue({
       attemptId: 'task-one-attempt',
       sessionName: 'rover_task-one-attempt',
       status: 'detached',
@@ -85,8 +86,8 @@ describe('Task service and route contract', () => {
       carrierType: 'screen',
     });
     const result = await service.openTerminal('task-one');
-    expect(carrier.getSessionInfo).toHaveBeenCalledWith('task-one-attempt');
-    expect(executeTerminal).toHaveBeenCalledWith(
+    expect(sessionCarrier.getSession).toHaveBeenCalledWith('task-one-attempt');
+    expect(executeTerminalAction).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'attach',
         attemptId: 'task-one-attempt',
@@ -99,7 +100,7 @@ describe('Task service and route contract', () => {
 
   it('resumes the original native session when its carrier has exited', async () => {
     const result = await service.openTerminal('task-one');
-    expect(executeTerminal).toHaveBeenCalledWith(
+    expect(executeTerminalAction).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'resume',
         nativeSessionId,
@@ -112,7 +113,7 @@ describe('Task service and route contract', () => {
   });
 
   it('preserves terminal permission errors in the public result', async () => {
-    executeTerminal.mockImplementationOnce(async (action) => ({
+    vi.mocked(executeTerminalAction).mockImplementationOnce(async (action) => ({
       success: false,
       action,
       script: 'mock terminal script',
@@ -138,7 +139,7 @@ describe('Task service and route contract', () => {
     await expect(caller.openTerminal({ taskId: 'missing' })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
-    expect(executeTerminal).not.toHaveBeenCalled();
+    expect(executeTerminalAction).not.toHaveBeenCalled();
   });
 
   it('maps a missing session reference to PRECONDITION_FAILED', async () => {
@@ -147,7 +148,7 @@ describe('Task service and route contract', () => {
     await expect(caller.openTerminal({ taskId: 'task-one' })).rejects.toMatchObject({
       code: 'PRECONDITION_FAILED',
     });
-    expect(executeTerminal).not.toHaveBeenCalled();
+    expect(executeTerminalAction).not.toHaveBeenCalled();
   });
 
   it('rejects invalid parameters before invoking the service', async () => {
@@ -172,7 +173,7 @@ describe('Task service and route contract', () => {
     await expect(caller.openTerminal({ taskId: 'task-one' })).rejects.toMatchObject({
       code: 'UNAUTHORIZED',
     });
-    expect(executeTerminal).not.toHaveBeenCalled();
+    expect(executeTerminalAction).not.toHaveBeenCalled();
   });
 });
 

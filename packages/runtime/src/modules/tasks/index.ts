@@ -1,43 +1,17 @@
-export { TaskService, createTaskService, TaskServiceError } from './service.js';
+/**
+ * Tasks Module Facade (ADR-0020 & AGENTS.md)
+ * 严格对外导出该模块公开的 Service、Router 和契约类型。
+ */
+
+export { TaskService, TaskServiceError } from './service.js';
 export { tasksRouter } from './router.js';
-export {
-  TaskStateProjector,
-  extractSourceEventId,
-  type TaskStateProjectorOptions,
-} from './projector.js';
-export {
-  insertDispatchAttempt,
-  updateDispatchAttemptStatus,
-  getDispatchAttempt,
-  getDispatchAttemptIdForTask,
-  commitTaskWithSession,
-  getTask,
-  listTasks,
-  getSessionRef,
-  listTaskEvents,
-  insertTaskEvent,
-  updateTaskStatus,
-  updateSessionRefAvailability,
-  findTaskByNativeSessionId,
-  findTaskByAttemptId,
-} from './repository.js';
+
 export type {
   TaskAgent,
   TaskStatus,
-  DispatchAttemptDbStatus,
-  SessionAvailability,
-  DispatchAttemptRecord,
   TaskRecord,
-  SessionRefRecord,
-  TaskEventRecord,
   TaskSummary,
   TaskDetails,
   TaskTerminalResult,
   ListTasksOptions,
-  TaskServiceDependencies,
-  InsertDispatchAttemptInput,
-  CommitTaskWithSessionParams,
-  InsertTaskEventInput,
-  InsertTaskEventResult,
-  UpdateTaskStatusInput,
 } from './types.js';

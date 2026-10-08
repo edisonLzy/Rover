@@ -13,9 +13,9 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { AgentType, LaunchSpec } from './types.js';
-import type { SessionCarrier } from './carrier.js';
+import { sessionCarrier } from './carrier.js';
 import { getSessionName } from './screen.js';
-import { defaultAgentRegistry, type AgentRegistry } from './dispatcher.js';
+import { agentRegistry } from './dispatcher.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -37,8 +37,6 @@ export interface ResolveTerminalActionOptions {
   agentType: AgentType;
   nativeSessionId?: string;
   cwd?: string;
-  carrier: SessionCarrier;
-  registry?: AgentRegistry;
 }
 
 /**
@@ -47,20 +45,13 @@ export interface ResolveTerminalActionOptions {
 export async function resolveTerminalAction(
   options: ResolveTerminalActionOptions
 ): Promise<TerminalAction> {
-  const {
-    attemptId,
-    agentType,
-    nativeSessionId,
-    cwd,
-    carrier,
-    registry = defaultAgentRegistry,
-  } = options;
+  const { attemptId, agentType, nativeSessionId, cwd } = options;
 
   const sessionName = getSessionName(attemptId);
   const existingSession =
-    typeof carrier.getSession === 'function'
-      ? await carrier.getSession(attemptId)
-      : await carrier.getSessionInfo(attemptId);
+    typeof sessionCarrier.getSession === 'function'
+      ? await sessionCarrier.getSession(attemptId)
+      : await sessionCarrier.getSessionInfo(attemptId);
 
   // If Screen session is still active (detached or attached), attach to it directly
   if (
@@ -86,7 +77,7 @@ export async function resolveTerminalAction(
     );
   }
 
-  const adapter = registry.get(agentType);
+  const adapter = agentRegistry.get(agentType);
   const resumeSpec: LaunchSpec = await adapter.getResumeSpec(nativeSessionId.trim());
 
   return {

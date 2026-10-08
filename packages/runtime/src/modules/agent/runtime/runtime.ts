@@ -12,7 +12,7 @@ import {
   buildRoverSystemPrompt,
   SystemPromptService,
 } from './prompts.js';
-import { ModelRegistry, getModelRegistry } from '../../models/index.js';
+import { ModelRegistry } from '../../models/index.js';
 import { BuiltinSkillService } from '../../skills/index.js';
 import type {
   AgentRuntimeEventCallbacks,
@@ -44,7 +44,7 @@ export class AgentRuntime {
 
   constructor(options: AgentRuntimeOptions = {}) {
     this.options = options;
-    this.modelRegistry = options.modelRegistry || getModelRegistry();
+    this.modelRegistry = options.modelRegistry || new ModelRegistry();
     this.skillService =
       options.skillService ||
       (options.skillsDir ? new BuiltinSkillService({ skillsDir: options.skillsDir }) : undefined);

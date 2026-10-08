@@ -30,7 +30,7 @@ describe('AgentService & Router DI Isolation Tests', () => {
       res: {} as any,
       token: 'test',
       isAuthenticated: true,
-      container: { agent: mockAgentService } as any,
+      container: { agentService: mockAgentService } as any,
     });
 
     const startRes = await caller.start({
@@ -86,7 +86,7 @@ describe('AgentService & Router DI Isolation Tests', () => {
       res: {} as any,
       token: 'test',
       isAuthenticated: true,
-      container: { agent: mockAgentService } as any,
+      container: { agentService: mockAgentService } as any,
     });
 
     const feedRes = await caller.getFeed({ limit: 10 });
@@ -113,13 +113,15 @@ describe('AgentService & Router DI Isolation Tests', () => {
   it('AgentService throws when no active model is resolved on startTurn', async () => {
     const mockRuntime: Partial<AgentRuntime> = {
       isTurnRunning: () => false,
-      getModelRegistry: () =>
-        ({
-          resolveActiveModel: () => undefined,
-        }) as any,
+    };
+    const mockModelService = {
+      getRegistry: () => ({
+        resolveActiveModel: () => undefined,
+      }),
     };
 
     const service = new AgentService({
+      modelService: mockModelService as any,
       runtime: mockRuntime as AgentRuntime,
       db: {} as any,
     });
