@@ -5,6 +5,7 @@
 
 export { InboxService, type InboxServiceOptions } from './service.js';
 export { InboxRepository } from './repository.js';
+export { inboxRouter } from './router.js';
 export {
   WecomInboxConfigSchema,
   RoverInboxConfigSchema,

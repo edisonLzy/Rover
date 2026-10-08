@@ -5,8 +5,9 @@ import { ProbeView } from './probe/index.js';
 import { ModelsView } from './models/index.js';
 import { HistoryView } from './history/index.js';
 import { PetSettingsView } from './pet-settings/index.js';
+import { InboxSettingsView } from './inbox-settings/index.js';
 
-type TabType = 'probe' | 'history' | 'skills' | 'schedules' | 'memory' | 'models' | 'pet';
+type TabType = 'probe' | 'history' | 'skills' | 'schedules' | 'memory' | 'models' | 'inbox' | 'pet';
 
 export function DashboardWindow() {
   const { connection, loading, error, restartRuntime } = useRuntime();
@@ -79,6 +80,7 @@ export function DashboardWindow() {
           { id: 'schedules', label: '定时计划' },
           { id: 'memory', label: '最近活动' },
           { id: 'models', label: '模型配置' },
+          { id: 'inbox', label: '消息集成 (Inbox)' },
           { id: 'pet', label: '宠物设置' },
         ].map((tab) => (
           <button
@@ -122,6 +124,8 @@ export function DashboardWindow() {
             <HistoryView />
           ) : activeTab === 'models' ? (
             <ModelsView />
+          ) : activeTab === 'inbox' ? (
+            <InboxSettingsView />
           ) : (
             <div className="rounded-2xl border border-zinc-800/80 bg-zinc-900/40 p-8 text-center text-zinc-400">
               <div className="text-2xl mb-2">🚧</div>

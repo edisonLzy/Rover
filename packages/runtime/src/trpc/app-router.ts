@@ -4,6 +4,7 @@ import { skillsRouter } from '../modules/skills/index.js';
 import { modelsRouter } from '../modules/models/index.js';
 import { tasksRouter } from '../modules/tasks/index.js';
 import { turnsRouter, historyRouter } from '../modules/agent/index.js';
+import { inboxRouter } from '../modules/inbox/index.js';
 import {
   resolveTerminalAction,
   executeTerminalAction,
@@ -29,6 +30,7 @@ export const appRouter = router({
   tasks: tasksRouter,
   turns: turnsRouter,
   history: historyRouter,
+  inbox: inboxRouter,
 
   // Resolves the exact Terminal execution command for a running/stopped carrier session
   resolveTerminalAction: protectedProcedure

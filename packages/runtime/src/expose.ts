@@ -49,6 +49,8 @@ export type {
   TaskChangedPayload,
   RoverEntryAppendedPayload,
   RoverCompactionAppendedPayload,
+  InboxChangedPayload,
+  InboxProviderStatusPayload,
 } from './types/events.js';
 
 // Inbox Contracts (Ticket 001 - 003 & ADR-0005, ADR-0018)

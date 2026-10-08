@@ -1,6 +1,6 @@
 # 004: Inbox tRPC 路由与 Dashboard 集成设置
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 003  
 **Blocks**: None  
 
@@ -54,11 +54,11 @@ packages/app/
 
 ## Acceptance Criteria
 
-- [ ] tRPC 路由中的查询、已读、交办以及配置管理接口均能通过自动化测试。
-- [ ] 调用 `testWecomConnection` 接口能返回真实的测试探针结果，不破坏当前主连接。
-- [ ] 在 Dashboard 页面能切换开关：保存后 Runtime 即刻启停长连接。
-- [ ] 页面上的状态徽标能根据 Runtime 实际连接状态（如 `connected`、`auth_failed`）实时变色。
-- [ ] 密钥输入框具备脱敏保护，且修改保存逻辑正常。
+- [x] tRPC 路由中的查询、已读、交办以及配置管理接口均能通过自动化测试。
+- [x] 调用 `testWecomConnection` 接口能返回真实的测试探针结果，不破坏当前主连接。
+- [x] 在 Dashboard 页面能切换开关：保存后 Runtime 即刻启停长连接。
+- [x] 页面上的状态徽标能根据 Runtime 实际连接状态（如 `connected`、`auth_failed`）实时变色。
+- [x] 密钥输入框具备脱敏保护，且修改保存逻辑正常。
 
 ## Verification Plan
 

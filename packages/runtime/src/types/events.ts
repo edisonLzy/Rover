@@ -74,6 +74,22 @@ export const RoverCompactionAppendedPayloadSchema = z
   })
   .passthrough();
 
+export const InboxChangedPayloadSchema = z
+  .object({
+    unreadCount: z.number().optional(),
+    type: z.string().optional(),
+    message: z.unknown().optional(),
+    messageId: z.string().optional(),
+    taskId: z.string().optional(),
+  })
+  .passthrough();
+
+export const InboxProviderStatusPayloadSchema = z.object({
+  providerId: z.string(),
+  status: z.enum(['disabled', 'connecting', 'connected', 'disconnected', 'auth_failed', 'error']),
+  error: z.string().optional(),
+});
+
 export type SystemReadyPayload = z.infer<typeof SystemReadyPayloadSchema>;
 export type TurnStartedPayload = z.infer<typeof TurnStartedPayloadSchema>;
 export type TurnStepStartedPayload = z.infer<typeof TurnStepStartedPayloadSchema>;
@@ -84,6 +100,8 @@ export type TurnEndPayload = z.infer<typeof TurnEndPayloadSchema>;
 export type TaskChangedPayload = z.infer<typeof TaskChangedPayloadSchema>;
 export type RoverEntryAppendedPayload = z.infer<typeof RoverEntryAppendedPayloadSchema>;
 export type RoverCompactionAppendedPayload = z.infer<typeof RoverCompactionAppendedPayloadSchema>;
+export type InboxChangedPayload = z.infer<typeof InboxChangedPayloadSchema>;
+export type InboxProviderStatusPayload = z.infer<typeof InboxProviderStatusPayloadSchema>;
 
 export interface RuntimeEventMap {
   'system.ready': SystemReadyPayload;
@@ -96,6 +114,8 @@ export interface RuntimeEventMap {
   'task.changed': TaskChangedPayload;
   'rover.entry.appended': RoverEntryAppendedPayload;
   'rover.compaction.appended': RoverCompactionAppendedPayload;
+  'inbox.changed': InboxChangedPayload;
+  'inbox.provider.status': InboxProviderStatusPayload;
 }
 
 export type RuntimeEventType = keyof RuntimeEventMap;
