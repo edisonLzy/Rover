@@ -21,7 +21,7 @@ flowchart TD
   T004["004: Inbox tRPC 路由与 Dashboard 集成设置面板"]
   T003 --> T004
 
-  T005["005: Agent 受控读取工具与线上排查 SOP Skill"]
+  T005["005: Agent 受控读取工具与线上故障排查 SOP Skill"]
   T001 --> T005
   T003 --> T005
 ```
@@ -33,7 +33,7 @@ flowchart TD
 | ID | 任务标题 | 阻塞项 (Blocked By) | 状态 | 核心产物 / 涉及层 |
 | :--- | :--- | :--- | :--- | :--- |
 | [001](./001-inbox-sqlite-storage-and-repository.md) | Inbox SQLite 存储层与事件去重仓储 | _None (Frontier)_ | DONE | `packages/runtime` (002 migration, `InboxRepository`) |
-| [002](./002-inbox-provider-interface-and-wecom-driver.md) | Inbox Provider 核心契约与企业微信 WebSocket 驱动 | _None (Frontier)_ | TODO | `packages/runtime` (`@wecom/aibot-node-sdk`, `WecomInboxProvider`) |
+| [002](./002-inbox-provider-interface-and-wecom-driver.md) | Inbox Provider 核心契约与企业微信 WebSocket 驱动 | _None (Frontier)_ | DONE | `packages/runtime` (`@wecom/aibot-node-sdk`, `WecomInboxProvider`) |
 | [003](./003-inbox-service-lifecycle-and-container-injection.md) | Inbox 领域服务、配置持久化与 Container 注入 | 001, 002 | TODO | `packages/runtime` (`InboxService`, `~/.rover/inbox.json`, `container.ts`) |
 | [004](./004-inbox-trpc-router-and-dashboard-settings.md) | Inbox tRPC 路由与 Dashboard 集成设置面板 | 003 | TODO | `packages/runtime` (tRPC router), `packages/app` (Dashboard 设置卡片) |
 | [005](./005-inbox-agent-tool-and-incident-sop-skill.md) | Agent 受控读取工具与线上故障排查 SOP Skill | 001, 003 | TODO | `packages/runtime` (`get_inbox_detail` tool), `packages/app` (排查 Skill SOP) |

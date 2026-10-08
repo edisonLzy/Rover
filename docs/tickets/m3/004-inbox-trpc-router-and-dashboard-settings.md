@@ -16,7 +16,8 @@
      - `inbox.list`: 查询消息列表（支持分页与状态过滤）；
      - `inbox.getUnreadCount`: 获取未读消息计数；
      - `inbox.markAsRead`: 批量标记已读；
-     - `inbox.markAsDelegated`: 标记消息已一键交办并关联 Task ID；
+     - `inbox.markAsDelegated`: 标记消息已一键交办（开启 Rover 回合，此时不关联 Task ID）；
+     - `inbox.linkTask`: 将指定消息与 Rover Agent 派发创建的 Task ID 关联；
    - 企业微信 Provider 设置与运维：
      - `inbox.getWecomConfig`: 获取当前开关状态、Bot ID、脱敏 Secret、以及当前连接状态徽章（`disabled` | `connecting` | `connected` | `auth_failed` 等）；
      - `inbox.updateWecomConfig`: 保存开关与配置，触发服务重载或启停；

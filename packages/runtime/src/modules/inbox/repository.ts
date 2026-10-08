@@ -81,7 +81,7 @@ export class InboxRepository {
       }
 
       const now = Date.now();
-      const eventId = `inbev_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+      const eventId = `inbevt_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
       const eventPayloadStr = JSON.stringify(event.payload ?? {});
 
       this.db
@@ -290,6 +290,13 @@ export class InboxRepository {
       )
       .run(Date.now(), id);
     return info.changes > 0;
+  }
+
+  /**
+   * 将消息推进为已一键交办（delegated）的统一语义别名
+   */
+  markAsDelegated(id: string): boolean {
+    return this.markDelegated(id);
   }
 
   /**

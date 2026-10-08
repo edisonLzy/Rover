@@ -18,10 +18,10 @@
 2. **`InboxService` 核心职责**：
    - 管理注册的 Provider 字典（默认加载 `WecomInboxProvider`）；
    - 监听 Provider 的 `onMessage`，通过 `repository.ingestEvent` 原子落库并去重；
-   - 消息入库成功后，调用 `WebSocketManager.broadcast('inbox:changed', ...)` 向桌面端广播变更，更新未读数；
+   - 消息入库成功后，调用 `WebSocketManager.broadcast({ type: 'inbox.changed', payload: ... })` 向桌面端广播变更，更新未读数；
    - 提供动态开关 `applyWecomConfig(config)`：若 `enabled === true` 且有有效凭证，启动 Provider；若 `enabled === false`，调用 `provider.stop()` 释放资源；
    - 提供只读查询：`listMessages`、`getUnreadCount`、`getMessageById`；
-   - 提供操作接口：`markAsRead`、`markAsDelegated`。
+   - 提供操作接口：`markAsRead`、`markAsDelegated`（或 `markDelegated`）、`linkTask`。
 3. **Container 组合根装配**：
    - 在 `packages/runtime/src/container.ts` 中实例化 `InboxService` 并导出为 `container.inboxService`；
    - 启动时自动读取持久化配置，若已启用且配置有效，则拉起长连接；
@@ -46,7 +46,7 @@ packages/runtime/
 
 - [ ] `InboxService` 启动时若配置已启用，能自动触发 Provider 建立长连接。
 - [ ] 当调用 `applyWecomConfig({ enabled: false })` 时，Provider 立即断开长连接并置为 `disabled`。
-- [ ] Provider 收到消息后，`InboxService` 成功调用仓储完成入库，并通过 WebSocketManager 广播 `inbox:changed` 事件与未读计数。
+- [ ] Provider 收到消息后，`InboxService` 成功调用仓储完成入库，并通过 WebSocketManager 广播 `inbox.changed` 事件与未读计数。
 - [ ] 配置存储成功保存至文件，且读取展示时密钥被正确掩码脱敏。
 - [ ] `Container` 能正确初始化并暴露只读的 `container.inboxService`。
 

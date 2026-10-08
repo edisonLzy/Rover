@@ -29,6 +29,7 @@
     "@earendil-works/pi-agent-core": "catalog:",
     "@earendil-works/pi-ai": "catalog:",
     "@trpc/server": "catalog:",
+    "@wecom/aibot-node-sdk": "^1.0.7",
     "better-sqlite3": "^13.0.3",
     "gpt-tokenizer": "^4.0.0",
     "ws": "^8.18.0",

@@ -103,7 +103,7 @@ describe('InboxRepository & SQLite Storage (Ticket 001)', () => {
         kind: 'wecom_mention',
         title: '用户反馈支付报错',
         summary: '结算页出现 500 异常',
-        payload: { chatid: 'chat-1', sender: '张三' },
+        payload: { chatId: 'chat-1', sender: '张三' },
       };
 
       const result = repo.ingestEvent(event);
@@ -118,7 +118,7 @@ describe('InboxRepository & SQLite Storage (Ticket 001)', () => {
       expect(result.message!.status).toBe('unread');
       expect(result.message!.title).toBe('用户反馈支付报错');
       expect(result.message!.summary).toBe('结算页出现 500 异常');
-      expect(result.message!.payload).toEqual({ chatid: 'chat-1', sender: '张三' });
+      expect(result.message!.payload).toEqual({ chatId: 'chat-1', sender: '张三' });
 
       expect(repo.getUnreadCount()).toBe(1);
     });
@@ -314,15 +314,21 @@ describe('InboxRepository & SQLite Storage (Ticket 001)', () => {
       expect(updatedFirst?.status).toBe('read');
     });
 
-    it('marks message as delegated without requiring task_id', () => {
-      const [msg] = repo.listMessages();
+    it('marks message as delegated without requiring task_id (supports markDelegated and markAsDelegated alias)', () => {
+      const [msg, msg2] = repo.listMessages();
       const success = repo.markDelegated(msg.id);
+      const success2 = repo.markAsDelegated(msg2.id);
 
       expect(success).toBe(true);
+      expect(success2).toBe(true);
 
       const delegated = repo.getMessageById(msg.id);
       expect(delegated?.status).toBe('delegated');
       expect(delegated?.taskId).toBeNull();
+
+      const delegated2 = repo.getMessageById(msg2.id);
+      expect(delegated2?.status).toBe('delegated');
+      expect(delegated2?.taskId).toBeNull();
     });
 
     it('links task_id with foreign key constraint when task is dispatched', () => {

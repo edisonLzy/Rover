@@ -1,6 +1,6 @@
 # 002: Inbox Provider 核心契约与企业微信 WebSocket 驱动
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: None (*Frontier*)  
 **Blocks**: 003  
 
@@ -27,7 +27,7 @@
 3. **企业微信 Provider (`WecomInboxProvider`) 实现要点**：
    - 基于 `@wecom/aibot-node-sdk` 的 `AiBot.WSClient`；
    - 支持解析 `text`（文本）、`voice`（语音转写）及 `mixed`（图文混排）正文并组装标题与摘要；
-   - 提取 `chatid`、`from.userid`，正确映射 `chattype`（`group` / `single`）；
+   - 提取 `chatId`、`senderId`（`from.userid`），规范映射 `chatType`（`group` / `single`）与 `msgType`；
    - 捕获 `WSAuthFailureError`，直接将状态置为 `auth_failed` 并停止无限重连；
    - 进程退出守卫与重试退避上限约束；
    - 实现 `replyStream` 回复群聊闭环。
@@ -40,7 +40,7 @@ packages/runtime/
 ├── src/
 │   ├── modules/
 │   │   └── inbox/
-│   │       ├── * [Modified] types.ts                    # + [Add] InboxProvider, IncomingInboxEvent 核心契约
+│   │       ├── * [Modified] types.ts                    # + [Add] InboxProvider 与 Provider 状态契约
 │   │       └── providers/
 │   │           └── + [New] wecom.ts                     # 企业微信 WebSocket Provider 实现
 │   └── __tests__/
@@ -49,11 +49,11 @@ packages/runtime/
 
 ## Acceptance Criteria
 
-- [ ] `packages/runtime` 成功引入 `@wecom/aibot-node-sdk` 且构建通过。
-- [ ] `InboxProvider` 接口完整覆盖生命周期、消息管线、测试握手与状态获取。
-- [ ] `WecomInboxProvider` 能将模拟收到的 `@bot` 文本/混合消息准确解析并触发 `dispatcher` 回调。
-- [ ] 凭证错误或认证失败能准确映射为 `auth_failed` 状态并终止重试。
-- [ ] `stop()` 执行后，相关网络连接与心跳完全释放，状态切为 `disabled`。
+- [x] `packages/runtime` 成功引入 `@wecom/aibot-node-sdk` 且构建通过。
+- [x] `InboxProvider` 接口完整覆盖生命周期、消息管线、测试握手与状态获取。
+- [x] `WecomInboxProvider` 能将模拟收到的 `@bot` 文本/混合消息准确解析并触发 `dispatcher` 回调。
+- [x] 凭证错误或认证失败能准确映射为 `auth_failed` 状态并终止重试。
+- [x] `stop()` 执行后，相关网络连接与心跳完全释放，状态切为 `disabled`。
 
 ## Verification Plan
 

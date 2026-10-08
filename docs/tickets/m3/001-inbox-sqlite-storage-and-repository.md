@@ -18,7 +18,7 @@
      - `source_event_id TEXT NOT NULL`
      - `received_at INTEGER NOT NULL`
      - `payload TEXT NOT NULL CHECK (json_valid(payload))`
-     - `UNIQUE(source_id, source_event_id)`：唯一约束确保同一来源投递的至少一次投递消重。
+     - `UNIQUE(source_id, source_event_id)`：唯一约束确保同一来源事件的至少一次投递幂等去重。
    - **`inbox_message` (消息业务投影表)**：
      - `id TEXT PRIMARY KEY`（生成格式为 `inbox_xxx`）
      - `source_id TEXT NOT NULL`
