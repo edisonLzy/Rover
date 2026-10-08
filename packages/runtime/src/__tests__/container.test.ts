@@ -13,6 +13,7 @@ describe('Container Composition Root (ADR-0020)', () => {
     expect(container.skillService).toBeDefined();
     expect(container.taskService).toBeDefined();
     expect(container.agentService).toBeDefined();
+    expect(container.inboxService).toBeDefined();
     expect(Object.isFrozen(container)).toBe(true);
   });
 
@@ -22,5 +23,6 @@ describe('Container Composition Root (ADR-0020)', () => {
 
     expect(c1).not.toBe(c2);
     expect(c1.agentService).not.toBe(c2.agentService);
+    expect(c1.inboxService).not.toBe(c2.inboxService);
   });
 });

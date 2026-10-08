@@ -1,6 +1,6 @@
 # 003: Inbox 领域服务、配置持久化与 Container 注入
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 001, 002  
 **Blocks**: 004, 005  
 
@@ -44,11 +44,11 @@ packages/runtime/
 
 ## Acceptance Criteria
 
-- [ ] `InboxService` 启动时若配置已启用，能自动触发 Provider 建立长连接。
-- [ ] 当调用 `applyWecomConfig({ enabled: false })` 时，Provider 立即断开长连接并置为 `disabled`。
-- [ ] Provider 收到消息后，`InboxService` 成功调用仓储完成入库，并通过 WebSocketManager 广播 `inbox.changed` 事件与未读计数。
-- [ ] 配置存储成功保存至文件，且读取展示时密钥被正确掩码脱敏。
-- [ ] `Container` 能正确初始化并暴露只读的 `container.inboxService`。
+- [x] `InboxService` 启动时若配置已启用，能自动触发 Provider 建立长连接。
+- [x] 当调用 `applyWecomConfig({ enabled: false })` 时，Provider 立即断开长连接并置为 `disabled`。
+- [x] Provider 收到消息后，`InboxService` 成功调用仓储完成入库，并通过 WebSocketManager 广播 `inbox.changed` 事件与未读计数。
+- [x] 配置存储成功保存至文件，且读取展示时密钥被正确掩码脱敏。
+- [x] `Container` 能正确初始化并暴露只读的 `container.inboxService`。
 
 ## Verification Plan
 

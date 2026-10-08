@@ -50,3 +50,19 @@ export type {
   RoverEntryAppendedPayload,
   RoverCompactionAppendedPayload,
 } from './types/events.js';
+
+// Inbox Contracts (Ticket 001 - 003 & ADR-0005, ADR-0018)
+export type {
+  InboxMessageStatus,
+  InboxMessageRecord,
+  IncomingInboxEvent,
+  ListInboxMessagesOptions,
+  InboxProviderStatus,
+  ConnectionTestResult,
+} from './modules/inbox/types.js';
+export type {
+  WecomInboxConfig,
+  RoverInboxConfig,
+  MaskedWecomInboxConfig,
+  MaskedRoverInboxConfig,
+} from './modules/inbox/config.js';
