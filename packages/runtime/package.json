@@ -10,9 +10,9 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./router": {
-      "types": "./dist/router.d.ts",
-      "import": "./dist/router.js"
+    "./expose": {
+      "types": "./dist/expose.d.ts",
+      "import": "./dist/expose.js"
     }
   },
   "scripts": {
@@ -26,12 +26,17 @@
     "test:e2e:m1": "pnpm typecheck:e2e && pnpm build && cargo build --quiet --manifest-path ../app/src-tauri/Cargo.toml --bin rover-hook-helper && vitest run --config vitest.e2e.config.ts"
   },
   "dependencies": {
+    "@earendil-works/pi-agent-core": "catalog:",
+    "@earendil-works/pi-ai": "catalog:",
     "@trpc/server": "catalog:",
+    "better-sqlite3": "^13.0.3",
+    "gpt-tokenizer": "^4.0.0",
     "ws": "^8.18.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@trpc/client": "catalog:",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "catalog:",
     "@types/ws": "^8.5.14",
     "esbuild": "^0.28.2",

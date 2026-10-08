@@ -1,0 +1,9 @@
+{
+  "defaults": {
+    "databasePath": "~/Library/Application Support/Rover/rover.db",
+    "databasePathEnv": "ROVER_DB_PATH",
+    "queryLimit": 100,
+    "busyTimeoutMs": 5000,
+    "backupDirectory": "~/Library/Application Support/Rover/backups"
+  }
+}

@@ -1,10 +1,9 @@
-import { describe, expect, it, afterEach } from 'vitest';
+import { describe, expect, it, afterEach, vi } from 'vitest';
 import { isTauriEnvironment, resolveInitialWindowLabel } from '../utils/window';
 
 describe('Dual-Window Label Resolution', () => {
   afterEach(() => {
-    // Clean up simulated window
-    delete (globalThis as unknown as { window?: unknown }).window;
+    vi.unstubAllGlobals();
   });
 
   it('detects non-Tauri environment correctly', () => {
@@ -23,14 +22,22 @@ describe('Dual-Window Label Resolution', () => {
     expect(resolveInitialWindowLabel('?window=dashboard')).toBe('dashboard');
   });
 
-  it('detects Tauri environment when __TAURI_INTERNALS__ is present', () => {
-    (globalThis as unknown as { window?: Record<string, unknown> }).window = {
+  it('uses the native window label when the official API detects Tauri', () => {
+    vi.stubGlobal('isTauri', true);
+    vi.stubGlobal('window', {
       __TAURI_INTERNALS__: {
         metadata: {
           currentWindow: { label: 'main' },
         },
       },
-    };
+    });
     expect(isTauriEnvironment()).toBe(true);
+    expect(resolveInitialWindowLabel('?window=dashboard')).toBe('main');
+  });
+
+  it('does not treat the internal bridge alone as an environment marker', () => {
+    vi.stubGlobal('window', { __TAURI_INTERNALS__: {} });
+    expect(isTauriEnvironment()).toBe(false);
+    expect(resolveInitialWindowLabel('?window=dashboard')).toBe('dashboard');
   });
 });

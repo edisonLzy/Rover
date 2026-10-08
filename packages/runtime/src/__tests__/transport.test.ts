@@ -1,8 +1,19 @@
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it, afterEach } from 'vitest';
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
 import WebSocket from 'ws';
-import { createRuntimeServer, RuntimeServer, type AppRouter } from '../transport/index.js';
+import {
+  createRuntimeServer,
+  RuntimeServer,
+  WebSocketManager,
+  type AppRouter,
+} from '../transport/index.js';
 import { RUNTIME_VERSION } from '../index.js';
+import { fileURLToPath } from 'node:url';
+import { BuiltinSkillService } from '../modules/skills/index.js';
+import { ModelRegistry } from '../modules/models/index.js';
+import { createContainer } from '../container.js';
 
 describe('Transport & Security Invariants (M0-2)', () => {
   let server: RuntimeServer | null = null;
@@ -32,6 +43,40 @@ describe('Transport & Security Invariants (M0-2)', () => {
         token: '   ',
       });
     }).toThrow(/requires a non-empty auth token/);
+  });
+
+  it('serves host-provided skill metadata and bodies through authenticated queries', async () => {
+    const skillsDir = fileURLToPath(new URL('../../../app/resources/skills/', import.meta.url));
+    const expected = new BuiltinSkillService({ skillsDir }).getSkill('dispatch-agent')!;
+    server = await createRuntimeServer({ port: 0, token: validToken, skillsDir });
+    const { httpUrl } = server.getAddress();
+    const client = createTRPCClient<AppRouter>({
+      links: [
+        httpBatchLink({
+          url: `${httpUrl}/trpc`,
+          headers: { Authorization: `Bearer ${validToken}` },
+        }),
+      ],
+    });
+    expect(await client.skills.list.query()).toContainEqual({
+      id: expected.id,
+      name: expected.name,
+      description: expected.description,
+      source: 'builtin',
+      isEnabled: true,
+    });
+    expect(await client.skills.read.query({ name: expected.name })).toEqual({
+      name: expected.name,
+      body: expected.body,
+    });
+    await expect(client.skills.read.query({ name: 'missing' })).rejects.toThrow(/Skill not found/);
+    const unauthenticated = createTRPCClient<AppRouter>({
+      links: [httpBatchLink({ url: `${httpUrl}/trpc` })],
+    });
+    await expect(unauthenticated.skills.list.query()).rejects.toThrow(/Unauthorized/);
+    await expect(unauthenticated.skills.read.query({ name: expected.name })).rejects.toThrow(
+      /Unauthorized/
+    );
   });
 
   describe('REST /api/v1/health Probe', () => {
@@ -227,6 +272,123 @@ describe('Transport & Security Invariants (M0-2)', () => {
       expect(broadcastMsg?.payload.taskId).toBe('task-123');
 
       ws.close();
+    });
+  });
+
+  describe('History & Compaction tRPC Router', () => {
+    it('queries history feed and stats via tRPC client', async () => {
+      server = await createRuntimeServer({ port: 0, token: validToken });
+      const { httpUrl } = server.getAddress();
+
+      const client = createTRPCClient<AppRouter>({
+        links: [
+          httpBatchLink({
+            url: `${httpUrl}/trpc`,
+            headers: {
+              Authorization: `Bearer ${validToken}`,
+            },
+          }),
+        ],
+      });
+
+      const stats = await client.history.getStats.query();
+      expect(stats).toHaveProperty('totalEntries');
+      expect(stats).toHaveProperty('totalMessages');
+      expect(stats).toHaveProperty('totalCompactions');
+      expect(stats).toHaveProperty('totalTurns');
+
+      const feed = await client.history.getFeed.query();
+      expect(Array.isArray(feed)).toBe(true);
+
+      const effective = await client.history.getEffective.query();
+      expect(effective).toHaveProperty('messages');
+      expect(effective).toHaveProperty('latestSeq');
+    });
+  });
+
+  describe('Models & Turns Active Model Guard (Active Model Resolution)', () => {
+    it('queries models.getActive and accurately reports hasActiveModel', async () => {
+      server = await createRuntimeServer({ port: 0, token: validToken });
+      const { httpUrl } = server.getAddress();
+
+      const client = createTRPCClient<AppRouter>({
+        links: [
+          httpBatchLink({
+            url: `${httpUrl}/trpc`,
+            headers: {
+              Authorization: `Bearer ${validToken}`,
+            },
+          }),
+        ],
+      });
+
+      const activeRes = await client.models.getActive.query();
+      expect(activeRes).toHaveProperty('hasActiveModel');
+      expect(typeof activeRes.hasActiveModel).toBe('boolean');
+    });
+
+    it('rejects turns.start with PRECONDITION_FAILED when no active model is configured', async () => {
+      const tempConfig = path.join(os.tmpdir(), `rover-test-${Date.now()}-models.json`);
+      const emptyRegistry = new ModelRegistry(tempConfig);
+      emptyRegistry.saveConfig({ providers: {} });
+
+      const wsManager = new WebSocketManager({ expectedToken: validToken });
+      const container = createContainer({ wsManager, customConfigPath: tempConfig });
+      server = await createRuntimeServer({ port: 0, token: validToken, container });
+      const { httpUrl } = server.getAddress();
+
+      const client = createTRPCClient<AppRouter>({
+        links: [
+          httpBatchLink({
+            url: `${httpUrl}/trpc`,
+            headers: {
+              Authorization: `Bearer ${validToken}`,
+            },
+          }),
+        ],
+      });
+
+      await expect(
+        client.turns.start.mutate({
+          promptDoc: {
+            v: 1,
+            parts: [{ type: 'text', text: 'Hello without model' }],
+          },
+        })
+      ).rejects.toThrow(/No active model configured/);
+    });
+
+    it('supports turns.steer, turns.clearAllQueues, turns.cancel, and CQRS turns.get', async () => {
+      server = await createRuntimeServer({ port: 0, token: validToken });
+      const { httpUrl } = server.getAddress();
+
+      const client = createTRPCClient<AppRouter>({
+        links: [
+          httpBatchLink({
+            url: `${httpUrl}/trpc`,
+            headers: {
+              Authorization: `Bearer ${validToken}`,
+            },
+          }),
+        ],
+      });
+
+      // 1. steer
+      const steerRes = await client.turns.steer.mutate({ content: '插话干预' });
+      expect(steerRes).toEqual({ success: true });
+
+      // 2. clearAllQueues
+      const clearRes = await client.turns.clearAllQueues.mutate();
+      expect(clearRes).toEqual({ success: true });
+
+      // 4. cancel
+      const cancelRes = await client.turns.cancel.mutate({ turnId: 'dummy_turn' });
+      expect(cancelRes).toEqual({ success: true, turnId: 'dummy_turn' });
+
+      // 5. get (CQRS)
+      const getRes = await client.turns.get.query({ turnId: 'non_existent_turn' });
+      expect(getRes.turn).toBeNull();
+      expect(getRes.entries).toEqual([]);
     });
   });
 });

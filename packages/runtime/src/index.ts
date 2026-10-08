@@ -11,6 +11,7 @@ export interface RuntimeConfig {
   port: number;
   token: string;
   host?: string;
+  skillsDir?: string;
 }
 
 export interface RuntimeStatus {
@@ -26,16 +27,16 @@ export function getRuntimeStatus(): RuntimeStatus {
 }
 
 export * from './transport/index.js';
-export * from './router.js';
-export * from './dispatch/screen.js';
-export * from './dispatch/carrier.js';
-export * from './dispatch/types.js';
-export * from './dispatch/claude.js';
-export * from './dispatch/codex.js';
-export * from './dispatch/opencode.js';
-export * from './dispatch/dispatcher.js';
-export * from './dispatch/terminal.js';
-export * from './observe/index.js';
+export * from './trpc/index.js';
+export * from './infrastructure/dispatch/index.js';
+export * from './infrastructure/observe/index.js';
+export * from './infrastructure/database/index.js';
+export * from './types/prompt.js';
+export * from './modules/agent/index.js';
+export * from './modules/models/index.js';
+export * from './modules/skills/index.js';
+export * from './modules/tasks/index.js';
+export * from './container.js';
 
 /**
  * Parses CLI flags in format --key=value
@@ -51,6 +52,8 @@ function parseCliArgs(): Partial<RuntimeConfig> {
       config.token = arg.slice(8);
     } else if (arg.startsWith('--host=')) {
       config.host = arg.slice(7);
+    } else if (arg.startsWith('--skills-dir=')) {
+      config.skillsDir = arg.slice('--skills-dir='.length);
     }
   }
 
@@ -77,10 +80,14 @@ async function main() {
   // If token is provided, auto-start server
   if (config.token) {
     try {
+      if (!config.skillsDir) {
+        throw new Error('The host application must provide --skills-dir=<absolute resource path>');
+      }
       const server = await createRuntimeServer({
         port: config.port || 0,
         token: config.token,
         host: config.host || '127.0.0.1',
+        skillsDir: config.skillsDir,
       });
 
       const addr = server.getAddress();

@@ -5,11 +5,14 @@ import { createContext, extractAuthToken } from './context.js';
 import { appRouter } from './router.js';
 import { WebSocketManager, type RuntimeEvent } from './websocket.js';
 import { RUNTIME_VERSION } from '../index.js';
+import { createContainer, type Container } from '../container.js';
 
 export interface RuntimeServerOptions {
   port?: number;
   token: string;
   host?: string;
+  skillsDir?: string;
+  container?: Container;
 }
 
 export interface ServerAddress {
@@ -46,6 +49,7 @@ export function isAllowedOrigin(origin?: string): boolean {
 export class RuntimeServer {
   private server: http.Server;
   private wsManager: WebSocketManager;
+  private container: Container;
   private port: number;
   private host: string;
   private token: string;
@@ -68,11 +72,22 @@ export class RuntimeServer {
     }
 
     this.wsManager = new WebSocketManager({ expectedToken: this.token });
+    this.container =
+      options.container ??
+      createContainer({
+        skillsDir: options.skillsDir,
+        wsManager: this.wsManager,
+      });
+
     this.server = http.createServer(this.handleHttpRequest.bind(this));
 
     this.server.on('upgrade', (req, socket, head) => {
       this.wsManager.handleUpgrade(req, socket, head);
     });
+  }
+
+  public getContainer(): Container {
+    return this.container;
   }
 
   private handleHttpRequest(req: IncomingMessage, res: ServerResponse): void {
@@ -128,7 +143,13 @@ export class RuntimeServer {
         res,
         router: appRouter,
         path: trpcPath,
-        createContext: () => createContext({ req, res, expectedToken: this.token }),
+        createContext: () =>
+          createContext({
+            req,
+            res,
+            expectedToken: this.token,
+            container: this.container,
+          }),
       });
     }
 

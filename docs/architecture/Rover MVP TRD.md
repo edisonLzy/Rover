@@ -159,7 +159,7 @@ React 直接调用 Node 的**本机受鉴权业务 API**，但不直接启动 CL
 
 **模型能力。** 使用 Pi AI 的提供商/模型抽象，固定测试过的包版本。模型目录与 Pi/Traceability 共用 `~/.pi/agent/models.json`；读取时保留未知字段，写入前比较文件版本并原子替换，外部变更时重新加载或让用户处理冲突。本次运行中若文件后来变得无效，继续使用内存中最后一次有效配置并提示修复；若启动时文件已无效且没有有效配置，则禁用模型调用直到修复，不另存一份可能含密钥的明文快照。Rover 保存的密钥在自己的 Keychain 项中；允许读取 `models.json` 已有的 `apiKey`，不读取 Pi 的 `auth.json` 登录令牌。Dashboard 做模型连通性与工具调用能力检查；Code Agent CLI 的认证仍由各自 CLI 管理。模型切换不承诺各供应商行为等价，记录工具调用能力、上下文限制与配置错误。
 
-**工具边界。** Rover Agent 只得到受控的 Skill 读取、Task/摘要查询、目标仓库只读查询、计划管理、Inbox 查询与派发能力。Runtime 为每个工具实施输入校验、权限范围、超时和审计；业务 Skill 只是流程文本，不扩展权限。Rover Agent 不得到任意 shell、通用文件写入或任意网络请求工具。代码修改交由 Code Agent 原 Session；它的批准仍在 CLI。内置 Skill 至少有 `agent-dispatch`、`task-recall`、`pet-task-state`、`scheduled-task` 和告警消息处理流程。业务 Skill 可从 App 资源与 Rover 专属用户目录加载；安装时将用户选中的文件夹复制进受管目录，检验 `SKILL.md`、路径穿越和软链接，保存来源和启用状态；禁用不删除历史引用。
+**工具边界。** Rover Agent 只得到受控的 Skill 读取、Task/摘要查询、目标仓库只读查询、计划管理、Inbox 查询与派发能力。Runtime 为每个工具实施输入校验、权限范围、超时和审计；业务 Skill 只是流程文本，不扩展权限。Rover Agent 不得到任意 shell、通用文件写入或任意网络请求工具。代码修改交由 Code Agent 原 Session；它的批准仍在 CLI。MVP 维持 Skill 原语但全量以内置能力提供，至少内置 `agent-dispatch`、`task-recall`、`pet-task-state`、`scheduled-task` 和告警消息处理流程；暂不引入外部文件夹动态安装管道及 `skill_install` 表，彻底杜绝外部脚本与软链接安全风险。
 
 ## 5. Code Agent Session 承载与状态
 
@@ -179,16 +179,16 @@ Node 是唯一 SQLite 写者；MVP 使用固定版本的 `better-sqlite3`，应�
 
 | 表/文件 | 关键字段、约束与用途 |
 | --- | --- |
-| `rover_message` | `id`, `turn_id`, `role`, `content`, `created_at`；全局 history，compaction 保留来源锚点 |
+| `rover_turn` | Rover 输入回合生命周期投影与原始 `PromptDocumentV1`；`id`, `status`, `prompt_doc`, `error?`, `created_at`, `completed_at?`，以 [ADR-0014](../adr/0014-linear-rover-entries-and-compaction.md) 为准 |
+| `rover_entry` | `seq`, UUID `id`, `turn_id?`, `type`, `schema_version`, JSON `data`, `created_at`；每个 message entry 保存完整原始 AgentMessage，成功压缩追加独立 compaction entry；有效上下文按覆盖边界重建，见 [ADR-0014](../adr/0014-linear-rover-entries-and-compaction.md) |
 | `dispatch_attempt` | `id`, `candidate_task_id`, `source_kind`, `source_id`, `agent`, `cwd`, `status`, `native_session_id?`, `report_token_hash`, `error?`；`source_kind+source_id+agent+dispatch_index` 唯一 |
 | `session_ref` | `task_id` 唯一，`agent+native_session_id+config_dir` 唯一，承载名、last_seen、availability |
-| `task` | `id`, `goal`, `agent`, `skill`, `status`, `progress_text`, `result_text`, `created_at`, `updated_at`；创建需同时有 `session_ref` |
+| `task` | `id`, `goal`, `agent`, `status`, `progress_text`, `result_text`, `created_at`, `updated_at`；与 Session 1:1 投影，不含外部来源或 skill 分类标签；创建需同时有 `session_ref` |
 | `task_event` | `id`, `task_id`, `source`, `source_event_id`, `kind`, `observed_at`, `summary`, `evidence_ref`；来源事件去重 |
 | `task_summary` | `task_id` 唯一，Code Agent 写出的内容、更新时间、来源；允许缺失，独立于 Task 卡片文案 |
 | `plan` / `plan_run` | 规则、IANA 时区、下一次触发时间、启停；每次触发的成功/失败/错过记录及可选 Task ID |
 | `activity` | 已结束 Task 或 Rover 实际完成的操作及发生时间，不从普通问答自动生成 |
 | `runtime_event` | 自增 `event_seq`、事件类型、最小投影、提交时间；与领域变更同事务写入，供 HTTP 快照之后的 WebSocket 重放；按保留窗口清理并在缺口时要求重新取快照 |
-| `skill_install` | 受管路径、内容摘要、版本、来源、启用状态 |
 | `inbox_source` / `inbox_delivery` / `inbox_message` | 外部来源授权、投递事件去重、同来源消息修订与当前投影、阅读状态、气泡提醒状态；告警保存在 `inbox_message.payload`，详见第 8 节 |
 | `inbox_action` / `inbox_task` / `delivery_cursor` | 用户点击及 Rover 回合结果、关联 Task、本地已连续提交的远端投递序号；消息到达本身不产生回合或 Task |
 

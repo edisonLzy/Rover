@@ -1,3 +1,7 @@
 # Rover 与 Pi 共用模型目录配置
 
+> 状态：已废弃 · 2026-10-02
+>
+> 已由 [ADR-0015](./0015-autonomous-model-config-and-pi-ai-compat.md) 完全替代：Rover 废弃与外部 Pi CLI 共用配置文件及 Keychain 跨进程桥接的设计，改为自主维护 `~/.rover/models.json` 并对齐 Pi AI 契约。
+
 Rover 的模型目录与 Traceability 一样读写 `~/.pi/agent/models.json`，使用户已配置的自定义供应商和模型无需重复录入。Rover 必须保留不认识的字段、采用原子写入并监测外部修改，以免覆盖 Pi/Traceability 的配置；它把自身保存的凭据放进 macOS Keychain，也可读取文件中已有的 `apiKey`，但不读取 Pi 的 `auth.json` 登录令牌。共用文件意味着格式变化会同时影响多个应用，因此运行中读取失败时应提示修复并保留内存中最后有效的模型配置，不自动改写原文件；重启时若文件仍无效，则禁用模型调用，不另存可能含密钥的明文副本。

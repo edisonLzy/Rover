@@ -22,6 +22,7 @@ Rover 桌面端由 **Tauri 2 / Rust 原生宿主壳**与 **Node.js Runtime 业�
    - **目标三元组强校验（拒绝改名伪装）**：本地打包（`pnpm package:mac:arm64`、`pnpm package:mac:x64`、`pnpm package:win`）必须在 `rustc --print host-tuple` 与目标架构严格匹配的原生宿主机上执行。SEA 构建器若检测到目标三元组与当前 host-tuple 不一致，**直接抛错拒绝构建，严禁将当前宿主架构的二进制文件改名重标（Relabeling）为目标架构产物**；
    - **严格构建顺序与发布配置绑定**：打包命令显式采用“先构建 SEA 二进制，后执行 Tauri 打包”的时序，并指定 `tauri.release.conf.json`，配置 `bundle.externalBin: ["binaries/rover-runtime"]`，由 Tauri 自动将其打入安装包受保护目录（macOS `Contents/MacOS/`，Windows 安装根目录）；
    - **宿主进程调起**：Rust 端通过 `app.shell().sidecar("rover-runtime")` 直接启动内嵌的 Sidecar，**严禁且无需在终端用户电脑上搜索任何 Node.js 路径**，彻底根除 macOS (Launchd) 与 Windows (Explorer) 双击启动时丢失 `.zshrc`/`.bashrc` 环境变量导致的闪退问题。
+   - **App 拥有内置 Skill 资源**：[ADR-0016](./0016-app-owned-builtin-skills.md) 将 Skill 源码放在 `packages/app/resources/skills/`，通过 Tauri resources 随包携带；Rust 在开发与发布时解析对应资源目录并传入 `--skills-dir`。SEA 自带 Node，产品 Skill 正文及附件由 App 交付，单独运行 Sidecar 时必须显式提供资源目录。
 
 3. **版本同构与安全通信保障**：
    - **运行时版本严格锚定**：仓库根目录建立 `.node-version`（如 `22.13.1`），开发者本地与 GitHub Actions CI 严格基于该单一数据源锁定 Node 版本，并通过 `pnpm install --frozen-lockfile` 保证依赖确定性；
@@ -41,7 +42,7 @@ Rover 桌面端由 **Tauri 2 / Rust 原生宿主壳**与 **Node.js Runtime 业�
    - 执行 Rust 后端单元测试（`cargo test`）。
 2. **第二阶段：多平台原生矩阵构建与无环境验证（`build-desktop`）**：
    - **原生宿主矩阵**：`macOS-arm64`（`macos-14`）、`macOS-x64`（`macos-15-intel`）、`Windows-x64`（`windows-latest`），杜绝跨系统交叉编译造成的专有 SDK 缺失；
-   - **无环境双重冒烟校验（剥离 Node）**：各 Runner 独立构建对应平台的 SEA 二进制与 Tauri 桌面包；随后在**主动剥离系统 Node 环境变量（将 Node 移出 PATH）**的纯净环境下，分别启动生成的单独立 SEA 二进制及暂存的桌面打包产物，严格调用 `GET /api/v1/health` 探针核验自包含健康度；
+   - **无环境双重冒烟校验（剥离 Node）**：各 Runner 独立构建对应平台的 SEA 二进制与 Tauri 桌面包；在空 PATH、临时工作目录和独立数据库中运行 Sidecar，校验 `GET /api/v1/health`、Skill 列表及正文。打包前注入复制后的 App 资源树，打包后只能注入安装包内的资源树，并比较全部资源文件的相对路径和 SHA-256；
    - **产物归档**：macOS 采用 `--bundles app` 产出完整 `Rover.app` 并归档为 `.tar.gz` 保证 Unix 可执行权限；Windows 生成 NSIS `.exe` 与 `.msi` 双安装程序。
 3. **第三阶段：自动化 Release 发布（`create-release`）**：
    - 当向仓库推送版本标签（`v*`）时自动激活；
@@ -74,4 +75,3 @@ Rover 桌面端由 **Tauri 2 / Rust 原生宿主壳**与 **Node.js Runtime 业�
 
 - 根目录依赖与工具链锁定：`.node-version`、`pnpm-workspace.yaml` 与 `turbo.json`
 - 架构需求文档基线：[docs/architecture/Rover MVP TRD.md](../architecture/Rover%20MVP%20TRD.md)
-
