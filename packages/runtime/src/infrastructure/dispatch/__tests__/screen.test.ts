@@ -144,6 +144,7 @@ describe.skipIf(process.platform === 'win32')('screen module live integration on
           attemptId: process.env.ROVER_DISPATCH_ATTEMPT_ID,
           token: process.env.ROVER_REPORT_TOKEN,
           custom: process.env.CUSTOM_TEST_VAR,
+          term: process.env.TERM,
         };
         fs.writeFileSync(process.argv[1], JSON.stringify(dump));
         // Keep process running briefly so screen does not immediately exit before verification
@@ -190,6 +191,7 @@ describe.skipIf(process.platform === 'win32')('screen module live integration on
       expect(dump.attemptId).toBe(attemptId);
       expect(dump.token).toBe(reportToken);
       expect(dump.custom).toBe('custom_value_42');
+      expect(dump.term).toBe('screen-256color');
     } finally {
       if (existsSync(dumpFile)) {
         rmSync(dumpFile, { force: true });

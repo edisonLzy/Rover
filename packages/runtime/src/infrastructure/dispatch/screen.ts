@@ -178,9 +178,8 @@ export async function startScreenSession(options: StartScreenOptions): Promise<S
     childEnv.ROVER_REPORT_TOKEN = reportToken;
   }
 
-  // Parameter array: screen -U -dmS <session_name> <command> [args...]
-  // -U forces GNU Screen into UTF-8 mode to properly render CJK characters, spinners, and emojis
-  const screenArgs = ['-U', '-dmS', sessionName, command, ...args];
+  // -U enables UTF-8; -T gives the agent 256 colors instead of Screen's 8-color default.
+  const screenArgs = ['-U', '-T', 'screen-256color', '-dmS', sessionName, command, ...args];
 
   await new Promise<void>((resolve, reject) => {
     const child = spawn(screenBinary, screenArgs, {

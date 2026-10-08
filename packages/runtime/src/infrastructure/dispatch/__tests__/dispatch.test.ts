@@ -43,7 +43,7 @@ describe('Agent Dispatch & Session Binding (M1-2)', () => {
           agentType: 'claude',
           cwd: '/tmp/repo',
           prompt: 'Fix issue #123',
-          extraArgs: ['--dangerously-skip-permissions'],
+          extraArgs: ['--dangerously-skip-permissions', '--print'],
           extraEnv: { CUSTOM_VAR: 'hello' },
         },
         {
@@ -55,7 +55,7 @@ describe('Agent Dispatch & Session Binding (M1-2)', () => {
       );
 
       expect(spec.cwd).toBe('/tmp/repo');
-      expect(spec.args).toContain('--print');
+      expect(spec.args).not.toContain('--print');
       expect(spec.args.filter((arg) => arg === '--dangerously-skip-permissions')).toHaveLength(1);
       expect(spec.args).toContain('--session-id');
       expect(spec.args).toContain(testUuid);
