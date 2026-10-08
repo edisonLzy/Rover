@@ -41,18 +41,19 @@ export function createContainer(options: CreateContainerOptions): Container {
     db: db.raw,
   });
 
-  const agentService = new AgentService({
-    db,
-    modelService,
-    skillService,
-    wsManager: options.wsManager,
-  });
-
   const inboxRepository = new InboxRepository(db.raw);
   const inboxService = new InboxService({
     repository: inboxRepository,
     wsManager: options.wsManager,
     customConfigPath: options.customInboxConfigPath,
+  });
+
+  const agentService = new AgentService({
+    db,
+    modelService,
+    skillService,
+    inboxService,
+    wsManager: options.wsManager,
   });
 
   return Object.freeze({

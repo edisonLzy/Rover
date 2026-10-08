@@ -117,7 +117,7 @@ flowchart TD
 | [015](./015-pet-bubble-output-isolation.md) | PetBubble 的 LLM 输出职责收敛 | 012 | DONE | `packages/app` (PetBubble, 类型化事件订阅) |
 | [016](./016-pet-bubble-follow-up-badge-shelf.md) | PetBubble Follow-Up 徽章架与生命周期守卫 | 012, 015, 014c | DONE | `packages/app` / `packages/runtime` (BadgeShelf, 队列同步、消费事件、自动接力) |
 | [017](./017-prompt-input-dual-mode-and-clipboard-sense.md) | PromptInput 双模态快捷键与剪贴板瞬态感知 | 012, 014c | TODO | `packages/app` (usePromptEditor, keydown, Ghost Pill) |
-| [018](./018-inbox-drawer-and-handoff-delegation.md) | Inbox 抽屉卡片与一键交办流转闭环 | 013, 016, 017 | TODO | `packages/app` (PetToolbar/Inbox, Drawer, Handoff) |
+| [018](./018-inbox-drawer-and-handoff-delegation.md) | Inbox 抽屉卡片与一键交办流转闭环 | 013, 016, 017 | DONE | `packages/app` (PetToolbar/Inbox, Drawer, Handoff) |
 | [020a](./020a-runtime-infrastructure-and-isolated-modules-refactoring.md) | Runtime 基础设施层下沉与独立业务模块 (Models/Skills) 解耦重构 | 014c | DONE | `packages/runtime` (infrastructure/, modules/models, modules/skills) |
 | [020b](./020b-runtime-core-modules-container-and-trpc-router-refactoring.md) | Runtime 核心业务模块收敛、Container 组合根引入与 tRPC 路由聚合重构 | 020a | DONE | `packages/runtime` (container.ts, modules/tasks, modules/agent, trpc/) |
 

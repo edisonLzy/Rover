@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   parsePromptDocument,
   safeParsePromptDocument,
-  promptDocumentToPlainText,
   type PromptDocumentV1,
 } from '../types/prompt.js';
+import { parsePromptDocumentContent } from '../modules/agent/runtime/prompts.js';
 
 describe('PromptDocumentV1 Contract & Schema Validation (Ticket 002)', () => {
   it('validates a correct PromptDocumentV1 with text and references', () => {
@@ -23,8 +23,10 @@ describe('PromptDocumentV1 Contract & Schema Validation (Ticket 002)', () => {
     expect(parsed.v).toBe(1);
     expect(parsed.parts).toHaveLength(5);
 
-    const plainText = promptDocumentToPlainText(parsed);
-    expect(plainText).toBe('@Claude Code 帮我修复 /agent-dispatch 并在 #99');
+    const { plainText } = parsePromptDocumentContent(parsed);
+    expect(plainText).toBe(
+      '@Claude Code 帮我修复 /agent-dispatch 并在 #99 [inboxMessageId="msg_99"]'
+    );
   });
 
   it('rejects documents with wrong version or empty parts', () => {

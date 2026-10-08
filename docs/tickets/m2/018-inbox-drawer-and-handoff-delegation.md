@@ -1,6 +1,6 @@
 # 018: Inbox 抽屉卡片与一键交办流转闭环
 
-**Status**: TODO  
+**Status**: DONE
 **Blocked By**: 013, 016, 017  
 **Blocks**: None  
 
@@ -30,21 +30,29 @@
    - 当用户在输入框键入 `#` 时，弹出未读/可用 Inbox 消息候选浮层；
    - 键盘上下键或回车选中后，生成 `ReferencePart { kind: 'inbox', id, label }` 胶囊，并保留后续光标供用户继续撰写自定义 Prompt。
 
-## Affected Components & Files
+## Affected Components & Directory Structure
 
-- `packages/app/src/features/pet/PetToolbar/Inbox/index.tsx`：激活按钮与未读徽标。
-- `packages/app/src/features/pet/PetToolbar/Inbox/list.tsx`：抽屉列表视图与卡片组件。
-- `packages/app/src/features/pet/PetToolbar/index.tsx`：管理 `activeFeature === 'inbox'` 互斥与交办路由。
-- `packages/app/src/features/pet/PetToolbar/PromptInput/usePromptEditor.ts`：注入 `#` 候选列表。
-- `packages/app/src/__tests__/PetWindow.test.tsx` 及 Inbox 相关测试。
+```text
+packages/app/src/
+├── features/pet/
+│   ├── * [Modified] index.tsx                            # Inbox 变更事件刷新查询
+│   └── PetToolbar/
+│       ├── * [Modified] index.tsx                        # 抽屉互斥、回合交办与 # 候选注入
+│       └── Inbox/
+│           ├── * [Modified] index.tsx                    # 消息查询、未读徽标、交办状态与候选数据
+│           └── + [New] list.tsx                          # 消息卡片和交办按钮
+└── __tests__/
+    ├── * [Modified] PetToolbar.test.tsx                  # 抽屉、交办及 # 引用交互
+    └── * [Modified] PetWindow.runtime.test.tsx          # 忙碌交办进入徽章架
+```
 
 ## Acceptance Criteria
 
-- [ ] 点击 Inbox 图标能展开收件箱抽屉，再次点击或点击 Task 图标能正确切换互斥。
-- [ ] 空闲时点击「交由 Rover 处理 ↗」立即关闭抽屉并开启新回合。
-- [ ] 忙碌时点击「交由 Rover 处理 ↗」立即关闭抽屉并将任务作为微徽章挂入气泡底部。
-- [ ] 在输入框输入 `#` 能弹出待办消息候选菜单，回车选中能生成 `#` 胶囊。
-- [ ] 选中的 `#` 胶囊随 Prompt 提交后，能正确传递至底层 Runtime。
+- [x] 点击 Inbox 图标能展开收件箱抽屉，再次点击或点击 Task 图标能正确切换互斥。
+- [x] 空闲时点击「交由 Rover 处理 ↗」立即关闭抽屉并开启新回合。
+- [x] 忙碌时点击「交由 Rover 处理 ↗」立即关闭抽屉并将任务作为微徽章挂入气泡底部。
+- [x] 在输入框输入 `#` 能弹出待办消息候选菜单，回车选中能生成 `#` 胶囊。
+- [x] 选中的 `#` 胶囊随 Prompt 提交后，能正确传递至底层 Runtime。
 
 ## Verification Plan
 

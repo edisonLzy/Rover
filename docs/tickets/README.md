@@ -5,7 +5,7 @@
 ## 里程碑目录
 
 - **[M2: Rover 核心 (Rover Core)](./m2/README.md)**：Pi Agent 回合、模型配置、受控工具、Skill 安装、Tiptap 输入栏、Task 事务创建与事件投影、摘要回忆、最近活动、窗口 UI。
-- **[M3: 定时与 Inbox (Inbox Service & Schedulers)](./m3/README.md)**：Inbox 统一收件箱、Provider 驱动抽象、企业微信智能机器人长连接、动态开关与凭证脱敏、排查 SOP 派发。
+- **[M3: 定时与 Inbox (Inbox Service & Schedulers)](./m3/README.md)**：Inbox 统一收件箱、Provider 驱动抽象、企业微信智能机器人长连接、动态开关与凭证脱敏、Agent 受控读取消息详情。
 - _M4: 可安装包与多架构发布（规划中）_
 
 ---
