@@ -1,6 +1,6 @@
 # 001: Inbox SQLite 存储层与事件去重仓储
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: None (*Frontier*)  
 **Blocks**: 003, 005  
 
@@ -45,7 +45,8 @@
    - `listMessages(options?: { status?: string; limit?: number })`: 查询列表，默认按 `occurred_at DESC` 排序；
    - `getUnreadCount()`: 查询 `status = 'unread'` 计数；
    - `markAsRead(ids: string[])`: 批量将 `unread` 推进为 `read`；
-   - `markDelegated(id: string, taskId: string)`: 将消息标记为 `delegated` 并关联 Task ID。
+   - `markDelegated(id: string)`: 用户交办开启回合时将消息推进为 `delegated`（`task_id` 为空）；
+   - `linkTask(id: string, taskId: string)`: Rover Agent 真正派发并创建任务后关联 `task_id`（受外键约束防护）。
 
 ## Affected Components & Directory Structure
 
@@ -67,11 +68,11 @@ packages/runtime/
 
 ## Acceptance Criteria
 
-- [ ] SQLite 迁移 `002_inbox_schema.sql` 在内存和真实数据库中执行成功并更新 `schema_migrations`。
-- [ ] 同一 `source_id + source_event_id` 重复写入时幂等忽略，不产生重复记录。
-- [ ] 相同 `source_id + source_message_id` 的高修订版本能正确更新消息内容，低修订版本不覆盖。
-- [ ] `getUnreadCount` 准确统计未读条数；`markAsRead` 成功将状态转为 `read` 并减小未读数。
-- [ ] `markDelegated` 成功写入 `task_id` 并将状态推进至 `delegated`。
+- [x] SQLite 迁移 `002_inbox_schema.sql` 在内存和真实数据库中执行成功并更新 `schema_migrations`。
+- [x] 同一 `source_id + source_event_id` 重复写入时幂等忽略，不产生重复记录。
+- [x] 相同 `source_id + source_message_id` 的高修订版本能正确更新消息内容，低修订版本不覆盖。
+- [x] `getUnreadCount` 准确统计未读条数；`markAsRead` 成功将状态转为 `read` 并减小未读数。
+- [x] `markDelegated` 成功将状态推进至 `delegated`；`linkTask` 成功在受外键约束保护下回填 `task_id`。
 
 ## Verification Plan
 

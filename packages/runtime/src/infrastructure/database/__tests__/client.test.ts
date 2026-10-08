@@ -53,16 +53,16 @@ describe('Storage Layer & Migrations (Ticket 001)', () => {
   });
 
   describe('Migrations Execution & Idempotency', () => {
-    it('applies initial migration v1 successfully and records in schema_migrations', () => {
+    it('applies migrations v1 and v2 successfully and records in schema_migrations', () => {
       db = openDatabase({ path: ':memory:' });
 
       const result = runMigrations(db.raw);
-      expect(result.appliedCount).toBe(1);
-      expect(result.appliedVersions).toEqual([1]);
-      expect(result.latestVersion).toBe(1);
+      expect(result.appliedCount).toBe(2);
+      expect(result.appliedVersions).toEqual([1, 2]);
+      expect(result.latestVersion).toBe(2);
 
       const appliedVersions = getAppliedMigrationVersions(db.raw);
-      expect(appliedVersions).toEqual([1]);
+      expect(appliedVersions).toEqual([1, 2]);
 
       // Verify that core tables exist
       const tables = db.raw.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
@@ -80,17 +80,19 @@ describe('Storage Layer & Migrations (Ticket 001)', () => {
       expect(tableNames).toContain('task_event');
       expect(tableNames).toContain('task_summary');
       expect(tableNames).toContain('activity');
+      expect(tableNames).toContain('inbox_event');
+      expect(tableNames).toContain('inbox_message');
     });
 
     it('is strictly idempotent when running migrations repeatedly', () => {
       db = openDatabase({ path: ':memory:' });
 
       const firstRun = runMigrations(db.raw);
-      expect(firstRun.appliedCount).toBe(1);
+      expect(firstRun.appliedCount).toBe(2);
 
       const secondRun = runMigrations(db.raw);
       expect(secondRun.appliedCount).toBe(0);
-      expect(secondRun.latestVersion).toBe(1);
+      expect(secondRun.latestVersion).toBe(2);
     });
   });
 
