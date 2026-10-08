@@ -23,7 +23,6 @@ export interface InboxServiceOptions {
   repository: InboxRepository;
   wsManager?: WebSocketManager;
   customConfigPath?: string;
-  wecomProvider?: InboxProvider<WecomConfig>;
   autoStart?: boolean;
 }
 
@@ -51,8 +50,7 @@ export class InboxService {
     this.currentConfig = loadInboxConfig(this.customConfigPath);
 
     // 2. 注册默认 Provider 驱动
-    const wecomProvider = options.wecomProvider ?? new WecomInboxProvider();
-    this.registerProvider(wecomProvider);
+    this.registerProvider(new WecomInboxProvider());
 
     // 3. 按配置自动启动已开启的长连接（默认开启 autoStart）
     if (options.autoStart !== false) {

@@ -86,9 +86,9 @@ describe('InboxService & Configuration Lifecycle (Ticket 003)', () => {
       repository: repo,
       wsManager: mockWsManager as unknown as WebSocketManager,
       customConfigPath: configPath,
-      wecomProvider: mockProvider,
       autoStart: false,
     });
+    service.registerProvider(mockProvider);
   });
 
   afterEach(async () => {
@@ -226,9 +226,9 @@ describe('InboxService & Configuration Lifecycle (Ticket 003)', () => {
       const autoService = new InboxService({
         repository: repo,
         customConfigPath: configPath,
-        wecomProvider: mockProvider,
         autoStart: false,
       });
+      autoService.registerProvider(mockProvider);
 
       await autoService.init();
       expect(mockProvider.start).toHaveBeenCalledWith({

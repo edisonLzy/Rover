@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { WSAuthFailureError } from '@wecom/aibot-node-sdk';
+import AiBot, { WSAuthFailureError } from '@wecom/aibot-node-sdk';
 import { WecomInboxProvider, type WecomConfig } from '../modules/inbox/providers/wecom.js';
 import type { IncomingInboxEvent } from '../modules/inbox/types.js';
 
@@ -36,9 +36,10 @@ describe('WecomInboxProvider (Ticket 002)', () => {
 
   beforeEach(() => {
     mockClient = new MockWSClient();
-    provider = new WecomInboxProvider({
-      clientFactory: () => mockClient,
+    vi.spyOn(AiBot, 'WSClient').mockImplementation(function MockedWSClient() {
+      return mockClient as any;
     });
+    provider = new WecomInboxProvider();
   });
 
   describe('Identity & Initial State', () => {
@@ -239,9 +240,10 @@ describe('WecomInboxProvider (Ticket 002)', () => {
   describe('testConnection Probe', () => {
     it('resolves success when probe client authenticates', async () => {
       const probeClient = new MockWSClient();
-      const testProvider = new WecomInboxProvider({
-        clientFactory: () => probeClient,
+      vi.mocked(AiBot.WSClient).mockImplementationOnce(function MockedProbeClient() {
+        return probeClient as any;
       });
+      const testProvider = new WecomInboxProvider();
 
       const testPromise = testProvider.testConnection(validConfig);
       probeClient.simulateAuthenticated();
@@ -254,9 +256,10 @@ describe('WecomInboxProvider (Ticket 002)', () => {
 
     it('resolves failure when probe client errors', async () => {
       const probeClient = new MockWSClient();
-      const testProvider = new WecomInboxProvider({
-        clientFactory: () => probeClient,
+      vi.mocked(AiBot.WSClient).mockImplementationOnce(function MockedProbeClient() {
+        return probeClient as any;
       });
+      const testProvider = new WecomInboxProvider();
 
       const testPromise = testProvider.testConnection(validConfig);
       probeClient.simulateError(new Error('密钥无效'));

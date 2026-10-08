@@ -62,9 +62,9 @@ describe('Inbox tRPC Router (Ticket 004)', () => {
       repository,
       wsManager: mockWsManager,
       customConfigPath: configPath,
-      wecomProvider: mockProvider,
       autoStart: false,
     });
+    service.registerProvider(mockProvider);
 
     const mockContainer = {
       inboxService: service,

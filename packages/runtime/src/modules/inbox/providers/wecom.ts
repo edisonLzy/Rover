@@ -18,63 +18,15 @@ export interface WecomConfig {
   wsUrl?: string;
 }
 
-export type WecomClientFactory = (
-  config: WecomConfig,
-  callbacks: {
-    log: (level: string, ...args: unknown[]) => void;
-  }
-) => any;
-
-function defaultClientFactory(
-  config: WecomConfig,
-  callbacks: { log: (level: string, ...args: unknown[]) => void }
-) {
-  return new AiBot.WSClient({
-    botId: config.botId,
-    secret: config.botSecret,
-    wsUrl: config.wsUrl,
-    maxReconnectAttempts: 10,
-    maxAuthFailureAttempts: 3,
-    logger: {
-      debug: () => {},
-      info: (...args: unknown[]) => callbacks.log('SDK', ...args),
-      warn: (...args: unknown[]) => callbacks.log('WARN', ...args),
-      error: (...args: unknown[]) => callbacks.log('ERROR', ...args),
-    },
-  });
-}
-
-function extractTextContent(body: any): string {
-  if (!body) return '';
-  if (body.msgtype === 'text' && typeof body.text?.content === 'string') {
-    return body.text.content;
-  }
-  if (body.msgtype === 'voice' && typeof body.voice?.content === 'string') {
-    return body.voice.content;
-  }
-  if (body.msgtype === 'mixed' && Array.isArray(body.mixed?.msg_item)) {
-    return body.mixed.msg_item
-      .filter((item: any) => item.msgtype === 'text')
-      .map((item: any) => item.text?.content || '')
-      .join('\n');
-  }
-  return '';
-}
-
 export class WecomInboxProvider implements InboxProvider<WecomConfig> {
   readonly id = 'wecom';
   readonly displayName = '企业微信智能机器人';
 
-  private client: any = null;
+  private client: AiBot.WSClient | null = null;
   private status: InboxProviderStatus = 'disabled';
   private dispatcher: InboxMessageDispatcher | null = null;
   private statusListener: ProviderStatusListener | null = null;
   private seen = new Set<string>();
-  private readonly clientFactory: WecomClientFactory;
-
-  constructor(options?: { clientFactory?: WecomClientFactory }) {
-    this.clientFactory = options?.clientFactory ?? defaultClientFactory;
-  }
 
   getStatus(): InboxProviderStatus {
     return this.status;
@@ -105,8 +57,18 @@ export class WecomInboxProvider implements InboxProvider<WecomConfig> {
 
     this.updateStatus('connecting');
 
-    const client = this.clientFactory(config, {
-      log: (_level, ..._args) => {},
+    const client = new AiBot.WSClient({
+      botId: config.botId,
+      secret: config.botSecret,
+      wsUrl: config.wsUrl,
+      maxReconnectAttempts: 10,
+      maxAuthFailureAttempts: 3,
+      logger: {
+        debug: () => {},
+        info: () => {},
+        warn: () => {},
+        error: () => {},
+      },
     });
     this.client = client;
 
@@ -217,14 +179,19 @@ export class WecomInboxProvider implements InboxProvider<WecomConfig> {
     return new Promise((resolve) => {
       let resolved = false;
 
-      const testClient = this.clientFactory(
-        {
-          botId: config.botId,
-          botSecret: config.botSecret,
-          wsUrl: config.wsUrl,
+      const testClient = new AiBot.WSClient({
+        botId: config.botId,
+        secret: config.botSecret,
+        wsUrl: config.wsUrl,
+        maxReconnectAttempts: 10,
+        maxAuthFailureAttempts: 3,
+        logger: {
+          debug: () => {},
+          info: () => {},
+          warn: () => {},
+          error: () => {},
         },
-        { log: () => {} }
-      );
+      });
 
       const cleanup = () => {
         try {
@@ -286,4 +253,21 @@ export class WecomInboxProvider implements InboxProvider<WecomConfig> {
       throw new Error('当前底层客户端不支持 replyStream 操作');
     }
   }
+}
+
+function extractTextContent(body: any): string {
+  if (!body) return '';
+  if (body.msgtype === 'text' && typeof body.text?.content === 'string') {
+    return body.text.content;
+  }
+  if (body.msgtype === 'voice' && typeof body.voice?.content === 'string') {
+    return body.voice.content;
+  }
+  if (body.msgtype === 'mixed' && Array.isArray(body.mixed?.msg_item)) {
+    return body.mixed.msg_item
+      .filter((item: any) => item.msgtype === 'text')
+      .map((item: any) => item.text?.content || '')
+      .join('\n');
+  }
+  return '';
 }
