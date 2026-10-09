@@ -230,6 +230,7 @@ export interface AgentServiceDependencies {
     | import('../../infrastructure/database/index.js').RoverDatabase;
   modelService: import('../models/index.js').ModelService;
   skillService?: import('../skills/index.js').SkillService;
+  inboxService?: import('../inbox/index.js').InboxService;
   wsManager?: import('../../transport/websocket.js').WebSocketManager;
   runtime?: import('./runtime/runtime.js').AgentRuntime;
 }

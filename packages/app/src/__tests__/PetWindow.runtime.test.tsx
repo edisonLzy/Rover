@@ -10,6 +10,8 @@ const runtime = vi.hoisted(() => ({
   accepted: undefined as undefined | ((data: { turnId: string }) => void),
   request: vi.fn(),
   invalidate: vi.fn(),
+  delegated: vi.fn(),
+  inboxMessages: [] as any[],
   queue: [] as Array<{ id: string; timestamp: number; promptDoc: any }>,
   clear: vi.fn(),
   connection: { ws_url: 'ws://test', token: 'test' },
@@ -74,6 +76,11 @@ vi.mock('../utils/trpc.js', () => ({
       list: { useQuery: () => ({ data: [], isPending: false }) },
       openTerminal: { useMutation: () => ({ mutateAsync: vi.fn() }) },
     },
+    inbox: {
+      list: { useQuery: () => ({ data: runtime.inboxMessages, isPending: false, error: null }) },
+      getUnreadCount: { useQuery: () => ({ data: runtime.inboxMessages.length }) },
+      markAsDelegated: { useMutation: () => ({ mutateAsync: runtime.delegated }) },
+    },
     turns: {
       clearAllQueues: { useMutation: () => ({ mutateAsync: runtime.clear }) },
       start: {
@@ -103,6 +110,8 @@ beforeEach(async () => {
   runtime.handlersList.length = 0;
   runtime.stateListeners.length = 0;
   runtime.invalidate.mockReset();
+  runtime.delegated.mockReset().mockResolvedValue({ success: true });
+  runtime.inboxMessages = [];
   runtime.queue = [];
   let nextId = 0;
   vi.spyOn(crypto, 'randomUUID').mockImplementation(
@@ -114,6 +123,10 @@ beforeEach(async () => {
   });
   runtime.utils = {
     tasks: { list: { invalidate: runtime.invalidate } },
+    inbox: {
+      list: { invalidate: runtime.invalidate },
+      getUnreadCount: { invalidate: runtime.invalidate },
+    },
   };
   runtime.request.mockReset().mockImplementation(() =>
     new Promise<{ turnId: string }>((resolve) => {
@@ -405,5 +418,31 @@ describe('016 queue synchronization and handoff', () => {
       el.getAttribute('data-follow-up-id')
     );
     expect(badgeIds).toEqual(['q1', 'q0', 'q2']);
+  });
+});
+
+describe('018 Inbox handoff integration', () => {
+  it('puts a busy Inbox handoff on the PetBubble badge shelf', async () => {
+    runtime.inboxMessages = [
+      {
+        id: 'inbox-1',
+        title: '支付异常',
+        summary: '结算失败',
+        kind: 'alert',
+        status: 'unread',
+        occurredAt: 1_700_000_000_000,
+      },
+    ];
+    await act(async () => root.render(<PetWindow />));
+    await event('turn.started', { turnId: 'current' });
+    await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Inbox"]')!.click());
+    const handoff = [...host.querySelectorAll<HTMLButtonElement>('button')].find((button) =>
+      button.textContent?.includes('交由 Rover 处理')
+    )!;
+    await act(async () => handoff.click());
+    expect(runtime.request).not.toHaveBeenCalled();
+    expect(host.querySelector('[aria-label="Inbox 消息列表"]')).toBeNull();
+    expect(host.querySelector('[aria-label="接续队列"]')?.textContent).toContain('支付异常');
+    expect(runtime.delegated).toHaveBeenCalledWith({ id: 'inbox-1' });
   });
 });

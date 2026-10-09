@@ -174,10 +174,9 @@ export class AgentRuntime {
     }
 
     // 3. 构建用户消息并启动底层回路
-    const parsed = parsePromptDocumentContent(validDoc);
     const userMessage: AgentMessage = {
       role: 'user',
-      content: parsed.plainText,
+      content: parsePromptDocumentContent(validDoc).plainText,
       timestamp: startTime,
     } as AgentMessage;
 

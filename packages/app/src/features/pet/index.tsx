@@ -184,6 +184,10 @@ function usePetRuntime() {
       'task.changed': () => {
         void queryUtils.tasks.list.invalidate();
       },
+      'inbox.changed': () => {
+        void queryUtils.inbox.list.invalidate();
+        void queryUtils.inbox.getUnreadCount.invalidate();
+      },
       'turn.started': (payload) => {
         if (finishedTurnIdsRef.current.has(payload.turnId)) return;
         activeTurnRef.current = payload.turnId;

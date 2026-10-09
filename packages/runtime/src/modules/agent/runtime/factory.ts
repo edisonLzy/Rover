@@ -5,8 +5,10 @@ import { WebSocketBroadcastCallbacks } from './callbacks/broadcast.js';
 import { openDatabase, type RoverDatabase } from '../../../infrastructure/database/index.js';
 import { ModelRegistry } from '../../models/index.js';
 import { BuiltinSkillService } from '../../skills/index.js';
-import { createReadSkillTool } from './tools/skill.js';
+import { createReadSkillTool } from '../../skills/tool.js';
 import { createDispatchAgentTool } from './tools/dispatch.js';
+import { createGetInboxDetailTool } from './tools/inbox.js';
+import type { InboxService } from '../../inbox/index.js';
 import type { WebSocketManager } from '../../../transport/websocket.js';
 
 export interface AgentRuntimeFactoryOptions {
@@ -16,6 +18,7 @@ export interface AgentRuntimeFactoryOptions {
   customConfigPath?: string;
   skillsDir?: string;
   skillService?: BuiltinSkillService;
+  inboxService?: InboxService;
   tools?: AgentTool[];
   streamFn?: StreamFn;
   systemPrompt?: string;
@@ -31,6 +34,7 @@ export function createAgentRuntime(options: AgentRuntimeFactoryOptions = {}): Ag
 
   const defaultTools: AgentTool[] = [
     createReadSkillTool(skillService),
+    ...(options.inboxService ? [createGetInboxDetailTool(options.inboxService)] : []),
     createDispatchAgentTool({
       db: dbInstance,
       wsManager: options.wsManager,

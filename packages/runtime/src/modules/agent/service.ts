@@ -53,6 +53,7 @@ export class AgentService {
         db: dbInstance,
         modelRegistry: deps.modelService.getRegistry(),
         skillService: deps.skillService,
+        inboxService: deps.inboxService,
         wsManager: deps.wsManager,
       });
   }

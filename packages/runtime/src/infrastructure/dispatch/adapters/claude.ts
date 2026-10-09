@@ -69,8 +69,9 @@ export class ClaudeAdapter implements AgentAdapter {
       throw new Error(`Invalid UUID provided for Claude session-id: ${sessionId}`);
     }
 
-    // Background work must not wait for interactive workspace trust or tool approval.
-    const args: string[] = ['--print', '--dangerously-skip-permissions', '--session-id', sessionId];
+    // Keep the native session interactive so Screen attach shows the live conversation.
+    // Permission bypass prevents background work from waiting for tool approval.
+    const args: string[] = ['--dangerously-skip-permissions', '--session-id', sessionId];
 
     if (options.prompt && options.prompt.trim()) {
       args.push(options.prompt.trim());

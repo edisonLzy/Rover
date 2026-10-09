@@ -7,6 +7,7 @@ import { ModelService } from './modules/models/index.js';
 import { SkillService } from './modules/skills/index.js';
 import { TaskService } from './modules/tasks/index.js';
 import { AgentService } from './modules/agent/index.js';
+import { InboxService, InboxRepository } from './modules/inbox/index.js';
 import type { WebSocketManager } from './transport/websocket.js';
 
 /**
@@ -20,11 +21,13 @@ export interface Container {
   skillService: SkillService;
   taskService: TaskService;
   agentService: AgentService;
+  inboxService: InboxService;
 }
 
 export interface CreateContainerOptions {
   wsManager: WebSocketManager;
   customConfigPath?: string;
+  customInboxConfigPath?: string;
   skillsDir?: string;
 }
 
@@ -38,10 +41,18 @@ export function createContainer(options: CreateContainerOptions): Container {
     db: db.raw,
   });
 
+  const inboxRepository = new InboxRepository(db.raw);
+  const inboxService = new InboxService({
+    repository: inboxRepository,
+    wsManager: options.wsManager,
+    customConfigPath: options.customInboxConfigPath,
+  });
+
   const agentService = new AgentService({
     db,
     modelService,
     skillService,
+    inboxService,
     wsManager: options.wsManager,
   });
 
@@ -51,5 +62,6 @@ export function createContainer(options: CreateContainerOptions): Container {
     skillService,
     taskService,
     agentService,
+    inboxService,
   });
 }

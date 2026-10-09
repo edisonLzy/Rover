@@ -30,8 +30,13 @@ export {
 } from './callbacks/index.js';
 export {
   createReadSkillTool,
+  ReadSkillParams,
+  type ReadSkillParamsType,
+} from '../../skills/tool.js';
+export {
   createDispatchAgentTool,
   DispatchAgentParams,
   type DispatchAgentParamsType,
   type DispatchAgentToolOptions,
-} from './tools/index.js';
+} from './tools/dispatch.js';
+export { createGetInboxDetailTool, GetInboxDetailParams } from './tools/inbox.js';

@@ -42,19 +42,3 @@ export function parsePromptDocument(input: unknown): PromptDocumentV1 {
 export function safeParsePromptDocument(input: unknown) {
   return PromptDocumentV1Schema.safeParse(input);
 }
-
-/**
- * Converts a PromptDocumentV1 into a readable plain text string for display or fallback.
- */
-export function promptDocumentToPlainText(doc: PromptDocumentV1): string {
-  return doc.parts
-    .map((part) => {
-      if (part.type === 'text') {
-        return part.text;
-      }
-      return part.label.startsWith('@') || part.label.startsWith('/') || part.label.startsWith('#')
-        ? part.label
-        : `@${part.label}`;
-    })
-    .join('');
-}

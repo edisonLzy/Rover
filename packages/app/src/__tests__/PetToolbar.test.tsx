@@ -7,10 +7,29 @@ import { EditorContent, type Editor } from '@tiptap/react';
 import { usePromptEditor } from '../features/pet/PetToolbar/PromptInput/usePromptEditor.js';
 
 const terminalMutation = vi.hoisted(() => vi.fn());
+const delegatedMutation = vi.hoisted(() => vi.fn());
+const inboxState = vi.hoisted(() => ({ messages: [] as any[], unreadCount: 0 }));
 
 vi.mock('../context/RuntimeContext.js', () => ({ useRuntime: () => ({ connection: {} }) }));
 vi.mock('../utils/trpc.js', () => ({
   trpc: {
+    useUtils: () => ({
+      inbox: {
+        list: { invalidate: vi.fn() },
+        getUnreadCount: { invalidate: vi.fn() },
+      },
+    }),
+    inbox: {
+      list: {
+        useQuery: () => ({ data: inboxState.messages, isPending: false, error: null }),
+      },
+      getUnreadCount: {
+        useQuery: () => ({ data: inboxState.unreadCount }),
+      },
+      markAsDelegated: {
+        useMutation: () => ({ mutateAsync: delegatedMutation }),
+      },
+    },
     tasks: {
       list: {
         useQuery: () => ({
@@ -41,6 +60,9 @@ let props: Parameters<typeof PetToolbar>[0];
 
 beforeEach(() => {
   terminalMutation.mockReset().mockResolvedValue({ success: true });
+  delegatedMutation.mockReset().mockResolvedValue({ success: true });
+  inboxState.messages = [];
+  inboxState.unreadCount = 0;
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   Element.prototype.scrollIntoView = vi.fn();
   Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
@@ -113,6 +135,115 @@ function deferred() {
   });
   return { promise, resolve, reject };
 }
+
+function inboxMessage() {
+  return {
+    id: 'inbox-1',
+    sourceId: 'wecom',
+    sourceMessageId: 'message-1',
+    revision: 1,
+    kind: 'alert',
+    title: '支付失败',
+    summary: '结账时出现 500',
+    url: null,
+    status: 'unread',
+    taskId: null,
+    occurredAt: 1_700_000_000_000,
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_000,
+    payload: { traceId: 'trace-1' },
+  };
+}
+
+describe('018 Inbox drawer and handoff', () => {
+  beforeEach(() => {
+    inboxState.messages = [inboxMessage()];
+    inboxState.unreadCount = 1;
+  });
+
+  it('shows the unread badge and switches exclusively with the Task drawer', async () => {
+    await render();
+    expect(host.querySelector<HTMLButtonElement>('[aria-label="Inbox"]')?.textContent).toContain(
+      '1'
+    );
+    await click('Inbox');
+    expect(host.querySelector('[aria-label="Inbox 消息列表"]')?.textContent).toContain('支付失败');
+    expect(host.querySelector('[aria-label="任务列表"]')).toBeNull();
+    await click('任务');
+    expect(host.querySelector('[aria-label="Inbox 消息列表"]')).toBeNull();
+    expect(host.querySelector('[aria-label="任务列表"]')).not.toBeNull();
+    await click('Inbox');
+    expect(host.querySelector('[aria-label="任务列表"]')).toBeNull();
+    await click('Inbox');
+    expect(host.querySelector('[aria-label="Inbox 消息列表"]')).toBeNull();
+  });
+
+  it('keeps the Inbox entry visible while unread messages remain', async () => {
+    await render({ petHovered: false });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 260));
+    });
+    expect(host.querySelector<HTMLElement>('.pet-toolbar')!.hidden).toBe(false);
+    expect(host.querySelector<HTMLButtonElement>('[aria-label="Inbox"]')!.hidden).toBe(false);
+  });
+
+  it('starts a turn from idle and closes the drawer immediately', async () => {
+    const request = deferred();
+    const onSubmit = vi.fn(() => request.promise);
+    await render({ onSubmit });
+    await click('Inbox');
+    const handoff = [...host.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('交由 Rover 处理')
+    )!;
+    await act(async () => handoff.click());
+    expect(host.querySelector('[aria-label="Inbox 消息列表"]')).toBeNull();
+    expect(onSubmit).toHaveBeenCalledWith({
+      v: 1,
+      parts: [
+        { type: 'text', text: '请读取并处理这条 Inbox 消息：' },
+        { type: 'reference', kind: 'inbox', id: 'inbox-1', label: '#支付失败' },
+      ],
+    });
+    expect(props.onFollowUp).not.toHaveBeenCalled();
+    await act(async () => request.resolve());
+    expect(delegatedMutation).toHaveBeenCalledWith({ id: 'inbox-1' });
+  });
+
+  it('enqueues a Follow-Up when busy, then marks the message delegated', async () => {
+    await render({ isBusy: true });
+    await click('Inbox');
+    const handoff = [...host.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('交由 Rover 处理')
+    )!;
+    await act(async () => handoff.click());
+    expect(host.querySelector('[aria-label="Inbox 消息列表"]')).toBeNull();
+    expect(props.onSubmit).not.toHaveBeenCalled();
+    expect(props.onFollowUp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parts: expect.arrayContaining([expect.objectContaining({ kind: 'inbox', id: 'inbox-1' })]),
+      })
+    );
+    expect(delegatedMutation).toHaveBeenCalledWith({ id: 'inbox-1' });
+  });
+
+  it('offers Inbox references for # and submits the selected reference', async () => {
+    await render();
+    await edit();
+    await type('#支付');
+    expect(host.querySelector('.pet-suggestions')?.textContent).toContain('支付失败');
+    await key('ArrowDown');
+    await key('Enter');
+    expect(props.onSubmit).not.toHaveBeenCalled();
+    await key('Enter');
+    expect(props.onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parts: expect.arrayContaining([
+          expect.objectContaining({ type: 'reference', kind: 'inbox', id: 'inbox-1' }),
+        ]),
+      })
+    );
+  });
+});
 
 describe('012 toolbar and real Tiptap interactions', () => {
   it.each(['@', '/', '#'])('anchors %s suggestions inside the scaled composer', async (trigger) => {
@@ -289,7 +420,7 @@ describe('012 toolbar and real Tiptap interactions', () => {
     await type('继续输入');
     await key('Enter');
     expect(host.querySelector('[aria-label="任务列表"]')).toBe(list);
-    expect(host.querySelector<HTMLButtonElement>('[aria-label="Inbox"]')!.disabled).toBe(true);
+    expect(host.querySelector<HTMLButtonElement>('[aria-label="Inbox"]')!.disabled).toBe(false);
   });
 
   it('shows workspace trust guidance after opening a resumed session', async () => {

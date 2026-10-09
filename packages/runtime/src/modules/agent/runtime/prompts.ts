@@ -1,5 +1,4 @@
 import type { PromptDocumentV1 } from '../../../types/prompt.js';
-import { promptDocumentToPlainText } from '../../../types/prompt.js';
 
 export interface ParsedPromptContent {
   plainText: string;
@@ -15,25 +14,35 @@ export interface ParsedPromptContent {
  * from a validated PromptDocumentV1.
  */
 export function parsePromptDocumentContent(doc: PromptDocumentV1): ParsedPromptContent {
-  const plainText = promptDocumentToPlainText(doc);
+  const plainTextParts: string[] = [];
   const agents: string[] = [];
   const skills: string[] = [];
   const inboxes: string[] = [];
 
   for (const part of doc.parts) {
-    if (part.type === 'reference') {
-      if (part.kind === 'agent') {
-        if (!agents.includes(part.id)) agents.push(part.id);
-      } else if (part.kind === 'skill') {
-        if (!skills.includes(part.id)) skills.push(part.id);
-      } else if (part.kind === 'inbox') {
-        if (!inboxes.includes(part.id)) inboxes.push(part.id);
-      }
+    if (part.type === 'text') {
+      plainTextParts.push(part.text);
+      continue;
     }
+
+    const prefix = part.kind === 'agent' ? '@' : part.kind === 'skill' ? '/' : '#';
+    const label = part.label.startsWith(prefix) ? part.label : `${prefix}${part.label}`;
+    let rendered = label;
+
+    if (part.kind === 'agent') {
+      if (!agents.includes(part.id)) agents.push(part.id);
+    } else if (part.kind === 'skill') {
+      if (!skills.includes(part.id)) skills.push(part.id);
+    } else {
+      if (!inboxes.includes(part.id)) inboxes.push(part.id);
+      rendered += ` [inboxMessageId=${JSON.stringify(part.id)}]`;
+    }
+
+    plainTextParts.push(rendered);
   }
 
   return {
-    plainText,
+    plainText: plainTextParts.join(''),
     references: {
       agents,
       skills,

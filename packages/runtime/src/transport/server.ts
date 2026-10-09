@@ -208,6 +208,7 @@ export class RuntimeServer {
   public async stop(): Promise<void> {
     if (!this.running) return;
 
+    await this.container.inboxService.stopAll();
     await this.wsManager.close();
 
     return new Promise((resolve, reject) => {

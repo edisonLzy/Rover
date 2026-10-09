@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { SquarePen } from 'lucide-react';
+import type { InboxMessageRecord } from '@rover/runtime/expose';
+import {
+  Inbox,
+  useInboxDelegation,
+  useInboxSuggestions,
+  useInboxUnreadCount,
+} from './Inbox/index.js';
 import { PromptInput } from './PromptInput/index.js';
 import type { PromptDocumentV1, SuggestionItemData } from './PromptInput/types.js';
 import { Task } from './Task/index.js';
-import { Inbox } from './Inbox/index.js';
 
 interface PetToolbarProps {
   petHovered: boolean;
@@ -28,6 +34,16 @@ const SKILLS: SuggestionItemData[] = [
   { id: 'task-recall', kind: 'skill', label: 'task-recall', description: '查询历史任务' },
 ];
 
+function createHandoffPrompt(message: InboxMessageRecord): PromptDocumentV1 {
+  return {
+    v: 1,
+    parts: [
+      { type: 'text', text: '请读取并处理这条 Inbox 消息：' },
+      { type: 'reference', kind: 'inbox', id: message.id, label: `#${message.title}` },
+    ],
+  };
+}
+
 export function PetToolbar({
   petHovered,
   isBusy,
@@ -45,30 +61,52 @@ export function PetToolbar({
   const [activeFeature, setActiveFeature] = useState<'none' | 'task' | 'inbox'>('none');
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const delegateInboxMessage = useInboxDelegation();
+  const unreadCount = useInboxUnreadCount();
+  const availableInboxes = useInboxSuggestions();
+
   useEffect(() => {
-    if (petHovered || hovered || focused || hasDraft || submitError) {
+    const shouldStayVisible =
+      petHovered || hovered || focused || hasDraft || !!submitError || unreadCount > 0;
+    if (shouldStayVisible) {
       setVisible(true);
       return;
     }
+
     const timer = setTimeout(() => {
       setVisible(activeFeature !== 'none');
       setEditing(false);
     }, 200);
     return () => clearTimeout(timer);
-  }, [petHovered, hovered, focused, hasDraft, submitError, activeFeature]);
+  }, [petHovered, hovered, focused, hasDraft, submitError, activeFeature, unreadCount]);
 
   const handleSubmit = async (doc: PromptDocumentV1) => {
     setSubmitError(null);
+
     if (submissionUnavailable) {
       setSubmitError(submissionUnavailable);
       return false;
     }
+
     try {
       await (isBusy || hasFollowUps ? onFollowUp(doc) : onSubmit(doc));
       return true;
     } catch (failure: unknown) {
       setSubmitError(failure instanceof Error ? failure.message : '发送失败，请稍后重试');
       return false;
+    }
+  };
+
+  const handleHandoff = async (message: InboxMessageRecord) => {
+    setActiveFeature('none');
+
+    const accepted = await handleSubmit(createHandoffPrompt(message));
+    if (!accepted) return;
+
+    try {
+      await delegateInboxMessage(message.id);
+    } catch (failure: unknown) {
+      setSubmitError(failure instanceof Error ? failure.message : '交办失败，请稍后重试');
     }
   };
 
@@ -103,7 +141,14 @@ export function PetToolbar({
       >
         <SquarePen />
       </button>
-      <Inbox controlsVisible={!editing} />
+      <Inbox
+        controlsVisible={!editing}
+        active={activeFeature === 'inbox'}
+        onToggle={() => setActiveFeature((feature) => (feature === 'inbox' ? 'none' : 'inbox'))}
+        onHandoff={(message) => {
+          void handleHandoff(message);
+        }}
+      />
       <Task
         controlsVisible={!editing}
         active={activeFeature === 'task'}
@@ -115,6 +160,7 @@ export function PetToolbar({
           placeholder="问 Rover，@ Agent，/ Skill，# Inbox"
           availableAgents={AGENTS}
           availableSkills={SKILLS}
+          availableInboxes={availableInboxes}
           onContentChange={setHasDraft}
           onSubmit={handleSubmit}
           onAccepted={() => {
