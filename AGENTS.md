@@ -44,6 +44,7 @@ All tasks in `docs/tickets/` follow Matt Pocock's Tracer-Bullet Ticket methodolo
   - `* [Modified]`: Existing files to be changed, specifying the scope of modification.
   - `- [Deleted/Moved]`: Files to be removed, deprecated, or relocated.
 - **Strict Scope Boundaries**: Agents must never invent arbitrary file layouts or scaffold unapproved files outside the agreed-upon ticket directory tree.
+- **Visual & Behavioral Demonstration (ASCII Mockups)**: Every ticket or design specification must include a dedicated `Visual & Behavioral Demonstration (ASCII Mockups)` section. Use formatted ASCII art / text blocks to vividly demonstrate the expected user-facing interaction, terminal I/O, UI components (such as pet bubble cards and action buttons), and state machine transitions, ensuring intuitive and unambiguous verification.
 
 ## Testing Guidelines
 

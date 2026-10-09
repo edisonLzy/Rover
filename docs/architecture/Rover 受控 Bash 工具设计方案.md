@@ -202,17 +202,81 @@ packages/runtime/src/
 
 ---
 
-## 五、 实施路线与待决议项（Open Questions）
+## 五、 实施路线与工单分解（Tracer-Bullet Tickets）
 
-### 5.1 推荐推进路径
-1. **阶段一（基础设施与只读闭环）**：
-   - 实现 `UserEnvResolver` 解决 macOS 环境变量继承；
-   - 实现 `bash` 工具的只读白名单（Tier 1）与防爆截断、超时熔断。
-2. **阶段二（HITL 审批打通）**：
-   - 待 [Ticket 014d (HITL 状态机)](../tickets/m2/014d-human-in-the-loop-permission-and-question.md) 就绪后，将 Tier 2 变更命令接入 `PermissionService`，支持前端桌面气泡审批卡片。
+整体方案已收敛入 **[ADR-0021](../adr/0021-gui-desktop-environment-resolution-and-sidecar-fallback.md)** 与 **[ADR-0022](../adr/0022-controlled-bash-tool-and-unified-permission-guard.md)**，并分解为两条垂直工单：
 
-### 5.2 待决议项（Open Questions）
-1. **网络白名单粒度**：
-   - 对于 `curl` 请求，除校验 HTTP Method 外，是否需要限制目标域名范围（如仅允许请求 GitHub/GitLab API 及 localhost 服务）？
-2. **临时文件生命周期**：
-   - 超限截断时写入 `~/.rover/tmp/` 的完整日志，是否需要设置 LRU 或启动时自动清理策略？
+1. **[Ticket 022a (阶段一：只读沙箱闭环)](../tickets/m2/022a-controlled-bash-tool-runner-and-read-only-baseline.md)**：
+   - 实现零依赖 `UserEnvResolver` 解决 macOS GUI 环境变量丢失（带 2000ms 超时熔断与静态路径兜底）；
+   - 实现 `SafeRunner`（非交互模式、30s 超时熔断、ANSI 清洗与 30KB 首尾防爆截断）；
+   - 实现 `CommandClassifier`（Tier 1 只读白名单放行，Tier 3 黑名单阻断，复合命令防御）；
+   - 默认装配 `bash` 工具至 `factory.ts`。
+2. **[Ticket 022b (阶段二：统一门禁与气泡轻量审批)](../tickets/m2/022b-unified-permission-service-hitl-and-bubble-approval.md)**：
+   - 移植 `divisor-agent` 的 `AbstractHumanInTheLoop` 状态机；
+   - 落地 `WorkspaceAccessService`（地盘准入与长期授权，彻底脱敏工具名）；
+   - 落地 `PermissionService`（动作风控、Tier 2 变更命令审批、死循环断路、运行期内存前缀放行 `rememberApproval`）；
+   - 挂载 `beforeToolCall` 统一前门流水线，打通前端桌面气泡 `[允许]/[拒绝]` 二元操作卡片与 tRPC 路由。
+
+---
+
+## 六、 实际效果与交互表现（ASCII Mockups）
+
+### 6.1 Tier 1 只读查询：静默放行与干净输出
+```text
+╭──────────────────────────────────────────────────╮
+│ 🐕 Rover: 当前仓库处于分支 feat/2-controlled-bash-tool │
+│   最新提交为 46bf631，工作区干净无未提交文件。   │
+╰──────────────────────────────────────────────────╯
+底层 Tool Call:
+  -> bash({ command: "git status" })
+  <- { stdout: "On branch feat/2-controlled-bash-tool\nnothing to commit, working tree clean", exitCode: 0 }
+```
+
+### 6.2 冗长输出：防爆截断保护（Head/Tail Truncation）
+```text
+底层 Tool Call:
+  -> bash({ command: "curl -s https://example.com/massive_log.json" })
+  <- {
+       stdout: "[Line 1..250 output...]\n\n"
+             + "[... Rover Output Guard: 截断 3420 行 (480 KB)。完整日志已保存至 ~/.rover/tmp/bash_8f2a.log ...]\n\n"
+             + "[Line 3321..3420 tail output...]",
+       exitCode: 0
+     }
+```
+
+### 6.3 Tier 2 变更命令：宠物气泡轻量二元审批卡片
+```text
+╭────────────────────────────────────────────────────────╮
+│ 🐕 Rover: 我需要执行以下命令来推进当前任务：           │
+│                                                        │
+│   ┌────────────────────────────────────────────────┐   │
+│   │ $ gh pr merge 42 --squash                      │   │
+│   └────────────────────────────────────────────────┘   │
+│                                                        │
+│   [ 允许 (Approve) ]              [ 拒绝 (Reject) ]    │
+│   ☑ 本次运行期间记住该前缀 (Remember for current run)  │
+╰────────────────────────────────────────────────────────╯
+```
+
+### 6.4 未授权目录：工作区访问准入卡片 (WorkspaceAccessService)
+```text
+╭────────────────────────────────────────────────────────╮
+│ 🐕 Rover: 检测到命令涉及未授权的外部目录：             │
+│                                                        │
+│   📂 /Users/zhiyu/Projects/external-service            │
+│                                                        │
+│   [ 信任并加入工作区 ]            [ 仅本次允许 ]       │
+│   [ 拒绝访问 ]                                         │
+╰────────────────────────────────────────────────────────╯
+```
+
+### 6.5 Tier 3 破坏性命令：绝对黑名单硬阻断（零子进程启动）
+```text
+底层 Tool Call:
+  -> bash({ command: "sudo rm -rf /var/log" })
+  <- {
+       isError: true,
+       error: "CommandBlockedError: 'sudo rm -rf /var/log' matches Tier 3 forbidden blacklists. Escalation or destruction commands are strictly blocked.",
+       details: { tier: "tier_3", blocked: true }
+     }
+```
