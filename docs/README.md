@@ -8,5 +8,6 @@
 - [Rover Inbox 投递协议 v1](./architecture/Rover%20Inbox%20投递协议%20v1.md)
 - [Inbox 投递 JSON Schema v1](./architecture/rover-inbox-delivery.v1.schema.json)
 - [Rover Agent Loop 框架评估](./architecture/Rover%20Agent%20Loop%20框架评估.md)
+- [Rover 受控 Bash 工具设计方案](./architecture/Rover%20受控%20Bash%20工具设计方案.md)
 - [ADR-0014：消息粒度的线性 Entry 与 Compaction](./adr/0014-linear-rover-entries-and-compaction.md)
 - [产品交互原型](./prototype/index.html)与[评审路径](./prototype/README.md)
