@@ -40,3 +40,4 @@ export {
   type DispatchAgentToolOptions,
 } from './tools/dispatch.js';
 export { createGetInboxDetailTool, GetInboxDetailParams } from './tools/inbox.js';
+export { createBashTool, ExecBashParams, type ExecBashParamsType } from './tools/bash/index.js';

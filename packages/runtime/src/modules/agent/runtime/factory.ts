@@ -8,6 +8,7 @@ import { BuiltinSkillService } from '../../skills/index.js';
 import { createReadSkillTool } from '../../skills/tool.js';
 import { createDispatchAgentTool } from './tools/dispatch.js';
 import { createGetInboxDetailTool } from './tools/inbox.js';
+import { createBashTool } from './tools/bash/index.js';
 import type { InboxService } from '../../inbox/index.js';
 import type { WebSocketManager } from '../../../transport/websocket.js';
 
@@ -34,6 +35,7 @@ export function createAgentRuntime(options: AgentRuntimeFactoryOptions = {}): Ag
 
   const defaultTools: AgentTool[] = [
     createReadSkillTool(skillService),
+    createBashTool(),
     ...(options.inboxService ? [createGetInboxDetailTool(options.inboxService)] : []),
     createDispatchAgentTool({
       db: dbInstance,

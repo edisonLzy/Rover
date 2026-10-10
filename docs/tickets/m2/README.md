@@ -125,7 +125,7 @@ flowchart TD
 | [018](./018-inbox-drawer-and-handoff-delegation.md) | Inbox 抽屉卡片与一键交办流转闭环 | 013, 016, 017 | DONE | `packages/app` (PetToolbar/Inbox, Drawer, Handoff) |
 | [020a](./020a-runtime-infrastructure-and-isolated-modules-refactoring.md) | Runtime 基础设施层下沉与独立业务模块 (Models/Skills) 解耦重构 | 014c | DONE | `packages/runtime` (infrastructure/, modules/models, modules/skills) |
 | [020b](./020b-runtime-core-modules-container-and-trpc-router-refactoring.md) | Runtime 核心业务模块收敛、Container 组合根引入与 tRPC 路由聚合重构 | 020a | DONE | `packages/runtime` (container.ts, modules/tasks, modules/agent, trpc/) |
-| [022a](./022a-controlled-bash-tool-runner-and-read-only-baseline.md) | 受控 Bash 工具执行沙箱与只读安全基线 | 020b | TODO | `packages/runtime` (UserEnvResolver, CommandClassifier, SafeRunner, bash tool) |
+| [022a](./022a-controlled-bash-tool-runner-and-read-only-baseline.md) | 受控 Bash 工具执行沙箱与只读安全基线 | 020b | DONE | `packages/runtime` (UserEnvResolver, CommandClassifier, SafeRunner, bash tool) |
 | [022b](./022b-unified-permission-service-hitl-and-bubble-approval.md) | 统一 PermissionService 门禁与宠物气泡轻量审批 | 022a | TODO | `packages/runtime` (AbstractHITL, PermissionService, tRPC, Bubble UI) |
 
 ## 宠物重构执行边界

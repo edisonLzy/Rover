@@ -1,6 +1,6 @@
 # 022a: 受控 Bash 工具执行沙箱与只读安全基线 (Controlled Bash Tool & SafeRunner Baseline)
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: None (Frontier)  
 **Blocks**: 022b  
 
@@ -66,11 +66,11 @@ packages/runtime/src/
 
 ## Acceptance Criteria
 
-- [ ] `UserEnvResolver` 能够成功识别 macOS 本地 Homebrew 目录与 Token；在模拟 Shell 挂起超时场景下能降级至 Fallback 路径。
-- [ ] Tier 1 只读命令（如 `git status`、`gh pr view`、`pwd`）正常执行并返回 stdout。
-- [ ] Tier 3 黑名单命令（如 `sudo ls`、`rm -rf /`）被硬阻断并报错，不启动子进程。
-- [ ] 输出超过 30KB 或 500 行时，结果被正确截断并附带提示，ANSI 彩色控制符被彻底清除。
-- [ ] 长时间运行命令在超时后被安全终止，子进程不残留。
+- [x] `UserEnvResolver` 能够成功识别 macOS 本地 Homebrew 目录与 Token；在模拟 Shell 挂起超时场景下能降级至 Fallback 路径。
+- [x] Tier 1 只读命令（如 `git status`、`gh pr view`、`pwd`）正常执行并返回 stdout。
+- [x] Tier 3 黑名单命令（如 `sudo ls`、`rm -rf /`）被硬阻断并报错，不启动子进程。
+- [x] 输出超过 30KB 或 500 行时，结果被正确截断并附带提示，ANSI 彩色控制符被彻底清除。
+- [x] 长时间运行命令在超时后被安全终止，子进程不残留。
 
 ## Visual & Behavioral Demonstration (ASCII Mockups)
 

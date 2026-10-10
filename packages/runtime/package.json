@@ -32,6 +32,8 @@
     "@wecom/aibot-node-sdk": "^1.0.7",
     "better-sqlite3": "^13.0.3",
     "gpt-tokenizer": "^4.0.0",
+    "shell-quote": "^1.12.0",
+    "tree-kill": "^1.2.2",
     "ws": "^8.18.0",
     "zod": "^3.24.2"
   },
@@ -39,6 +41,7 @@
     "@trpc/client": "catalog:",
     "@types/better-sqlite3": "^9.6.0",
     "@types/node": "catalog:",
+    "@types/shell-quote": "^1.7.5",
     "@types/ws": "^8.5.14",
     "esbuild": "^0.28.2",
     "postject": "1.0.0-alpha.6",
