@@ -1,6 +1,6 @@
 # 022b: 统一 PermissionService 门禁与宠物气泡轻量审批 (Unified PermissionService & Bubble HITL)
 
-**Status**: TODO  
+**Status**: DONE  
 **Blocked By**: 022a  
 **Blocks**: None  
 
@@ -22,9 +22,9 @@ packages/runtime/src/
 ├── modules/
 │   └── agent/
 │       ├── hitl/
-│       │   ├── + [New] abstract-hitl.ts              # AbstractHumanInTheLoop Promise 挂起状态机基类
-│       │   ├── + [New] workspace-access-service.ts    # WorkspaceAccessService (地盘准入/越界检查/长期访问控制)
-│       │   ├── + [New] permission-service.ts         # PermissionService (动作风控/Tier 策略/死循环策略/运行期内存放行)
+│       │   ├── + [New] abstractHitl.ts              # AbstractHumanInTheLoop Promise 挂起状态机基类
+│       │   ├── + [New] workspaceAccessService.ts    # WorkspaceAccessService (地盘准入/越界检查/长期访问控制)
+│       │   ├── + [New] permissionService.ts         # PermissionService (动作风控/Tier 策略/死循环策略/运行期内存放行)
 │       │   ├── + [New] types.ts                      # HITL 请求与决算载荷契约定义
 │       │   └── + [New] index.ts                      # HITL 模块公共导出
 │       └── runtime/
@@ -43,7 +43,7 @@ packages/runtime/src/
 ## Specification & Invariants
 
 1. **HITL 状态机抽象 (`AbstractHumanInTheLoop`)**：
-   - 位于 `modules/agent/hitl/abstract-hitl.ts`，基于 Promise 维护 `pendingRequests = new Map<string, PendingRequest>()`；
+   - 位于 `modules/agent/hitl/abstractHitl.ts`，基于 Promise 维护 `pendingRequests = new Map<string, PendingRequest>()`；
    - `request(payload)`：生成 `requestId`，返回挂起的 Promise，并触发事件派发；
    - `resolve(requestId, result)`：提取挂起项并返回值恢复协程；
    - `cancelAll(reason)`：回合中断（`abortPrompt`）时批量 Reject 所有挂起项，彻底防止幽灵挂起与死锁。
@@ -67,11 +67,11 @@ packages/runtime/src/
 
 ## Acceptance Criteria
 
-- [ ] 调用 Tier 2 变更命令（如 `git push`）或未知命令（如 `codemons-cli status`）时，Agent 执行协程自动挂起，Callbacks 派发 `onPermissionRequested`。
-- [ ] 外部调用 `permissions.resolve(requestId, { approved: true })` 后工具恢复执行并返回结果。
-- [ ] 外部调用 `permissions.resolve(requestId, { approved: false })` 后工具被阻止，Agent 收到拒绝理由。
-- [ ] 勾选或设置 `remember` 后，后续同前缀命令自动放行，不再挂起。
-- [ ] 在挂起期间调用 `runtime.abortPrompt()`，所有 pending Promise 被安全拒绝（`CancelledError`），回路不卡死。
+- [x] 调用 Tier 2 变更命令（如 `git push`）或未知命令（如 `codemons-cli status`）时，Agent 执行协程自动挂起，Callbacks 派发 `onPermissionRequested`。
+- [x] 外部调用 `permissions.resolve(requestId, { approved: true })` 后工具恢复执行并返回结果。
+- [x] 外部调用 `permissions.resolve(requestId, { approved: false })` 后工具被阻止，Agent 收到拒绝理由。
+- [x] 勾选或设置 `remember` 后，后续同前缀命令自动放行，不再挂起。
+- [x] 在挂起期间调用 `runtime.abortPrompt()`，所有 pending Promise 被安全拒绝（`CancelledError`），回路不卡死。
 
 ## Visual & Behavioral Demonstration (ASCII Mockups)
 

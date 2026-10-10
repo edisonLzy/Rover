@@ -14,6 +14,7 @@ import {
 } from './prompts.js';
 import { ModelRegistry } from '../../models/index.js';
 import { BuiltinSkillService } from '../../skills/index.js';
+import { WorkspaceAccessService, PermissionService } from '../hitl/index.js';
 import type {
   AgentRuntimeEventCallbacks,
   AgentRuntimeOptions,
@@ -40,6 +41,8 @@ export class AgentRuntime {
   private systemPromptService: SystemPromptService;
   private tools: AgentTool[];
   private streamFn?: StreamFn;
+  private permissionService: PermissionService;
+  private workspaceAccessService: WorkspaceAccessService;
   private options: AgentRuntimeOptions;
 
   constructor(options: AgentRuntimeOptions = {}) {
@@ -50,6 +53,30 @@ export class AgentRuntime {
       (options.skillsDir ? new BuiltinSkillService({ skillsDir: options.skillsDir }) : undefined);
     this.tools = options.tools ? [...options.tools] : [];
     this.streamFn = options.streamFn;
+
+    this.permissionService = new PermissionService();
+    this.workspaceAccessService = new WorkspaceAccessService();
+
+    // 绑定 HITL 事件至 Callbacks 分发
+    this.permissionService.onRequest((pending) => {
+      if (this.currentTurnContext) {
+        void this.triggerCallback('onPermissionRequested', this.currentTurnContext, {
+          requestId: pending.requestId,
+          payload: pending.payload,
+          createdAt: pending.createdAt,
+        });
+      }
+    });
+
+    this.workspaceAccessService.onRequest((pending) => {
+      if (this.currentTurnContext) {
+        void this.triggerCallback('onPermissionRequested', this.currentTurnContext, {
+          requestId: pending.requestId,
+          payload: pending.payload,
+          createdAt: pending.createdAt,
+        });
+      }
+    });
 
     // 系统提示词构建服务
     this.systemPromptService = options.systemPromptService || new SystemPromptService();
@@ -89,6 +116,14 @@ export class AgentRuntime {
 
   public getSkillService(): BuiltinSkillService | undefined {
     return this.skillService;
+  }
+
+  public getPermissionService(): PermissionService {
+    return this.permissionService;
+  }
+
+  public getWorkspaceAccessService(): WorkspaceAccessService {
+    return this.workspaceAccessService;
   }
 
   public isTurnRunning(turnId?: string): boolean {
@@ -251,6 +286,8 @@ export class AgentRuntime {
    */
   public abortPrompt(): void {
     this.isCancelled = true;
+    this.workspaceAccessService.cancelAll('Turn cancelled by user');
+    this.permissionService.cancelAll('Turn cancelled by user');
     const context = this.currentTurnContext;
     if (this.agent.state.isStreaming || (this.agent as any).activeRun) {
       this.agent.abort();
@@ -302,6 +339,32 @@ export class AgentRuntime {
 
     const agent = new Agent({
       ...(this.streamFn ? { streamFn: this.streamFn } : {}),
+      beforeToolCall: async (toolCallContext) => {
+        if (this.isCancelled) {
+          return { block: true, reason: 'Turn cancelled by user' };
+        }
+
+        // Gate 1: Workspace Access Guard
+        const wsResult = await this.workspaceAccessService.checkAccess(
+          toolCallContext.toolCall.name,
+          toolCallContext.args
+        );
+        if (wsResult.block) {
+          return { block: true, reason: wsResult.reason };
+        }
+
+        // Gate 2: Permission / Action Risk Guard
+        const permResult = await this.permissionService.checkPermission(
+          toolCallContext.toolCall.name,
+          toolCallContext.args,
+          this.currentTurnContext?.turnId
+        );
+        if (permResult.block) {
+          return { block: true, reason: permResult.reason };
+        }
+
+        return undefined;
+      },
       convertToLlm: (messages) => {
         return messages.flatMap((message): Message[] => {
           if (message.role === 'user') {

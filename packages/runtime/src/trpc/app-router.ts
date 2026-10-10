@@ -5,6 +5,7 @@ import { modelsRouter } from '../modules/models/index.js';
 import { tasksRouter } from '../modules/tasks/index.js';
 import { turnsRouter, historyRouter } from '../modules/agent/index.js';
 import { inboxRouter } from '../modules/inbox/index.js';
+import { permissionsRouter } from './routers/permissions.js';
 import {
   resolveTerminalAction,
   executeTerminalAction,
@@ -31,6 +32,7 @@ export const appRouter = router({
   turns: turnsRouter,
   history: historyRouter,
   inbox: inboxRouter,
+  permissions: permissionsRouter,
 
   // Resolves the exact Terminal execution command for a running/stopped carrier session
   resolveTerminalAction: protectedProcedure

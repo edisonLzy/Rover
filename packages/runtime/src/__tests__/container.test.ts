@@ -13,6 +13,8 @@ describe('Container Composition Root (ADR-0020)', () => {
     expect(container.skillService).toBeDefined();
     expect(container.taskService).toBeDefined();
     expect(container.agentService).toBeDefined();
+    expect(container.agentService.runtime.getPermissionService()).toBeDefined();
+    expect(container.agentService.runtime.getWorkspaceAccessService()).toBeDefined();
     expect(container.inboxService).toBeDefined();
     expect(Object.isFrozen(container)).toBe(true);
   });

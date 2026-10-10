@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { parse, type ParseEntry } from 'shell-quote';
-import type { ClassificationResult, CommandRiskTier } from './types.js';
+import { type ClassificationResult, CommandRiskTier } from './types.js';
 
 const TIER_1_READONLY_COMMANDS = new Set([
   'ls',
@@ -79,17 +79,17 @@ function checkTier3Raw(command: string): boolean {
 
 function classifySegmentTokens(tokens: string[]): CommandRiskTier {
   if (tokens.length === 0) {
-    return 'tier_2';
+    return CommandRiskTier.Mutation;
   }
 
   // Check if first token or any token is sudo or destructive command
   if (tokens[0] === 'sudo') {
-    return 'tier_3';
+    return CommandRiskTier.Forbidden;
   }
   if (tokens[0] === 'rm') {
     const joined = tokens.join(' ');
     if (isDestructiveRm(joined)) {
-      return 'tier_3';
+      return CommandRiskTier.Forbidden;
     }
   }
 
@@ -110,13 +110,13 @@ function classifySegmentTokens(tokens: string[]): CommandRiskTier {
     }
     const subcmd = tokens[i];
     if (subcmd && GIT_READONLY_SUBCMDS.has(subcmd)) {
-      return 'tier_1';
+      return CommandRiskTier.ReadOnly;
     }
     if (subcmd === 'branch') {
       const hasMutation = tokens.slice(i + 1).some((flag) => GIT_BRANCH_MUTATION_FLAGS.has(flag));
-      return hasMutation ? 'tier_2' : 'tier_1';
+      return hasMutation ? CommandRiskTier.Mutation : CommandRiskTier.ReadOnly;
     }
-    return 'tier_2';
+    return CommandRiskTier.Mutation;
   }
 
   // 2. gh
@@ -132,9 +132,9 @@ function classifySegmentTokens(tokens: string[]): CommandRiskTier {
       (resource === 'pr' || resource === 'issue' || resource === 'run') &&
       (action === 'view' || action === 'list')
     ) {
-      return 'tier_1';
+      return CommandRiskTier.ReadOnly;
     }
-    return 'tier_2';
+    return CommandRiskTier.Mutation;
   }
 
   // 3. glab
@@ -147,9 +147,9 @@ function classifySegmentTokens(tokens: string[]): CommandRiskTier {
     const action = tokens[i];
 
     if ((resource === 'mr' || resource === 'issue') && (action === 'view' || action === 'list')) {
-      return 'tier_1';
+      return CommandRiskTier.ReadOnly;
     }
-    return 'tier_2';
+    return CommandRiskTier.Mutation;
   }
 
   // 4. curl
@@ -157,22 +157,22 @@ function classifySegmentTokens(tokens: string[]): CommandRiskTier {
     for (let i = 1; i < tokens.length; i++) {
       const t = tokens[i];
       if (CURL_MUTATION_FLAGS.has(t)) {
-        return 'tier_2';
+        return CommandRiskTier.Mutation;
       }
       if (t === '-X' || t === '--request') {
         const method = tokens[i + 1]?.toUpperCase();
         if (method && CURL_MUTATION_METHODS.has(method)) {
-          return 'tier_2';
+          return CommandRiskTier.Mutation;
         }
       }
       if (t.startsWith('-X')) {
         const method = t.slice(2).toUpperCase();
         if (CURL_MUTATION_METHODS.has(method)) {
-          return 'tier_2';
+          return CommandRiskTier.Mutation;
         }
       }
     }
-    return 'tier_1';
+    return CommandRiskTier.ReadOnly;
   }
 
   // 5. find
@@ -180,15 +180,15 @@ function classifySegmentTokens(tokens: string[]): CommandRiskTier {
     const hasDangerous = tokens
       .slice(1)
       .some((t) => ['-exec', '-execdir', '-delete', '-ok'].includes(t));
-    return hasDangerous ? 'tier_2' : 'tier_1';
+    return hasDangerous ? CommandRiskTier.Mutation : CommandRiskTier.ReadOnly;
   }
 
   // 6. Generic read-only unix commands
   if (TIER_1_READONLY_COMMANDS.has(binary)) {
-    return 'tier_1';
+    return CommandRiskTier.ReadOnly;
   }
 
-  return 'tier_2';
+  return CommandRiskTier.Mutation;
 }
 
 export class CommandClassifier {
@@ -196,7 +196,7 @@ export class CommandClassifier {
     const trimmed = commandLine.trim();
     if (!trimmed) {
       return {
-        tier: 'tier_2',
+        tier: CommandRiskTier.Mutation,
         reason: 'Empty command.',
       };
     }
@@ -204,7 +204,7 @@ export class CommandClassifier {
     // 1. Raw string blacklist check for Tier 3
     if (checkTier3Raw(trimmed)) {
       return {
-        tier: 'tier_3',
+        tier: CommandRiskTier.Forbidden,
         reason: `'${trimmed}' matches Tier 3 forbidden blacklists. Escalation or destruction commands are strictly blocked.`,
       };
     }
@@ -212,7 +212,7 @@ export class CommandClassifier {
     // 2. Defend against command substitution ($() or backticks) and dynamic eval in raw string
     if (/\$\(|`|\beval\b|\bexec\b/.test(trimmed)) {
       return {
-        tier: 'tier_2',
+        tier: CommandRiskTier.Mutation,
         reason: `Command contains command substitutions ($() or backticks) or dynamic evaluation.`,
       };
     }
@@ -223,14 +223,14 @@ export class CommandClassifier {
       entries = parse(trimmed, (key) => `$${key}`);
     } catch {
       return {
-        tier: 'tier_2',
+        tier: CommandRiskTier.Mutation,
         reason: `Failed to parse shell command syntax.`,
       };
     }
 
     if (entries.length === 0) {
       return {
-        tier: 'tier_2',
+        tier: CommandRiskTier.Mutation,
         reason: 'Empty command.',
       };
     }
@@ -250,7 +250,7 @@ export class CommandClassifier {
         // Redirection operators -> Tier 2
         if (['>', '>>', '<', '<(', '>&'].includes(op)) {
           return {
-            tier: 'tier_2',
+            tier: CommandRiskTier.Mutation,
             reason: `Command contains redirection operator '${op}'.`,
           };
         }
@@ -258,7 +258,7 @@ export class CommandClassifier {
         // Chaining operators -> Tier 2
         if ([';', ';;', '&&', '||', '&', '(', ')'].includes(op)) {
           return {
-            tier: 'tier_2',
+            tier: CommandRiskTier.Mutation,
             reason: `Command contains compound chaining or subshell operator '${op}'.`,
           };
         }
@@ -276,7 +276,7 @@ export class CommandClassifier {
         }
 
         return {
-          tier: 'tier_2',
+          tier: CommandRiskTier.Mutation,
           reason: `Command contains unverified operator '${String(op)}'.`,
         };
       }
@@ -291,29 +291,29 @@ export class CommandClassifier {
     for (const segment of pipelineSegments) {
       if (segment.length === 0) {
         return {
-          tier: 'tier_2',
+          tier: CommandRiskTier.Mutation,
           reason: 'Empty pipeline segment.',
         };
       }
 
       const tier = classifySegmentTokens(segment);
-      if (tier === 'tier_3') {
+      if (tier === CommandRiskTier.Forbidden) {
         const segCmd = segment.join(' ');
         return {
-          tier: 'tier_3',
+          tier: CommandRiskTier.Forbidden,
           reason: `'${segCmd}' matches Tier 3 forbidden blacklists. Escalation or destruction commands are strictly blocked.`,
         };
       }
 
-      if (tier !== 'tier_1') {
+      if (tier !== CommandRiskTier.ReadOnly) {
         const segCmd = segment.join(' ');
         return {
-          tier: 'tier_2',
+          tier: CommandRiskTier.Mutation,
           reason: `Command or segment '${segCmd}' involves mutations or unverified tools (Tier 2).`,
         };
       }
     }
 
-    return { tier: 'tier_1' };
+    return { tier: CommandRiskTier.ReadOnly };
   }
 }

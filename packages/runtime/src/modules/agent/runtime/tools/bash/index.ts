@@ -1,5 +1,5 @@
 import type { AgentTool } from '@earendil-works/pi-agent-core';
-import { ExecBashParams, type ExecBashParamsType } from './types.js';
+import { ExecBashParams, type ExecBashParamsType, CommandRiskTier } from './types.js';
 import { CommandClassifier } from './classifier.js';
 import { SafeRunner } from './runner.js';
 
@@ -22,35 +22,21 @@ export function createBashTool(): AgentTool<typeof ExecBashParams> {
       // 1. Classify command
       const classification = CommandClassifier.classify(command);
 
-      // 2. Handle Tier 3 (Forbidden Blacklist)
-      if (classification.tier === 'tier_3') {
+      // 2. Handle Tier 3 (Forbidden Blacklist - Hard Defense)
+      if (classification.tier === CommandRiskTier.Forbidden) {
         const errorText = `CommandBlockedError: '${command}' matches Tier 3 forbidden blacklists. Escalation or destruction commands are strictly blocked.`;
         return {
           content: [{ type: 'text', text: errorText }],
           details: {
             isError: true,
             error: errorText,
-            tier: 'tier_3',
+            tier: CommandRiskTier.Forbidden,
             blocked: true,
           },
         };
       }
 
-      // 3. Handle Tier 2 (Mutations / Unknown CLI - Blocked in Phase 1 Baseline)
-      if (classification.tier === 'tier_2') {
-        const errorText = `PermissionRequiredError: Command '${command}' involves mutations (Tier 2). Interactive HITL approval will be enabled in Ticket 022b.`;
-        return {
-          content: [{ type: 'text', text: errorText }],
-          details: {
-            isError: true,
-            error: errorText,
-            tier: 'tier_2',
-            blocked: true,
-          },
-        };
-      }
-
-      // 4. Handle Tier 1 (Read-Only Whitelist) -> SafeRunner
+      // 3. Execute via SafeRunner (Tier 1 read-only & Tier 2 approved commands)
       try {
         const runResult = await SafeRunner.run({
           command,

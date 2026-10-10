@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import {
   createBashTool,
   CommandClassifier,
+  CommandRiskTier,
   SafeRunner,
   stripAnsi,
   applyHeadTailTruncation,
@@ -33,18 +34,18 @@ describe('Controlled Bash Tool & SafeRunner Baseline (Ticket 022a & ADR-0022)', 
 
       for (const cmd of readOnlyCmds) {
         const res = CommandClassifier.classify(cmd);
-        expect(res.tier, `Expected '${cmd}' to be Tier 1`).toBe('tier_1');
+        expect(res.tier, `Expected '${cmd}' to be Tier 1`).toBe(CommandRiskTier.ReadOnly);
       }
     });
 
     it('classifies pipelines of Tier 1 commands as Tier 1', () => {
       const res = CommandClassifier.classify('git log -n 5 | head -n 2');
-      expect(res.tier).toBe('tier_1');
+      expect(res.tier).toBe(CommandRiskTier.ReadOnly);
     });
 
     it('correctly treats quotes containing pipe characters without splitting', () => {
       const res = CommandClassifier.classify('git commit -m "feat: use | pipe"');
-      expect(res.tier).toBe('tier_2');
+      expect(res.tier).toBe(CommandRiskTier.Mutation);
       expect(res.reason).toContain('git commit');
     });
 
@@ -70,7 +71,7 @@ describe('Controlled Bash Tool & SafeRunner Baseline (Ticket 022a & ADR-0022)', 
 
       for (const cmd of mutationCmds) {
         const res = CommandClassifier.classify(cmd);
-        expect(res.tier, `Expected '${cmd}' to be Tier 2`).toBe('tier_2');
+        expect(res.tier, `Expected '${cmd}' to be Tier 2`).toBe(CommandRiskTier.Mutation);
       }
     });
 
@@ -90,7 +91,7 @@ describe('Controlled Bash Tool & SafeRunner Baseline (Ticket 022a & ADR-0022)', 
 
       for (const cmd of tier3Cmds) {
         const res = CommandClassifier.classify(cmd);
-        expect(res.tier, `Expected '${cmd}' to be Tier 3`).toBe('tier_3');
+        expect(res.tier, `Expected '${cmd}' to be Tier 3`).toBe(CommandRiskTier.Forbidden);
         expect(res.reason).toContain('matches Tier 3 forbidden blacklists');
       }
     });
@@ -182,18 +183,16 @@ describe('Controlled Bash Tool & SafeRunner Baseline (Ticket 022a & ADR-0022)', 
     it('hard blocks Tier 3 forbidden commands without starting subprocess', async () => {
       const result = await tool.execute('call_3', { command: 'sudo rm -rf /var/log' });
       expect(result.details.isError).toBe(true);
-      expect(result.details.tier).toBe('tier_3');
+      expect(result.details.tier).toBe(CommandRiskTier.Forbidden);
       expect(result.details.blocked).toBe(true);
       expect(getText(result.content[0])).toContain('CommandBlockedError');
     });
 
-    it('intercepts Tier 2 mutation command in Phase 1 baseline', async () => {
-      const result = await tool.execute('call_4', { command: 'git push origin main' });
-      expect(result.details.isError).toBe(true);
-      expect(result.details.tier).toBe('tier_2');
-      expect(result.details.blocked).toBe(true);
-      expect(getText(result.content[0])).toContain('PermissionRequiredError');
-      expect(getText(result.content[0])).toContain('Ticket 022b');
+    it('executes command via SafeRunner and returns output', async () => {
+      const result = await tool.execute('call_4', { command: 'node -e "console.log(1+1)"' });
+      expect(result.content[0].type).toBe('text');
+      expect(getText(result.content[0]).trim()).toBe('2');
+      expect(result.details.exitCode).toBe(0);
     });
   });
 });

@@ -19,7 +19,11 @@ export const ExecBashParams = Type.Object({
 
 export type ExecBashParamsType = Static<typeof ExecBashParams>;
 
-export type CommandRiskTier = 'tier_1' | 'tier_2' | 'tier_3';
+export enum CommandRiskTier {
+  ReadOnly = 'tier_1',
+  Mutation = 'tier_2',
+  Forbidden = 'tier_3',
+}
 
 export interface ClassificationResult {
   tier: CommandRiskTier;

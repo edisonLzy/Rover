@@ -8,6 +8,9 @@ import type { PromptDocumentV1 } from '../../types/prompt.js';
 import type { ModelRegistry } from '../models/registry.js';
 import type { BuiltinSkillService } from '../skills/service.js';
 import type { SystemPromptService } from './runtime/prompts.js';
+import type { PermissionRequestEvent } from './hitl/index.js';
+
+export type { PermissionRequestEvent };
 
 export type RoverTurnStatus = 'running' | 'completed' | 'failed' | 'cancelled';
 
@@ -190,6 +193,7 @@ export interface AgentRuntimeEventCallbacks {
   onToolExecutionEnd?(context: TurnContext, event: ToolResultEvent): Promise<void> | void;
   onTurnEnd?(context: TurnContext, result: TurnEndResult): Promise<void> | void;
   onError?(context: TurnContext, error: Error): Promise<void> | void;
+  onPermissionRequested?(context: TurnContext, event: PermissionRequestEvent): Promise<void> | void;
 }
 
 export interface PromptInput {
