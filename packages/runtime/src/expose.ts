@@ -51,7 +51,23 @@ export type {
   RoverCompactionAppendedPayload,
   InboxChangedPayload,
   InboxProviderStatusPayload,
+  PermissionRequestedPayload,
 } from './types/events.js';
+
+// Human-in-the-Loop & Permission Contracts (Ticket 022b)
+export type {
+  HitlKind,
+  HitlPayload,
+  PermissionPayload,
+  WorkspaceAccessPayload,
+  DoomLoopPayload,
+  HitlResolution,
+  PermissionResolution,
+  WorkspaceAccessResolution,
+  DoomLoopResolution,
+  PendingRequest,
+  PermissionRequestEvent,
+} from './modules/agent/hitl/types.js';
 
 // Inbox Contracts (Ticket 001 - 003 & ADR-0005, ADR-0018)
 export type {

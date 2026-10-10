@@ -23,6 +23,7 @@ describe('AgentRuntime Controlled Tools & Skills Integration (Ticket 014c)', () 
     const tools = runtime.getTools();
     const toolNames = tools.map((t) => t.name);
     expect(toolNames).toContain('read_skill');
+    expect(toolNames).toContain('bash');
     expect(toolNames).toContain('dispatch_agent');
 
     // 3. Verify read_skill can be executed directly from runtime tool registry

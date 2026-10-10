@@ -91,6 +91,13 @@ flowchart TD
   T014c --> T020a
   T020b["020b: Runtime 核心业务收敛、Container 引入与路由聚合"]
   T020a --> T020b
+
+  T022a["022a: 受控 Bash 工具执行沙箱与只读安全基线"]
+  T020b --> T022a
+  T022b["022b: 统一 PermissionService 门禁与运行时 HITL 契约"]
+  T022a --> T022b
+  T022c["022c: 宠物气泡紧凑二态交互与轻量 HITL 审批"]
+  T022b --> T022c
 ```
 
 ## Ticket 列表与状态
@@ -120,6 +127,9 @@ flowchart TD
 | [018](./018-inbox-drawer-and-handoff-delegation.md) | Inbox 抽屉卡片与一键交办流转闭环 | 013, 016, 017 | DONE | `packages/app` (PetToolbar/Inbox, Drawer, Handoff) |
 | [020a](./020a-runtime-infrastructure-and-isolated-modules-refactoring.md) | Runtime 基础设施层下沉与独立业务模块 (Models/Skills) 解耦重构 | 014c | DONE | `packages/runtime` (infrastructure/, modules/models, modules/skills) |
 | [020b](./020b-runtime-core-modules-container-and-trpc-router-refactoring.md) | Runtime 核心业务模块收敛、Container 组合根引入与 tRPC 路由聚合重构 | 020a | DONE | `packages/runtime` (container.ts, modules/tasks, modules/agent, trpc/) |
+| [022a](./022a-controlled-bash-tool-runner-and-read-only-baseline.md) | 受控 Bash 工具执行沙箱与只读安全基线 | 020b | DONE | `packages/runtime` (UserEnvResolver, CommandClassifier, SafeRunner, bash tool) |
+| [022b](./022b-unified-permission-service-hitl-and-bubble-approval.md) | 统一 PermissionService 门禁与运行时 HITL 契约 | 022a | DONE | `packages/runtime` (AbstractHITL, PermissionService, tRPC) |
+| [022c](./022c-pet-bubble-compact-phases-and-hitl-approval.md) | 宠物气泡紧凑二态交互与轻量 HITL 审批 | 022b | DONE | `packages/app` (PetBubble, ProcessingView, Discriminated Union) |
 
 ## 宠物重构执行边界
 

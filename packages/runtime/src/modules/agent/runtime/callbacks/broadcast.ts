@@ -8,6 +8,7 @@ import type {
   ToolResultEvent,
   TurnContext,
   TurnEndResult,
+  PermissionRequestEvent,
 } from '../../types.js';
 
 export interface WebSocketBroadcastCallbacksOptions {
@@ -117,6 +118,15 @@ export class WebSocketBroadcastCallbacks implements AgentRuntimeEventCallbacks {
       status: result.status,
       error: result.error ?? null,
       latencyMs: result.latencyMs,
+    });
+  }
+
+  public onPermissionRequested(context: TurnContext, event: PermissionRequestEvent): void {
+    this.broadcast('permission.requested', {
+      turnId: context.turnId,
+      requestId: event.requestId,
+      payload: event.payload,
+      createdAt: event.createdAt,
     });
   }
 }

@@ -8,5 +8,8 @@
 - [Rover Inbox 投递协议 v1](./architecture/Rover%20Inbox%20投递协议%20v1.md)
 - [Inbox 投递 JSON Schema v1](./architecture/rover-inbox-delivery.v1.schema.json)
 - [Rover Agent Loop 框架评估](./architecture/Rover%20Agent%20Loop%20框架评估.md)
+- [Rover 受控 Bash 工具设计方案](./architecture/Rover%20受控%20Bash%20工具设计方案.md)
 - [ADR-0014：消息粒度的线性 Entry 与 Compaction](./adr/0014-linear-rover-entries-and-compaction.md)
+- [ADR-0021：macOS 桌面 GUI 环境自适应解析与 Sidecar 路径容错降级](./adr/0021-gui-desktop-environment-resolution-and-sidecar-fallback.md)
+- [ADR-0022：受控 Bash 工具架构、安全执行沙箱与统一门禁守卫](./adr/0022-controlled-bash-tool-and-unified-permission-guard.md)
 - [产品交互原型](./prototype/index.html)与[评审路径](./prototype/README.md)

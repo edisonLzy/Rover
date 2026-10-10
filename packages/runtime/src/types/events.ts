@@ -90,6 +90,13 @@ export const InboxProviderStatusPayloadSchema = z.object({
   error: z.string().optional(),
 });
 
+export const PermissionRequestedPayloadSchema = z.object({
+  turnId: z.string().optional(),
+  requestId: z.string(),
+  payload: z.unknown(),
+  createdAt: z.number().optional(),
+});
+
 export type SystemReadyPayload = z.infer<typeof SystemReadyPayloadSchema>;
 export type TurnStartedPayload = z.infer<typeof TurnStartedPayloadSchema>;
 export type TurnStepStartedPayload = z.infer<typeof TurnStepStartedPayloadSchema>;
@@ -102,6 +109,7 @@ export type RoverEntryAppendedPayload = z.infer<typeof RoverEntryAppendedPayload
 export type RoverCompactionAppendedPayload = z.infer<typeof RoverCompactionAppendedPayloadSchema>;
 export type InboxChangedPayload = z.infer<typeof InboxChangedPayloadSchema>;
 export type InboxProviderStatusPayload = z.infer<typeof InboxProviderStatusPayloadSchema>;
+export type PermissionRequestedPayload = z.infer<typeof PermissionRequestedPayloadSchema>;
 
 export interface RuntimeEventMap {
   'system.ready': SystemReadyPayload;
@@ -116,6 +124,7 @@ export interface RuntimeEventMap {
   'rover.compaction.appended': RoverCompactionAppendedPayload;
   'inbox.changed': InboxChangedPayload;
   'inbox.provider.status': InboxProviderStatusPayload;
+  'permission.requested': PermissionRequestedPayload;
 }
 
 export type RuntimeEventType = keyof RuntimeEventMap;
