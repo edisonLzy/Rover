@@ -10,6 +10,7 @@ export function PromptInput({
   autoFocus = true,
   onSubmit,
   onAccepted,
+  onEscape,
   availableAgents = [],
   availableSkills = [],
   availableInboxes = [],
@@ -22,6 +23,7 @@ export function PromptInput({
     autoFocus,
     onSubmit,
     onAccepted,
+    onEscape,
     availableAgents,
     availableSkills,
     availableInboxes,
@@ -36,7 +38,7 @@ export function PromptInput({
   return (
     <div
       onClick={handleContainerClick}
-      className={`pet-composer relative flex min-h-[60px] cursor-text items-center gap-2 rounded-[30px] bg-white pl-5 pr-[10px] py-[7px] shadow-[0_5px_17px_#1e314115] focus-within:shadow-[0_0_0_3px_#d9e6ff,0_5px_17px_#1e314115] ${className}`}
+      className={`pet-composer ${className}`}
       data-testid="prompt-input-container"
     >
       <div className="pet-editor-content min-w-0 flex-1">
@@ -46,7 +48,7 @@ export function PromptInput({
         type="button"
         disabled={!hasContent || disabled || isSubmitting}
         onClick={handleSubmit}
-        className="pet-circle-btn pet-send grid size-[42px] shrink-0 place-items-center rounded-full border-0 bg-[#3479ed] p-0 text-white hover:bg-[#2266d9] disabled:opacity-50"
+        className="pet-send"
         title="发送 (Enter)"
         aria-label="发送给 Rover"
         data-testid="prompt-submit-button"

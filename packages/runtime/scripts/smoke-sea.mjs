@@ -9,7 +9,7 @@ import process from 'node:process';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { createTRPCClient, httpBatchLink } from '@trpc/client';
-import { BuiltinSkillService } from '../src/agent/skills/skill-service.ts';
+import { BuiltinSkillService } from '../src/modules/skills/service.ts';
 
 const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const workspaceRoot = path.resolve(runtimeRoot, '../..');

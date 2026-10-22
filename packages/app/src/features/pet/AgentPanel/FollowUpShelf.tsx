@@ -19,7 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { FollowUpItem } from '../useFollowUps.js';
 
-export interface BadgeShelfProps {
+export interface FollowUpShelfProps {
   items: FollowUpItem[];
   scale?: number;
   highlightedId?: string;
@@ -44,7 +44,7 @@ function preview(item: FollowUpItem) {
     .trim();
 }
 
-function Badge({ item, props }: { item: FollowUpItem; props: BadgeShelfProps }) {
+function Badge({ item, props }: { item: FollowUpItem; props: FollowUpShelfProps }) {
   const sortable = useSortable({ id: item.id, disabled: props.disabled });
   const label = preview(item);
   const highlighted = props.highlightedId === item.id;
@@ -101,7 +101,7 @@ function Badge({ item, props }: { item: FollowUpItem; props: BadgeShelfProps }) 
   );
 }
 
-export function BadgeShelf(props: BadgeShelfProps) {
+export function FollowUpShelf(props: FollowUpShelfProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const row = scrollRef.current;

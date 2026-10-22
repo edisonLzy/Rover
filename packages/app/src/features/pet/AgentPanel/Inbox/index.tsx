@@ -1,4 +1,3 @@
-import { ChevronDown, Inbox as InboxIcon } from 'lucide-react';
 import type { InboxMessageRecord } from '@rover/runtime/expose';
 import { useRuntime } from '../../../../context/RuntimeContext.js';
 import { trpc } from '../../../../utils/trpc.js';
@@ -6,10 +5,8 @@ import type { SuggestionItemData } from '../PromptInput/types.js';
 import { InboxList } from './list.js';
 
 interface InboxProps {
-  controlsVisible: boolean;
-  active: boolean;
-  onToggle: () => void;
-  onHandoff: (message: InboxMessageRecord) => void;
+  search: string;
+  onHandoff: (message: InboxMessageRecord) => Promise<void>;
 }
 
 function useInboxMessages() {
@@ -58,34 +55,27 @@ export function useInboxDelegation() {
   };
 }
 
-export function Inbox({ controlsVisible, active, onToggle, onHandoff }: InboxProps) {
+export function Inbox({ search, onHandoff }: InboxProps) {
   const { connection } = useRuntime();
   const messages = useInboxMessages();
-  const unreadCount = useInboxUnreadCount();
-  const actionableMessages = getActionableMessages(messages.data ?? []);
-
+  const actionableMessages = getActionableMessages(messages.data ?? []).filter((message) =>
+    [message.title, message.summary]
+      .join(' ')
+      .toLocaleLowerCase()
+      .includes(search.toLocaleLowerCase())
+  );
   return (
-    <>
-      <button
-        type="button"
-        hidden={!controlsVisible}
-        aria-label="Inbox"
-        aria-expanded={active}
-        aria-controls="pet-inbox-list"
-        onClick={onToggle}
-        className="pet-toolbar-trigger col-start-3"
-      >
-        {active ? <ChevronDown /> : <InboxIcon />}
-        {unreadCount > 0 && <span className="pet-toolbar-count">{unreadCount}</span>}
-      </button>
-      {active && (
-        <InboxList
-          messages={actionableMessages}
-          loading={messages.isPending && !!connection}
-          error={messages.error?.message}
-          onHandoff={onHandoff}
-        />
-      )}
-    </>
+    <div className="panel-section">
+      <div className="panel-section-heading">
+        <h1>Events</h1>
+        <p>外部消息与通知，需要时交给 Rover。</p>
+      </div>
+      <InboxList
+        messages={actionableMessages}
+        loading={messages.isPending && !!connection}
+        error={messages.error?.message}
+        onHandoff={onHandoff}
+      />
+    </div>
   );
 }

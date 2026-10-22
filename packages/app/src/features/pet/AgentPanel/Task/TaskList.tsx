@@ -6,9 +6,10 @@ interface TaskListProps {
   tasks: TaskItem[];
   loading: boolean;
   error?: string;
+  search?: string;
 }
 
-export function TaskList({ tasks, loading, error }: TaskListProps) {
+export function TaskList({ tasks, loading, error, search = '' }: TaskListProps) {
   const openTerminal = trpc.tasks.openTerminal.useMutation();
   const [openingTaskId, setOpeningTaskId] = useState<string | null>(null);
   const [openNotice, setOpenNotice] = useState<string | null>(null);
@@ -30,24 +31,33 @@ export function TaskList({ tasks, loading, error }: TaskListProps) {
     }
   };
 
-  const sortedTasks = [...tasks].sort((a, b) => {
-    const priority = { needs_intervention: 0, running: 1, failed: 2, completed: 2, unverified: 2 };
-    return priority[a.status] - priority[b.status] || b.updatedAt - a.updatedAt;
-  });
+  const sortedTasks = tasks
+    .filter((task) =>
+      [task.goal, task.agent, task.progressText, task.resultText]
+        .join(' ')
+        .toLocaleLowerCase()
+        .includes(search.toLocaleLowerCase())
+    )
+    .sort((a, b) => {
+      const priority = {
+        needs_intervention: 0,
+        running: 1,
+        failed: 2,
+        completed: 2,
+        unverified: 2,
+      };
+      return priority[a.status] - priority[b.status] || b.updatedAt - a.updatedAt;
+    });
 
   return (
-    <section
-      id="pet-task-list"
-      aria-label="任务列表"
-      className="pet-feature-list col-span-5 grid gap-[10px]"
-    >
+    <section id="pet-task-list" aria-label="任务列表" className="panel-scroll task-list">
       {(error || openError) && (
-        <p role="alert" className="rounded-[19px] bg-white/95 px-4 py-3 text-xs text-[#a45535]">
+        <p role="alert" className="panel-error">
           {openError || error}
         </p>
       )}
       {openNotice && (
-        <p role="status" className="rounded-[19px] bg-white/95 px-4 py-3 text-xs text-[#657993]">
+        <p role="status" className="panel-notice">
           {openNotice}
         </p>
       )}
@@ -59,9 +69,9 @@ export function TaskList({ tasks, loading, error }: TaskListProps) {
           isOpening={openingTaskId === task.id}
         />
       ))}
-      {!tasks.length && (
-        <p className="rounded-[27px] bg-white/95 px-5 py-5 text-xs text-[#657993]">
-          {loading ? '正在读取任务…' : '目前没有任务'}
+      {!sortedTasks.length && (
+        <p className="panel-empty">
+          {loading ? '正在读取任务…' : search ? '没有匹配的任务' : '目前没有任务'}
         </p>
       )}
     </section>

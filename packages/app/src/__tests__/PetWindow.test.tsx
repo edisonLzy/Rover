@@ -1,9 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
-import { TaskCard, type TaskItem } from '../features/pet/PetToolbar/Task/TaskCard.js';
+import { TaskCard, type TaskItem } from '../features/pet/AgentPanel/Task/TaskCard.js';
 import { Pet } from '../features/pet/Pet/index.js';
-import { PetBubble } from '../features/pet/PetBubble/index.js';
-import { BadgeShelf } from '../features/pet/PetBubble/BadgeShelf.js';
+import { FollowUpShelf } from '../features/pet/AgentPanel/FollowUpShelf.js';
 import type { FollowUpItem } from '../features/pet/useFollowUps.js';
 
 const task: TaskItem = {
@@ -53,7 +52,7 @@ describe('Pet window prototype interaction states', () => {
     expect(html).toContain('&lt;script&gt;');
     expect(html).not.toContain('<script>');
     expect(html).toContain('查看会话');
-    expect(html).toContain('is-finished');
+    expect(html).toContain('task-completed');
   });
 
   it('disables all session entries when the original session is unavailable', () => {
@@ -69,30 +68,15 @@ describe('Pet window prototype interaction states', () => {
   });
 
   it('uses the prototype pet with a drag and Dashboard affordance', () => {
-    const html = renderToString(<Pet onHoverChange={vi.fn()} />);
+    const html = renderToString(<Pet expanded={false} activity="idle" onToggle={vi.fn()} />);
     expect(html).toContain('Rover 桌面宠物');
     expect(html).toContain('rover-pet.png');
-    expect(html).toContain('拖动可移动 · 右键打开 Dashboard');
-  });
-
-  it('keeps thinking bubbles dismissible and exposes the session action', () => {
-    const html = renderToString(
-      <PetBubble
-        text="正在分析上下文…"
-        isThinking
-        onClose={vi.fn()}
-        onOpenSession={vi.fn()}
-        sessionLabel="去确认"
-      />
-    );
-    expect(html).toContain('speech-spinner');
-    expect(html).toContain('关闭气泡');
-    expect(html).toContain('去确认');
+    expect(html).toContain('点击展开或收起 · 拖动可移动 · 右键打开 Dashboard');
   });
 
   it('shows structured references on the shelf with sorting and deletion', () => {
     const html = renderToString(
-      <BadgeShelf
+      <FollowUpShelf
         items={queue}
         onRemove={vi.fn()}
         onReorder={vi.fn()}

@@ -2,8 +2,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PetBubble, type PetBubbleProps } from '../features/pet/PetBubble/index.js';
-import { BadgeShelf } from '../features/pet/PetBubble/BadgeShelf.js';
+import { FollowUpShelf } from '../features/pet/AgentPanel/FollowUpShelf.js';
 import type { useFollowUps, FollowUpItem } from '../features/pet/useFollowUps.js';
 
 const items: FollowUpItem[] = ['一', '二', '三', '四'].map((text, index) => ({
@@ -39,59 +38,30 @@ afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
-async function bubble(props: PetBubbleProps) {
-  await act(async () => root.render(<PetBubble {...props} />));
+async function shelf(props: ReturnType<typeof useFollowUps>) {
+  await act(async () =>
+    root.render(
+      <FollowUpShelf
+        items={props.items}
+        highlightedId={props.highlightedId}
+        onRemove={props.remove}
+        onReorder={props.reorder}
+        onAdvance={props.advance}
+        canAdvance={props.canAdvance}
+      />
+    )
+  );
 }
 async function tick(time: number) {
   await act(async () => vi.advanceTimersByTimeAsync(time));
 }
 
-describe('016 bubble lifecycle and badge shelf', () => {
-  it('guards pending badges beyond 15 seconds and restarts the full fade timer after consumption', async () => {
-    const close = vi.fn();
-    await bubble({ text: '完成', onClose: close, followUps: queue(items.slice(0, 1)) });
-    await tick(15000);
-    expect(close).not.toHaveBeenCalled();
-    await bubble({ text: '完成', onClose: close, followUps: queue([]) });
-    await tick(9999);
-    expect(close).not.toHaveBeenCalled();
-    await tick(1);
-    expect(close).toHaveBeenCalledTimes(1);
-  });
-  it('starts a new 10-second timer after leaving a hovered bubble', async () => {
-    const close = vi.fn();
-    await bubble({ text: '完成', onClose: close });
-    await tick(9000);
-    await act(async () =>
-      host
-        .querySelector('.pet-speech')!
-        .dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
-    );
-    await tick(15000);
-    expect(close).not.toHaveBeenCalled();
-    await act(async () =>
-      host
-        .querySelector('.pet-speech')!
-        .dispatchEvent(new MouseEvent('mouseout', { bubbles: true }))
-    );
-    await tick(9999);
-    expect(close).not.toHaveBeenCalled();
-    await tick(1);
-    expect(close).toHaveBeenCalledTimes(1);
-  });
-  it('keeps long streaming answers visible and shows pending badges after manual output dismissal', async () => {
-    const close = vi.fn();
-    await bubble({ text: '还在生成', isBusy: true, onClose: close });
-    await tick(15000);
-    expect(close).not.toHaveBeenCalled();
-    await bubble({ text: null, followUps: queue(items.slice(0, 1)) });
-    expect(host.querySelector('[aria-label="接续队列"]')).not.toBeNull();
-  });
+describe('Agent Panel Follow-Up shelf', () => {
   it.each([1, 2, 4])(
     'renders %s entries in a single horizontal viewport with delete and immediate start',
     async (count) => {
       const props = queue(items.slice(0, count));
-      await bubble({ text: '完成', followUps: props });
+      await shelf(props);
       expect(host.querySelectorAll('.follow-up-pill')).toHaveLength(count);
       expect(host.querySelectorAll('[role="list"]')).toHaveLength(1);
       const row = host.querySelector<HTMLElement>('[aria-label="横向滚动待办"]')!;
@@ -110,7 +80,7 @@ describe('016 bubble lifecycle and badge shelf', () => {
     }
   );
   it('scrolls additional badges with the mouse wheel and keyboard without expanding the shelf', async () => {
-    await bubble({ text: '完成', followUps: queue() });
+    await shelf(queue());
     const row = host.querySelector<HTMLElement>('[aria-label="横向滚动待办"]')!;
     Object.defineProperties(row, {
       clientWidth: { value: 200 },
@@ -155,7 +125,7 @@ describe('016 bubble lifecycle and badge shelf', () => {
       const onReorder = vi.fn();
       await act(async () =>
         root.render(
-          <BadgeShelf
+          <FollowUpShelf
             scale={scale}
             items={items.slice(0, 2)}
             onRemove={vi.fn()}

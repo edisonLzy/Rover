@@ -61,6 +61,7 @@ export const historyRouter = router({
           limit: z.number().min(1).max(200).default(100),
           offset: z.number().min(0).default(0),
           turnId: z.string().optional(),
+          beforeSeq: z.number().int().positive().optional(),
           type: z.enum(['message', 'compaction']).optional(),
           order: z.enum(['asc', 'desc']).default('asc'),
         })

@@ -1,29 +1,42 @@
 import { Extension } from '@tiptap/core';
 import { ReactRenderer } from '@tiptap/react';
-import Suggestion from '@tiptap/suggestion';
+import Suggestion, { exitSuggestion } from '@tiptap/suggestion';
 import { PluginKey } from '@tiptap/pm/state';
 import { SuggestionsPanel } from '../components/SuggestionsPanel.js';
 import { insertReferenceNode } from './mentionNode.js';
-import { filterSuggestions } from './agentMention.js';
 import type { SuggestionItemData } from '../types.js';
 
-export const inboxSuggestionPluginKey = new PluginKey('inboxSuggestion');
+export const agentSuggestionPluginKey = new PluginKey('agentSuggestion');
 
-export interface CreateInboxMentionOptions {
-  getInboxes: () => SuggestionItemData[];
+export function filterSuggestions(
+  items: SuggestionItemData[],
+  query: string
+): SuggestionItemData[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return items;
+  return items.filter(
+    (item) =>
+      item.label.toLowerCase().includes(q) ||
+      item.id.toLowerCase().includes(q) ||
+      (item.description && item.description.toLowerCase().includes(q))
+  );
 }
 
-export function createInboxMentionExtension(options: CreateInboxMentionOptions) {
+export interface CreateAgentMentionOptions {
+  getAgents: () => SuggestionItemData[];
+}
+
+export function createAgentMentionExtension(options: CreateAgentMentionOptions) {
   return Extension.create({
-    name: 'inboxMention',
+    name: 'agentMention',
 
     addProseMirrorPlugins() {
       return [
         Suggestion({
           editor: this.editor,
-          char: '#',
-          pluginKey: inboxSuggestionPluginKey,
-          items: ({ query }) => filterSuggestions(options.getInboxes(), query),
+          char: '@',
+          pluginKey: agentSuggestionPluginKey,
+          items: ({ query }) => filterSuggestions(options.getAgents(), query),
           command: ({ editor, range, props }) => {
             insertReferenceNode({
               editor,
@@ -58,7 +71,7 @@ export function createInboxMentionExtension(options: CreateInboxMentionOptions) 
                 const composer = props.editor.view.dom.closest('.pet-composer');
                 if (composer) {
                   popup.className =
-                    'pet-suggestion-popup absolute inset-x-0 top-[calc(100%+8px)] z-50';
+                    'pet-suggestion-popup absolute inset-x-0 bottom-[calc(100%+8px)] z-50';
                   composer.appendChild(popup);
                 } else {
                   document.body.appendChild(popup);
@@ -68,8 +81,7 @@ export function createInboxMentionExtension(options: CreateInboxMentionOptions) 
                   props: {
                     items: currentItems,
                     selectedIndex,
-                    title: 'Inbox 消息引用',
-                    emptyText: '暂无未处理的 Inbox 消息',
+                    title: 'Agent 派发候选',
                     onSelect: (item: SuggestionItemData) => props.command(item),
                     onHighlight: (index: number) => {
                       selectedIndex = index;
@@ -98,6 +110,7 @@ export function createInboxMentionExtension(options: CreateInboxMentionOptions) 
 
               onKeyDown: (props) => {
                 if (props.event.key === 'Escape') {
+                  exitSuggestion(props.view, agentSuggestionPluginKey);
                   return true;
                 }
 

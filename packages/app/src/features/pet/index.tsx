@@ -1,155 +1,71 @@
-import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
-import {
-  currentMonitor,
-  getCurrentWindow,
-  LogicalSize,
-  PhysicalPosition,
-} from '@tauri-apps/api/window';
-import { isTauriEnvironment } from '../../utils/window.js';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { usePetPreferences } from '../../shared/preferences/pet.js';
 import { useRuntime, type ConnectionStatus } from '../../context/RuntimeContext.js';
 import { trpc } from '../../utils/trpc.js';
 import { Pet } from './Pet/index.js';
-import { PetBubble } from './PetBubble/index.js';
-import { PetToolbar } from './PetToolbar/index.js';
+import { AgentPanel } from './AgentPanel/index.js';
+import { useConversation } from './AgentPanel/Chat/index.js';
+import { useTaskActivity } from './AgentPanel/Task/index.js';
 import { useFollowUps } from './useFollowUps.js';
-import type { PromptDocumentV1 } from './PetToolbar/PromptInput/types.js';
+import { usePetWindowLayout } from './usePetWindowLayout.js';
+import type { PromptDocumentV1 } from './AgentPanel/PromptInput/types.js';
 
 export function PetWindow() {
   const shellRef = useRef<HTMLDivElement>(null);
-  const [petHovered, setPetHovered] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const { size } = usePetPreferences();
   const scale = size / 100;
-  usePetWindowLayout(shellRef, scale);
   const runtime = usePetRuntime();
-
+  const conversation = useConversation(runtime.activeTurnId);
+  const taskActivity = useTaskActivity();
+  usePetWindowLayout(shellRef, expanded, scale);
+  const activity = !runtime.isOnline
+    ? 'offline'
+    : conversation.hasApproval || taskActivity.attention
+      ? 'attention'
+      : runtime.isBusy || taskActivity.running
+        ? 'running'
+        : 'idle';
+  const collapse = () => {
+    setExpanded(false);
+    shellRef.current?.querySelector<HTMLButtonElement>('.pet-avatar')?.focus();
+  };
   return (
     <div
-      className="pet-window box-border flex h-full w-full items-start justify-end px-[calc(18px*var(--pet-scale))] pt-[calc(58px*var(--pet-scale))] pb-[calc(20px*var(--pet-scale))] font-sans leading-[normal] text-[#263246] [&_button]:cursor-pointer [&_button:disabled]:cursor-default [&_button:focus-visible]:outline-3 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-[#8bb8ff]"
-      style={
-        {
-          '--pet-scale': scale,
-          '--pet-list-max-height': 'max(60px,min(610px,calc(100vh/var(--pet-scale) - 275px)))',
-        } as CSSProperties
-      }
+      className="pet-window"
+      style={{ '--pet-scale': scale } as CSSProperties}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && !event.defaultPrevented) collapse();
+      }}
     >
       <div
         ref={shellRef}
-        className="pet-shell relative ml-[100px] w-[420px] shrink-0"
+        className={`pet-shell ${expanded ? 'is-expanded' : 'is-collapsed'}`}
         style={{ zoom: scale }}
       >
-        <div className="pet-area relative grid min-h-[106px] grid-cols-[155px_110px_155px] items-center">
-          <div className="col-start-2 row-start-1 flex justify-center">
-            <Pet onHoverChange={setPetHovered} />
-          </div>
-          <PetBubble scale={scale} followUps={runtime.followUps} isBusy={runtime.isBusy} />
+        <div className="pet-avatar-slot">
+          <Pet
+            expanded={expanded}
+            activity={activity}
+            onToggle={() => setExpanded((value) => !value)}
+          />
         </div>
-        <PetToolbar
-          petHovered={petHovered}
+        <AgentPanel
+          expanded={expanded}
+          scale={scale}
           isBusy={runtime.isBusy}
+          conversation={conversation}
+          followUps={runtime.followUps}
           submissionUnavailable={runtime.submissionUnavailable}
           onSubmit={runtime.submitPrompt}
-          onFollowUp={runtime.followUps.enqueue}
-          hasFollowUps={runtime.followUps.items.length > 0}
+          onCollapse={collapse}
         />
       </div>
     </div>
   );
 }
 
-function usePetWindowLayout(shellRef: RefObject<HTMLDivElement | null>, scale: number) {
-  const isNative = isTauriEnvironment();
-  useEffect(() => {
-    const shell = shellRef.current;
-    if (!isNative || !shell) return;
-    const petWindow = getCurrentWindow();
-    let previousHeight = 0;
-    let disposed = false;
-    let resizePromise = Promise.resolve();
-    const resize = () => {
-      resizePromise = resizePromise
-        .then(async () => {
-          if (disposed) return;
-          const [monitor, position] = await Promise.all([
-            currentMonitor(),
-            petWindow.outerPosition(),
-          ]);
-          if (disposed) return;
-          if (monitor) {
-            const availableHeight = monitor.workArea.size.height / monitor.scaleFactor;
-            shell.style.setProperty(
-              '--pet-list-max-height',
-              `${Math.max(60, Math.min(610, availableHeight / scale - 275))}px`
-            );
-          }
-          // CSS offsets are unscaled in every WebView; apply the pet zoom exactly once.
-          let height = Math.ceil((shell.offsetHeight + 78) * scale);
-          document.querySelectorAll<HTMLElement>('.pet-suggestions').forEach((popup) => {
-            let top = popup.offsetTop;
-            let parent = popup.offsetParent as HTMLElement | null;
-            while (parent && parent !== shell) {
-              top += parent.offsetTop;
-              parent = parent.offsetParent as HTMLElement | null;
-            }
-            height = Math.max(height, Math.ceil((58 + top + popup.offsetHeight + 12) * scale));
-          });
-          if (monitor)
-            height = Math.min(
-              height,
-              Math.floor(monitor.workArea.size.height / monitor.scaleFactor)
-            );
-          if (height === previousHeight) return;
-          previousHeight = height;
-          await petWindow.setSize(new LogicalSize(Math.ceil(556 * scale), height));
-          if (monitor && !disposed) {
-            const area = monitor.workArea;
-            const x = Math.max(
-              area.position.x,
-              Math.min(
-                position.x,
-                area.position.x + area.size.width - Math.ceil(556 * scale) * monitor.scaleFactor
-              )
-            );
-            const y = Math.max(
-              area.position.y,
-              Math.min(
-                position.y,
-                area.position.y + area.size.height - height * monitor.scaleFactor
-              )
-            );
-            if (x !== position.x || y !== position.y)
-              await petWindow.setPosition(new PhysicalPosition(Math.round(x), Math.round(y)));
-          }
-        })
-        .catch(console.error);
-    };
-    const observer = new ResizeObserver(resize);
-    observer.observe(shell);
-    const popupObserver = new MutationObserver((mutations) => {
-      if (
-        !mutations.some((mutation) =>
-          [...mutation.addedNodes, ...mutation.removedNodes].some(
-            (node) =>
-              node instanceof Element &&
-              (node.matches('.pet-suggestions') || node.querySelector('.pet-suggestions'))
-          )
-        )
-      )
-        return;
-      document.querySelectorAll('.pet-suggestions').forEach((popup) => observer.observe(popup));
-      resize();
-    });
-    popupObserver.observe(document.body, { childList: true, subtree: true });
-    resize();
-    return () => {
-      disposed = true;
-      observer.disconnect();
-      popupObserver.disconnect();
-    };
-  }, [isNative, scale]);
-}
-
-// 输入生命周期管理；输出订阅与气泡生命周期已完整收敛至 PetBubble (015)。
+// Submission and queue ownership stay independent from the panel's visibility.
 function usePetRuntime() {
   const { connection, loading, error, wsClient } = useRuntime();
   const queryUtils = trpc.useUtils();
@@ -163,6 +79,26 @@ function usePetRuntime() {
     enabled: !!connection,
     refetchInterval: 3000,
   });
+
+  const latestTurn = trpc.history.listTurns.useQuery(
+    { limit: 1 },
+    { enabled: !!connection, refetchInterval: 5000 }
+  );
+  useEffect(() => {
+    const turn = latestTurn.data?.[0];
+    if (
+      turn?.status === 'running' &&
+      !finishedTurnIdsRef.current.has(turn.id) &&
+      (!activeTurnRef.current || activeTurnRef.current === turn.id)
+    ) {
+      activeTurnRef.current = turn.id;
+      setActiveTurnId(turn.id);
+    } else if (turn && turn.status !== 'running' && activeTurnRef.current === turn.id) {
+      finishedTurnIdsRef.current.add(turn.id);
+      activeTurnRef.current = null;
+      setActiveTurnId(null);
+    }
+  }, [latestTurn.data]);
 
   const startTurn = trpc.turns.start.useMutation({
     onSuccess: ({ turnId }) => {
@@ -228,7 +164,9 @@ function usePetRuntime() {
   };
 
   return {
+    activeTurnId,
     submitPrompt,
+    isOnline,
     followUps,
     submissionUnavailable,
     isBusy: !!activeTurnId || startTurn.isPending,

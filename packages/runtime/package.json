@@ -28,6 +28,7 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "catalog:",
     "@earendil-works/pi-ai": "catalog:",
+    "@opentelemetry/api": "^1.10.0",
     "@trpc/server": "catalog:",
     "@wecom/aibot-node-sdk": "^1.0.7",
     "better-sqlite3": "^13.0.3",

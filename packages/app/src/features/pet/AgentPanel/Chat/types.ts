@@ -1,6 +1,6 @@
 import type { HitlPayload } from '@rover/runtime/expose';
 
-export type BubbleState =
+export type ProcessingState =
   | { status: 'idle' }
   | { status: 'thinking' }
   | {
@@ -15,23 +15,9 @@ export type BubbleState =
       summary: string;
       icon: '⚡' | '📂' | '⚠️';
       payload: HitlPayload;
-    }
-  | {
-      status: 'result';
-      content: string;
-      isError?: boolean;
     };
 
-export function isProcessing(
-  state: BubbleState
-): state is Extract<BubbleState, { status: 'thinking' | 'tool_call' | 'approval' }> {
-  return state.status === 'thinking' || state.status === 'tool_call' || state.status === 'approval';
-}
-
-export function parseApprovalPayload(
-  requestId: string,
-  rawPayload: unknown
-): {
+export function parseApprovalPayload(rawPayload: unknown): {
   kind: 'permission' | 'workspace_access' | 'doom_loop';
   summary: string;
   icon: '⚡' | '📂' | '⚠️';
@@ -99,4 +85,46 @@ export function summarizeToolCall(toolName: string, args: unknown): string {
     return `${toolName}: ${args}`;
   }
   return toolName;
+}
+
+export interface HistoryEntry {
+  id: string;
+  seq: number;
+  turnId: string | null;
+  type: string;
+  data: unknown;
+  createdAt: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  turnId: string | null;
+  role: 'user' | 'assistant';
+  text: string;
+  createdAt: number;
+  isError?: boolean;
+}
+
+export function toChatMessage(entry: HistoryEntry): ChatMessage | null {
+  if (entry.type !== 'message' || !entry.data || typeof entry.data !== 'object') return null;
+  const data = entry.data as Record<string, unknown>;
+  if (data.role !== 'user' && data.role !== 'assistant') return null;
+  const text =
+    typeof data.content === 'string'
+      ? data.content
+      : Array.isArray(data.content)
+        ? data.content
+            .filter((part) => part?.type === 'text' && typeof part.text === 'string')
+            .map((part) => part.text)
+            .join('\n\n')
+        : '';
+  if (!text && typeof data.errorMessage !== 'string') return null;
+  return {
+    id: entry.id,
+    turnId: entry.turnId,
+    role: data.role,
+    text: text || String(data.errorMessage),
+    createdAt: entry.createdAt,
+    isError: data.stopReason === 'error',
+  };
 }
