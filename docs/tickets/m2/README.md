@@ -131,10 +131,12 @@ flowchart TD
 | [022b](./022b-unified-permission-service-hitl-and-bubble-approval.md) | 统一 PermissionService 门禁与运行时 HITL 契约 | 022a | DONE | `packages/runtime` (AbstractHITL, PermissionService, tRPC) |
 | [022c](./022c-pet-bubble-compact-phases-and-hitl-approval.md) | 宠物气泡紧凑二态交互与轻量 HITL 审批 | 022b | DONE | `packages/app` (PetBubble, ProcessingView, Discriminated Union) |
 
+| [023](./023-pet-agent-panel.md) | 头像折叠、Chat/Tasks/Events 统一面板 | 018, 022c | DONE | `packages/app` (AgentPanel, Pet, Chat), `packages/runtime` (history cursor) |
+
 ## 宠物重构执行边界
 
-- 每个独立功能对应一个目录，主实现放在该目录的 `index.tsx`：气泡使用 `pet/PetBubble/index.tsx`，工具栏使用 `pet/PetToolbar/index.tsx`，Task、Inbox、PromptInput 分别位于 `pet/PetToolbar/` 下的功能目录；取消 PetPanel；`pet/index.tsx` 是窗口组合入口。组件专用的子组件、事件处理和私有 Hook 留在所属功能内，不为它们另建功能目录。
-- 遵循 ADR-0018：彻底废弃旧有纵向 `PendingQueue.tsx` 列表，采用 `PetBubble` 底部单行横向微型徽章架（016），配合输入栏双模态快捷键（017）与 Inbox 一键交办流转（018）。
+- 023 取代早期 PetToolbar/PetBubble 布局：统一入口为 `pet/AgentPanel/index.tsx`，Chat、Task、Inbox、PromptInput 为内部功能目录；`pet/index.tsx` 组合常驻状态与头像，原生窗口布局由独立生命周期 Hook 负责。
+- Follow-Up 保留输入栏上方的单行横向徽章架，收起与标签切换不销毁队列。审批在 Chat 呈现，任务状态仍属于 Tasks，Events 只承接 Inbox 外部消息。
 - 建议顺序：012 → 013 → 014 → 016 → 017 → 018。
 - 每票同时交付实际交互与对应验证，避免先做一次全量机械拆文件，再集中补交互。
 

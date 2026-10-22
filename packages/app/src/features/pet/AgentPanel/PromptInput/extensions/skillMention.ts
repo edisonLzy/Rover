@@ -1,6 +1,6 @@
 import { Extension } from '@tiptap/core';
 import { ReactRenderer } from '@tiptap/react';
-import Suggestion from '@tiptap/suggestion';
+import Suggestion, { exitSuggestion } from '@tiptap/suggestion';
 import { PluginKey } from '@tiptap/pm/state';
 import { SuggestionsPanel } from '../components/SuggestionsPanel.js';
 import { insertReferenceNode } from './mentionNode.js';
@@ -58,7 +58,7 @@ export function createSkillMentionExtension(options: CreateSkillMentionOptions) 
                 const composer = props.editor.view.dom.closest('.pet-composer');
                 if (composer) {
                   popup.className =
-                    'pet-suggestion-popup absolute inset-x-0 top-[calc(100%+8px)] z-50';
+                    'pet-suggestion-popup absolute inset-x-0 bottom-[calc(100%+8px)] z-50';
                   composer.appendChild(popup);
                 } else {
                   document.body.appendChild(popup);
@@ -97,6 +97,7 @@ export function createSkillMentionExtension(options: CreateSkillMentionOptions) 
 
               onKeyDown: (props) => {
                 if (props.event.key === 'Escape') {
+                  exitSuggestion(props.view, skillSuggestionPluginKey);
                   return true;
                 }
 

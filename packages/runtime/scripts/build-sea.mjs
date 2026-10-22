@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import * as esbuild from 'esbuild';
 import { inject } from 'postject';
 
@@ -45,6 +46,11 @@ async function main() {
   const config = path.join(distDir, 'sea-config.json');
   const extension = process.platform === 'win32' ? '.exe' : '';
   const binary = path.join(binariesDir, `rover-runtime-${target}${extension}`);
+  const require = createRequire(import.meta.url);
+  const driverDirectory = path.dirname(require.resolve('better-sqlite3'));
+  const nativeBinding =
+    require(path.join(driverDirectory, 'binding.js')).getPrebuildPath() ??
+    path.resolve(driverDirectory, '../build/Release/better_sqlite3.node');
 
   await esbuild.build({
     entryPoints: [path.join(runtimeRoot, 'src/index.ts')],
@@ -53,6 +59,7 @@ async function main() {
     target: 'node24',
     format: 'cjs',
     outfile: bundle,
+    banner: { js: "require = require('node:module').createRequire(__filename);" },
   });
 
   await fs.writeFile(
@@ -63,6 +70,7 @@ async function main() {
       disableExperimentalSEAWarning: true,
       useSnapshot: false,
       useCodeCache: false,
+      assets: { 'better_sqlite3.node': nativeBinding },
     })
   );
   execFileSync(process.execPath, ['--experimental-sea-config', config], { stdio: 'inherit' });

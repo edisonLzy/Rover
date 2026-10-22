@@ -25,6 +25,7 @@ export interface UsePromptEditorOptions {
   autoFocus?: boolean;
   onSubmit: (doc: PromptDocumentV1) => Promise<void | boolean> | void | boolean;
   onAccepted?: () => void;
+  onEscape?: () => void;
   availableAgents?: SuggestionItemData[];
   availableSkills?: SuggestionItemData[];
   availableInboxes?: SuggestionItemData[];
@@ -37,6 +38,7 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
     autoFocus = false,
     onSubmit,
     onAccepted,
+    onEscape,
     availableAgents = [],
     availableSkills = [],
     availableInboxes = [],
@@ -52,6 +54,7 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
   const inboxesRef = useRef(availableInboxes);
   const onSubmitRef = useRef(onSubmit);
   const onAcceptedRef = useRef(onAccepted);
+  const onEscapeRef = useRef(onEscape);
 
   useEffect(() => {
     agentsRef.current = availableAgents;
@@ -59,7 +62,8 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
     inboxesRef.current = availableInboxes;
     onSubmitRef.current = onSubmit;
     onAcceptedRef.current = onAccepted;
-  }, [availableAgents, availableSkills, availableInboxes, onSubmit, onAccepted]);
+    onEscapeRef.current = onEscape;
+  }, [availableAgents, availableSkills, availableInboxes, onSubmit, onAccepted, onEscape]);
 
   const handleSubmit = useCallback(async () => {
     const currentEditor = editorRef.current;
@@ -121,14 +125,14 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
   const editor = useEditor({
     extensions,
     editable: !disabled,
-    autofocus: autoFocus,
+    // The panel owns focus, so collapsing it can cancel a pending focus frame.
+    autofocus: false,
     editorProps: {
       attributes: {
         role: 'textbox',
         'aria-label': '问 Rover 或交办任务',
         'aria-multiline': 'true',
-        class:
-          'ProseMirror min-h-6 max-h-[100px] overflow-y-auto p-0 text-base font-medium leading-normal text-[#232934] outline-none selection:bg-[#d9e6ff] select-text cursor-text [&_p]:m-0 [&_p.is-editor-empty:first-child]:before:content-[attr(data-placeholder)] [&_p.is-editor-empty:first-child]:before:float-left [&_p.is-editor-empty:first-child]:before:h-0 [&_p.is-editor-empty:first-child]:before:pointer-events-none [&_p.is-editor-empty:first-child]:before:text-[#b3b6bd]',
+        class: 'ProseMirror panel-editor',
       },
       handleDOMEvents: {
         compositionstart: () => {
@@ -144,6 +148,17 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
         // Invariant: Never submit if IME composition is active (e.g. Chinese Pinyin enter)
         if (event.isComposing || isComposingRef.current || event.keyCode === 229) {
           return false;
+        }
+
+        if (event.key === 'Escape' && onEscapeRef.current) {
+          const suggesting =
+            agentSuggestionPluginKey.getState(view.state)?.active ||
+            skillSuggestionPluginKey.getState(view.state)?.active ||
+            inboxSuggestionPluginKey.getState(view.state)?.active;
+          if (suggesting) return false;
+          event.preventDefault();
+          onEscapeRef.current();
+          return true;
         }
 
         // When pressing Enter without Shift
@@ -174,22 +189,20 @@ export function usePromptEditor(options: UsePromptEditorOptions) {
     editorRef.current = editor;
     if (editor && !editor.isDestroyed) {
       editor.setEditable(!disabled && !isSubmitting);
-      if (!disabled && !isSubmitting && autoFocus) {
-        editor.commands.focus('end');
-      }
     }
-  }, [disabled, editor, autoFocus, isSubmitting]);
+  }, [disabled, editor, isSubmitting]);
 
   useEffect(() => {
-    if (autoFocus && editor && !disabled) {
-      const timer = setTimeout(() => {
+    if (autoFocus && editor && !disabled && !isSubmitting) {
+      const frame = requestAnimationFrame(() => {
         if (!editor.isDestroyed) {
-          editor.commands.focus('end');
+          editor.commands.setTextSelection(editor.state.doc.content.size);
+          editor.view.focus();
         }
-      }, 60);
-      return () => clearTimeout(timer);
+      });
+      return () => cancelAnimationFrame(frame);
     }
-  }, [editor, autoFocus, disabled]);
+  }, [editor, autoFocus, disabled, isSubmitting]);
 
   return {
     editor,

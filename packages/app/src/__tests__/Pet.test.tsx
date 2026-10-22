@@ -5,6 +5,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { Pet } from '../features/pet/Pet/index.js';
 
 const native = vi.hoisted(() => ({
+  toggle: vi.fn(),
   drag: vi.fn().mockResolvedValue(undefined),
   invoke: vi.fn().mockResolvedValue(undefined),
 }));
@@ -19,11 +20,14 @@ let root: Root;
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   native.drag.mockClear();
+  native.toggle.mockClear();
   native.invoke.mockReset().mockResolvedValue(undefined);
   host = document.createElement('div');
   document.body.append(host);
   root = createRoot(host);
-  await act(async () => root.render(<Pet onHoverChange={vi.fn()} />));
+  await act(async () =>
+    root.render(<Pet expanded={false} activity="idle" onToggle={native.toggle} />)
+  );
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -37,7 +41,22 @@ async function menu() {
   );
 }
 
-describe('012 Pet native interactions', () => {
+describe('Pet native interactions', () => {
+  it('toggles with a click but suppresses a click produced by native dragging', async () => {
+    const button = host.querySelector('button')!;
+    await act(async () => button.click());
+    expect(native.toggle).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0, buttons: 1 }));
+      button.dispatchEvent(
+        new MouseEvent('pointermove', { bubbles: true, buttons: 1, clientX: 20 })
+      );
+      button.click();
+    });
+    expect(native.drag).toHaveBeenCalledTimes(1);
+    expect(native.toggle).toHaveBeenCalledTimes(1);
+  });
+
   it('only opens Dashboard and closes the context menu after success', async () => {
     await menu();
     const item = host.querySelector<HTMLButtonElement>('[role="menuitem"]')!;

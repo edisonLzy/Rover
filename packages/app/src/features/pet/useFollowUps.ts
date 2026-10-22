@@ -18,6 +18,7 @@ export function useFollowUps(options: Options) {
   const startTurn = trpc.turns.start.useMutation();
   const [items, setItems] = useState<FollowUpItem[]>([]);
   const [startingId, setStartingId] = useState<string | null>(null);
+  const startingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const itemsRef = useRef(items);
   itemsRef.current = items;
@@ -50,10 +51,16 @@ export function useFollowUps(options: Options) {
   };
 
   const advance = async (id: string) => {
-    if (startingId || error || !current.current.options.isOnline || current.current.options.isBusy)
+    if (
+      startingRef.current ||
+      error ||
+      !current.current.options.isOnline ||
+      current.current.options.isBusy
+    )
       return;
     const target = itemsRef.current.find((item) => item.id === id);
     if (!target) return;
+    startingRef.current = true;
     setStartingId(id);
     setError(null);
     try {
@@ -65,6 +72,7 @@ export function useFollowUps(options: Options) {
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : '启动待办失败');
     } finally {
+      startingRef.current = false;
       setStartingId(null);
     }
   };

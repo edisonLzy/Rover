@@ -5,14 +5,17 @@ import { isTauriEnvironment } from '../../../utils/window.js';
 import petImage from '../../../../../../docs/prototype/assets/rover-pet.png';
 
 interface PetProps {
-  onHoverChange: (hovered: boolean) => void;
+  expanded: boolean;
+  activity: 'idle' | 'running' | 'attention' | 'offline';
+  onToggle: () => void;
 }
 
-export function Pet({ onHoverChange }: PetProps) {
+export function Pet({ expanded, activity, onToggle }: PetProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuError, setMenuError] = useState<string | null>(null);
 
   const dragOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const draggedRef = useRef(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // 菜单打开时聚焦首项，点击外部或按 Escape 关闭。
@@ -48,12 +51,14 @@ export function Pet({ onHoverChange }: PetProps) {
     if (distance < 6) return;
 
     dragOriginRef.current = null;
+    draggedRef.current = true;
     setMenuOpen(false);
     void getCurrentWindow().startDragging().catch(console.error);
   };
 
   const handlePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
     if (event.button === 0) {
+      draggedRef.current = false;
       dragOriginRef.current = { x: event.clientX, y: event.clientY };
     }
   };
@@ -64,6 +69,7 @@ export function Pet({ onHoverChange }: PetProps) {
 
   const handleContextMenu = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
+    if (!expanded) onToggle();
     setMenuOpen(true);
     setMenuError(null);
   };
@@ -86,34 +92,46 @@ export function Pet({ onHoverChange }: PetProps) {
       <button
         type="button"
         aria-label="Rover 宠物"
-        title="拖动可移动 · 右键打开 Dashboard"
-        className="pet-avatar h-[94px] touch-none border-0 bg-transparent p-0 !cursor-grab active:!cursor-grabbing"
-        onMouseEnter={() => onHoverChange(true)}
-        onMouseLeave={() => onHoverChange(false)}
-        onFocus={() => onHoverChange(true)}
-        onBlur={() => onHoverChange(false)}
+        title="点击展开或收起 · 拖动可移动 · 右键打开 Dashboard"
+        aria-expanded={expanded}
+        aria-controls="pet-agent-panel"
+        data-activity={activity}
+        className="pet-avatar"
+        onClick={() => {
+          if (draggedRef.current) {
+            draggedRef.current = false;
+            return;
+          }
+          setMenuOpen(false);
+          onToggle();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') draggedRef.current = false;
+        }}
         onContextMenu={handleContextMenu}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
       >
-        <img
-          src={petImage}
-          alt="Rover 桌面宠物"
-          draggable={false}
-          className="pointer-events-none h-[94px] w-auto object-contain drop-shadow-[0_8px_7px_#263b5470] motion-safe:animate-pet-bob"
+        <img src={petImage} alt="Rover 桌面宠物" draggable={false} className="pet-avatar-image" />
+        <span
+          className="avatar-activity"
+          aria-label={
+            activity === 'running'
+              ? '有任务正在执行'
+              : activity === 'attention'
+                ? '需要你处理'
+                : activity === 'offline'
+                  ? 'Runtime 离线'
+                  : 'Rover 空闲'
+          }
         />
       </button>
 
       {/* 宠物右键菜单 */}
       {menuOpen && (
-        <div
-          ref={menuRef}
-          role="menu"
-          aria-label="宠物菜单"
-          className="absolute top-4 left-[calc(50%+45px)] z-30 rounded-[18px] border border-[#dce8fa] bg-white p-2 text-xs text-[#3266ba] shadow-xl"
-        >
+        <div ref={menuRef} role="menu" aria-label="宠物菜单" className="pet-context-menu">
           <button
             type="button"
             role="menuitem"
